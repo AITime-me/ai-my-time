@@ -8,12 +8,15 @@ import { ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/services/$slug")({
   loader: async ({ context, params }) => {
-    const data = await context.queryClient.ensureQueryData({
-      queryKey: ["service", params.slug],
-      queryFn: () => getServiceBySlug({ data: { slug: params.slug } }),
-    });
-    if (!data) throw notFound();
-    return data;
+    try {
+      const data = await context.queryClient.ensureQueryData({
+        queryKey: ["service", params.slug],
+        queryFn: () => getServiceBySlug({ data: { slug: params.slug } }),
+      });
+      return data ?? null;
+    } catch {
+      return null;
+    }
   },
   head: ({ loaderData }) => ({
     meta: loaderData
