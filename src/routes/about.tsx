@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/SiteLayout";
-import { Eyebrow, Lead } from "@/components/SectionHeading";
+import { Eyebrow } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
 import { LegalNote } from "@/components/LegalNote";
-import { Sparkles } from "lucide-react";
+import aboutPhotoAsset from "@/assets/about-photo.png.asset.json";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
@@ -65,21 +65,14 @@ function AboutPage() {
           </div>
         </div>
         <div className="lg:col-span-5">
-          <div className="glass relative aspect-square overflow-hidden rounded-3xl p-8">
-            <div className="absolute inset-0 bg-grid opacity-30" />
-            <div className="absolute -top-20 -right-20 size-64 rounded-full bg-[color:var(--lime)]/30 blur-3xl" />
-            <div className="relative flex h-full flex-col justify-between">
-              <div className="flex items-center gap-2">
-                <span className="grid size-10 place-items-center rounded-xl bg-[image:var(--gradient-primary)] text-[color:var(--lime-foreground)] shadow-[var(--shadow-glow)]">
-                  <Sparkles className="size-5" />
-                </span>
-                <span className="text-sm uppercase tracking-wider text-muted-foreground">AI My Time</span>
-              </div>
-              <div>
-                <p className="text-3xl font-semibold tracking-tight text-gradient">Светлана Кузнецова</p>
-                <p className="mt-2 text-sm text-muted-foreground">AI / digital специалист · маркетолог · предприниматель</p>
-              </div>
-            </div>
+          <div className="glass relative aspect-[4/5] overflow-hidden rounded-3xl">
+            <img
+              src={aboutPhotoAsset.url}
+              alt="Светлана Кузнецова — AI/digital-специалист"
+              className="h-full w-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
           </div>
         </div>
       </section>
