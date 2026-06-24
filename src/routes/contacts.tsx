@@ -87,7 +87,7 @@ function ContactsPage() {
         <div className="lg:col-span-2 space-y-4">
           <GlassCard>
             <p className="text-xs uppercase tracking-wider text-muted-foreground">Основной способ</p>
-            <p className="mt-3 text-base">Ответить на пару вопросов в AI-помощнике — это быстрее формы и удобнее.</p>
+            <p className="mt-3 text-base">Ответить на пару вопросов&nbsp; AI-помощнику — это быстрее формы и удобнее.</p>
             <div className="mt-5">
               <CTAButton event="click_bot_hero" size="lg">Ответить на пару вопросов</CTAButton>
             </div>
