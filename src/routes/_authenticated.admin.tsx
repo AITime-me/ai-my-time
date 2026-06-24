@@ -8,17 +8,19 @@ import {
   checkIsAdmin, adminListLeads, adminUpdateLead, adminDeleteLead,
   adminUpdateSettings, adminGetSettings, adminUpdateLegal, adminUpsertService,
   adminUpsertCase, adminDeleteCase, adminUpsertFaq, adminDeleteFaq,
+  adminListConversations, adminGetConversation, adminUpdateConversation,
+  adminDeleteConversation, adminCreateLeadFromConversation,
 } from "@/lib/admin.functions";
 import { getServices, getCases, getFaq, getLegalPage } from "@/lib/site.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, Trash2, Save } from "lucide-react";
+import { LogOut, Trash2, Save, MessageSquare, ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Админка — AI My Time" }, { name: "robots", content: "noindex" }] }),
   component: AdminPage,
 });
 
-const TABS = ["Дашборд","Заявки","Услуги","Кейсы","FAQ","Контакты","Бот","Аналитика","Юр.страницы","SEO"] as const;
+const TABS = ["Дашборд","Заявки","Диалоги","Услуги","Кейсы","FAQ","Контакты","Бот","Аналитика","Юр.страницы","SEO"] as const;
 type Tab = typeof TABS[number];
 
 function AdminPage() {
@@ -64,6 +66,7 @@ function AdminPage() {
       <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {tab === "Дашборд" && <DashboardTab />}
         {tab === "Заявки" && <LeadsTab />}
+        {tab === "Диалоги" && <DialogsTab />}
         {tab === "Услуги" && <ServicesTab />}
         {tab === "Кейсы" && <CasesTab />}
         {tab === "FAQ" && <FaqTab />}
