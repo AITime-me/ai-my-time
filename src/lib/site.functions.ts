@@ -13,14 +13,16 @@ function publicClient() {
 
 export const getSiteSettings = createServerFn({ method: "GET" }).handler(async () => {
   const sb = publicClient();
-  const { data } = await sb
-    .from("site_settings")
-    .select(
-      "bot_link,bot_widget_enabled,bot_widget_text,main_cta_text,yandex_metrika_id,google_analytics_id,analytics_enabled,telegram,email,phone,social_links,site_title,site_description,og_image",
-    )
-    .eq("id", 1)
-    .maybeSingle();
-  return data ?? null;
+  const { data } = await sb.rpc("get_public_site_settings");
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ?? null;
+});
+
+export const getAnalyticsConfig = createServerFn({ method: "GET" }).handler(async () => {
+  const sb = publicClient();
+  const { data } = await sb.rpc("get_public_analytics");
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ?? null;
 });
 
 export const getServices = createServerFn({ method: "GET" }).handler(async () => {
