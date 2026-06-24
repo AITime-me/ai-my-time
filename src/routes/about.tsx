@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/SiteLayout";
-import { Eyebrow, Lead } from "@/components/SectionHeading";
+import { Eyebrow } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
 import { LegalNote } from "@/components/LegalNote";
 import aboutPhotoAsset from "@/assets/about-photo.png.asset.json";
