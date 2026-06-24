@@ -175,3 +175,107 @@ export const adminDeleteFaq = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ============ Bot conversations ============
+
+export const adminListConversations = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context as never);
+    const { data, error } = await context.supabase
+      .from("bot_conversations")
+      .select("*")
+      .order("last_message_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    const convs = data ?? [];
+    if (convs.length === 0) return [] as Array<typeof convs[number] & { last_user_message: string | null }>;
+    const ids = convs.map((c) => c.id);
+    const { data: lastMsgs } = await context.supabase
+      .from("bot_messages")
+      .select("conversation_id, message_text, created_at, sender_type")
+      .in("conversation_id", ids)
+      .eq("sender_type", "user")
+      .order("created_at", { ascending: false });
+    const lastByConv = new Map<string, string>();
+    for (const m of lastMsgs ?? []) {
+      if (!lastByConv.has(m.conversation_id)) lastByConv.set(m.conversation_id, m.message_text);
+    }
+    return convs.map((c) => ({ ...c, last_user_message: lastByConv.get(c.id) ?? null }));
+  });
+
+export const adminGetConversation = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context as never);
+    const { data: conv, error } = await context.supabase.from("bot_conversations").select("*").eq("id", data.id).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!conv) throw new Error("Not found");
+    const { data: messages, error: mErr } = await context.supabase
+      .from("bot_messages").select("*").eq("conversation_id", data.id).order("created_at", { ascending: true });
+    if (mErr) throw new Error(mErr.message);
+    let lead = null;
+    if (conv.lead_id) {
+      const { data: l } = await context.supabase.from("leads").select("*").eq("id", conv.lead_id).maybeSingle();
+      lead = l;
+    }
+    return { conversation: conv, messages: messages ?? [], lead };
+  });
+
+export const adminUpdateConversation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    id: z.string().uuid(),
+    status: z.string().optional(),
+    admin_note: z.string().optional(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context as never);
+    const patch: Record<string, string> = {};
+    if (data.status !== undefined) patch.status = data.status;
+    if (data.admin_note !== undefined) patch.admin_note = data.admin_note;
+    const { error } = await context.supabase.from("bot_conversations").update(patch).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminDeleteConversation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context as never);
+    const { error } = await context.supabase.from("bot_conversations").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminCreateLeadFromConversation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    conversation_id: z.string().uuid(),
+    name: z.string().min(1),
+    email: z.string().optional().nullable(),
+    phone_or_telegram: z.string().optional().nullable(),
+    task: z.string().optional().nullable(),
+    message: z.string().optional().nullable(),
+    source: z.string().optional().nullable(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context as never);
+    const { data: lead, error } = await context.supabase.from("leads").insert({
+      name: data.name,
+      email: data.email || null,
+      phone_or_telegram: data.phone_or_telegram || null,
+      task: data.task || null,
+      message: data.message || null,
+      source: data.source || "bot_dialog",
+      conversation_id: data.conversation_id,
+      status: "new",
+    }).select("id").single();
+    if (error) throw new Error(error.message);
+    const { error: uErr } = await context.supabase.from("bot_conversations")
+      .update({ lead_id: lead.id, status: "lead_created" }).eq("id", data.conversation_id);
+    if (uErr) throw new Error(uErr.message);
+    return { ok: true, lead_id: lead.id };
+  });
