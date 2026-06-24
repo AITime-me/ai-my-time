@@ -298,22 +298,7 @@ export type Database = {
       }
     }
     Views: {
-      public_site_settings: {
-        Row: {
-          bot_link: string | null
-          bot_widget_enabled: boolean | null
-          bot_widget_text: string | null
-          email: string | null
-          main_cta_text: string | null
-          og_image: string | null
-          phone: string | null
-          site_description: string | null
-          site_title: string | null
-          social_links: Json | null
-          telegram: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       get_public_analytics: {
