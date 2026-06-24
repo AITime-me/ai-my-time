@@ -19,6 +19,8 @@ type Props = {
   /** Wrapper class for the button + legal note column. */
   wrapperClassName?: string;
   legalAlign?: "left" | "center";
+  /** Extra className for the legal note itself (e.g. max-width for wrapping). */
+  legalClassName?: string;
 };
 
 export function CTAButton({
