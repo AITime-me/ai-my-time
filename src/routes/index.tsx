@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { SiteLayout } from "@/components/SiteLayout";
 import { CTAButton } from "@/components/CTAButton";
+import { LegalNote } from "@/components/LegalNote";
 import { Reveal } from "@/components/Reveal";
 import { Eyebrow, H2, Lead, GlassCard } from "@/components/SectionHeading";
 import { HeroSchema } from "@/components/HeroSchema";
@@ -89,11 +90,14 @@ function HomePage() {
             <p className="mt-4 max-w-2xl text-sm text-muted-foreground/80">
               AI My Time — мой проект о технологиях, которые объясняются человеческим языком и работают на реальные процессы бизнеса.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <CTAButton event="click_bot_hero" size="lg">Обсудить задачу</CTAButton>
-              <Link to="/cases" className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-base glass hover:border-[color:var(--lime)]/40">
-                Посмотреть решения
-              </Link>
+            <div className="mt-8 flex flex-col gap-3">
+              <div className="flex flex-wrap gap-3">
+                <CTAButton event="click_bot_hero" size="lg">Обсудить задачу</CTAButton>
+                <Link to="/cases" className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-base glass hover:border-[color:var(--lime)]/40">
+                  Посмотреть решения
+                </Link>
+              </div>
+              <LegalNote className="max-w-md" />
             </div>
           </div>
           <div className="lg:col-span-5">
@@ -315,9 +319,12 @@ function HomePage() {
           <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
             Начнём с короткого разбора. Посмотрим, где теряется время, где не хватает людей и какой первый digital-механизм можно собрать без цифрового ремонта на полгода.
           </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <CTAButton event="click_bot_cases" size="lg">Обсудить задачу</CTAButton>
-            <CTAButton event="click_bot_cases" size="lg" variant="secondary">Записаться на разбор</CTAButton>
+          <div className="mt-8 flex flex-col items-center gap-3">
+            <div className="flex flex-wrap justify-center gap-3">
+              <CTAButton event="click_bot_cases" size="lg">Обсудить задачу</CTAButton>
+              <CTAButton event="click_bot_cases" size="lg" variant="secondary">Записаться на разбор</CTAButton>
+            </div>
+            <LegalNote align="center" className="max-w-md" />
           </div>
         </div>
       </section>
