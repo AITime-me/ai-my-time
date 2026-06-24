@@ -63,7 +63,23 @@ function AboutPage() {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-6 px-4 py-12 sm:px-6 lg:grid-cols-3 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">Подход</p>
+        <h2 className="mt-4 max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">
+          Как я подхожу к задачам бизнеса
+        </h2>
+        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {approachSteps.map((step, index) => (
+            <div key={step.title} className="glass rounded-2xl p-6">
+              <span className="text-xs uppercase tracking-wider text-[color:var(--lime)]">0{index + 1}</span>
+              <h3 className="mt-3 text-base font-medium leading-snug">{step.title}</h3>
+              <p className="mt-2 text-sm text-foreground/80">{step.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto grid max-w-7xl gap-6 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:px-8">
         <div className="glass rounded-2xl p-6">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Опыт</p>
           <ul className="mt-4 space-y-2 text-sm">
@@ -71,15 +87,6 @@ function AboutPage() {
               <li key={x} className="flex items-start gap-2"><span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-[color:var(--lime)]" />{x}</li>
             ))}
           </ul>
-        </div>
-        <div className="glass rounded-2xl p-6">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Подход</p>
-          <ol className="mt-4 space-y-3 text-sm">
-            <li><span className="text-[color:var(--lime)]">01. </span>Сначала задача.</li>
-            <li><span className="text-[color:var(--lime)]">02. </span>Потом сценарий.</li>
-            <li><span className="text-[color:var(--lime)]">03. </span>Потом инструмент.</li>
-            <li><span className="text-[color:var(--lime)]">04. </span>Потом визуал.</li>
-          </ol>
         </div>
         <div className="glass rounded-2xl p-6">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Почему я понимаю малый бизнес</p>
