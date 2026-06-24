@@ -72,20 +72,7 @@ export const adminDiagnostics = createServerFn({ method: "GET" })
       return out;
     }
 
-    // EXECUTE privilege on has_role for authenticated/anon — RLS зависит от этого
-    const execProbe = await supabaseAdmin
-      .from("pg_proc" as never)
-      .select("oid")
-      .limit(0);
-    void execProbe; // unused but keeps types happy
-
-    const { data: privRows, error: privErr } = await supabaseAdmin.rpc("exec_sql_select", {}).then(
-      () => ({ data: null, error: { message: "rpc not available" } }),
-      () => ({ data: null, error: null }),
-    ).catch(() => ({ data: null, error: null }));
-    void privRows; void privErr;
-
-    // Прямой запрос привилегий через PostgREST не доступен, поэтому проверим косвенно:
+    // Привилегии через PostgREST недоступны напрямую — проверяем косвенно:
     // вызовем has_role от имени authenticated через user-scoped клиент.
     try {
       const { error } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
@@ -112,17 +99,8 @@ export const adminDiagnostics = createServerFn({ method: "GET" })
       { table: "bot_messages",  noop: null },
     ];
 
-    // Тянем grants + rls через pg_catalog запросы (service role)
-    const tableNames = tables.map((t) => t.table);
-    const { data: relRows } = await supabaseAdmin
-      .from("pg_tables" as never)
-      .select("tablename")
-      .eq("schemaname", "public")
-      .in("tablename", tableNames);
-    void relRows;
-
-    // pg_catalog недоступен через PostgREST по умолчанию — используем 2 RPC замены:
-    // делаем «честные» пробы read/write от лица пользователя; ошибка точно укажет причину.
+    // pg_catalog недоступен через PostgREST. Делаем «честные» пробы read/write
+    // от лица текущего пользователя — текст ошибки точно укажет причину.
     for (const t of tables) {
       const probe: TableProbe = {
         table: t.table,
