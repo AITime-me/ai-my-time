@@ -42,7 +42,7 @@ export function Header() {
 
         <div className="hidden md:flex flex-col items-end gap-1">
           <CTAButton event="click_bot_header" size="md" />
-          <LegalNote align="right" className="max-w-[260px]" />
+          <LegalNote align="right" className="max-w-xs" />
         </div>
 
         <button className="md:hidden text-foreground" onClick={() => setOpen((v) => !v)} aria-label="Меню">
