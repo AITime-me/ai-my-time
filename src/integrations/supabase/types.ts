@@ -14,6 +14,100 @@ export type Database = {
   }
   public: {
     Tables: {
+      bot_conversations: {
+        Row: {
+          admin_note: string | null
+          created_at: string
+          first_message_at: string | null
+          id: string
+          last_message_at: string | null
+          lead_id: string | null
+          source: string
+          status: string
+          updated_at: string
+          user_email: string | null
+          user_external_id: string | null
+          user_messenger: string | null
+          user_name: string | null
+        }
+        Insert: {
+          admin_note?: string | null
+          created_at?: string
+          first_message_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          lead_id?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          user_email?: string | null
+          user_external_id?: string | null
+          user_messenger?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          admin_note?: string | null
+          created_at?: string
+          first_message_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          lead_id?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          user_email?: string | null
+          user_external_id?: string | null
+          user_messenger?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_conversations_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_messages: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          message_channel: string | null
+          message_text: string
+          metadata: Json | null
+          sender_type: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          message_channel?: string | null
+          message_text: string
+          metadata?: Json | null
+          sender_type: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          message_channel?: string | null
+          message_text?: string
+          metadata?: Json | null
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "bot_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cases: {
         Row: {
           category: string | null
@@ -99,6 +193,7 @@ export type Database = {
         Row: {
           admin_comment: string | null
           business_area: string | null
+          conversation_id: string | null
           created_at: string
           email: string | null
           id: string
@@ -112,6 +207,7 @@ export type Database = {
         Insert: {
           admin_comment?: string | null
           business_area?: string | null
+          conversation_id?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -125,6 +221,7 @@ export type Database = {
         Update: {
           admin_comment?: string | null
           business_area?: string | null
+          conversation_id?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -135,7 +232,15 @@ export type Database = {
           status?: string
           task?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "bot_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       legal_pages: {
         Row: {
