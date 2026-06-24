@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+
 import { SiteLayout } from "@/components/SiteLayout";
 import { CTAButton } from "@/components/CTAButton";
 import { Reveal } from "@/components/Reveal";
 import { Eyebrow, H2, Lead, GlassCard } from "@/components/SectionHeading";
 import { HeroSchema } from "@/components/HeroSchema";
-import { getFaq } from "@/lib/site.functions";
+
 import {
   Users, Clock, Boxes, BarChart3, Globe, Bot, Headphones, Workflow, Database, Search,
   Building2, UserCircle, ShoppingBag, TrendingUp, Rocket, Layers, ChevronDown,
@@ -23,7 +23,6 @@ export const Route = createFileRoute("/")({
     ],
     links: [{ rel: "canonical", href: "/" }],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData({ queryKey: ["faq"], queryFn: () => getFaq() }),
   component: HomePage,
 });
 
@@ -324,18 +323,39 @@ function HomePage() {
   );
 }
 
+const faqItems = [
+  { id: "1", question: "Нужен ли AI для бизнеса или это просто тренд?", answer: "AI — это инструмент автоматизации бизнеса. Он нужен там, где есть заявки, клиенты и рутинные процессы: ответы, консультации, запись и обработка обращений." },
+  { id: "2", question: "Что делает AI-администратор для бизнеса?", answer: "AI-администратор для бизнеса не только отвечает на сообщения. Он может вести клиентскую базу, обрабатывать входящие заявки, консультировать клиентов и работать как цифровой сотрудник 24/7." },
+  { id: "3", question: "Можно ли автоматизировать обработку заявок в бизнесе?", answer: "Да. Заявки с сайта, мессенджеров и рекламы можно объединить в одну систему, чтобы они не терялись и обрабатывались без ручного контроля." },
+  { id: "4", question: "Чем сайт-визитка отличается от сайта для бизнеса?", answer: "Сайт-визитка — это просто информационная страница, которая редко приводит клиентов. Сайт для бизнеса — это инструмент с SEO-структурой, заявками, маркетингом и возможностью подключить AI и аналитику." },
+  { id: "5", question: "Нужен ли бизнесу чат-бот?", answer: "Чат-бот нужен при наличии потока клиентов. Он помогает отвечать 24/7, собирать заявки и снижать потерю клиентов вне рабочего времени." },
+  { id: "6", question: "Что делать, если бизнес теряет заявки?", answer: "Это значит, что нет выстроенной обработки заявок или автоматизации. Решается через сайт, AI-администратора или CRM-логику, где все обращения собираются в один поток." },
+  { id: "7", question: "Можно ли заменить менеджера AI-решением?", answer: "Частично да. AI может заменить первичную обработку заявок, ответы и запись клиентов. В бизнесах, где менеджер в основном принимает и распределяет заявки, это особенно эффективно." },
+  { id: "8", question: "Что входит в создание сайта для бизнеса с AI?", answer: "Это не только визуальная часть и SEO-структура. Это также маркетинговая логика, конверсионный сценарий, формы заявок, аналитика и возможность подключения AI-ассистента." },
+  { id: "9", question: "Подходит ли автоматизация для малого бизнеса?", answer: "Да. Особенно для малого бизнеса, где важно не терять заявки, ускорять обработку клиентов и снижать ручную нагрузку на сотрудников." },
+  { id: "10", question: "Что даёт внедрение AI и автоматизации в бизнес?", answer: "Бизнес перестаёт терять заявки с сайта и из мессенджеров, а работа с ними становится стабильной и управляемой даже при росте клиентов или нехватке сотрудников." },
+];
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqItems.map((q) => ({
+    "@type": "Question",
+    name: q.question,
+    acceptedAnswer: { "@type": "Answer", text: q.answer },
+  })),
+};
+
 function FaqSection() {
-  const { data } = useSuspenseQuery({ queryKey: ["faq"], queryFn: () => getFaq() });
   const [open, setOpen] = useState<string | null>(null);
-  const items = data ?? [];
   return (
     <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
       <Reveal>
         <Eyebrow>FAQ</Eyebrow>
-        <H2 className="mt-4">Нормальные вопросы перед внедрением</H2>
+        <H2 className="mt-4">Частые вопросы перед внедрением</H2>
       </Reveal>
       <div className="mt-8 space-y-2">
-        {items.map((q) => {
+        {faqItems.map((q) => {
           const isOpen = open === q.id;
           return (
             <div key={q.id} className="glass rounded-2xl">
@@ -353,9 +373,7 @@ function FaqSection() {
           );
         })}
       </div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
     </section>
   );
 }
-
-// JSON-LD FAQPage for SEO
-export const _faqJsonLd = "";
