@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Menu, X, Sparkles } from "lucide-react";
 import { CTAButton } from "./CTAButton";
+import { LegalNote } from "./LegalNote";
 
 const nav = [
   { to: "/services", label: "Услуги" },
@@ -39,8 +40,9 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="hidden md:block">
+        <div className="hidden md:flex flex-col items-end gap-1">
           <CTAButton event="click_bot_header" size="md" />
+          <LegalNote align="right" className="max-w-[260px]" />
         </div>
 
         <button className="md:hidden text-foreground" onClick={() => setOpen((v) => !v)} aria-label="Меню">
@@ -61,8 +63,9 @@ export function Header() {
                 {n.label}
               </Link>
             ))}
-            <div className="mt-3">
+            <div className="mt-3 flex flex-col gap-2">
               <CTAButton event="click_bot_header" size="lg" className="w-full" />
+              <LegalNote className="max-w-none" />
             </div>
           </nav>
         </div>
