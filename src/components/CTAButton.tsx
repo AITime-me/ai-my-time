@@ -19,12 +19,14 @@ type Props = {
   /** Wrapper class for the button + legal note column. */
   wrapperClassName?: string;
   legalAlign?: "left" | "center";
+  /** Extra className for the legal note itself (e.g. max-width for wrapping). */
+  legalClassName?: string;
 };
 
 export function CTAButton({
   children, event = "click_bot_generic", variant = "primary", size = "md",
   className, arrow = true, label,
-  withLegal = true, wrapperClassName, legalAlign = "center",
+  withLegal = true, wrapperClassName, legalAlign = "center", legalClassName,
 }: Props) {
   const s = useSiteSettings();
   const text = children ?? label ?? s.main_cta_text;
@@ -54,7 +56,7 @@ export function CTAButton({
   return (
     <span className={cn("inline-flex flex-col", legalAlign === "center" ? "items-center" : "items-start", wrapperClassName)}>
       {button}
-      <BotLegalNote align={legalAlign} />
+      <BotLegalNote align={legalAlign} className={legalClassName} />
     </span>
   );
 }
