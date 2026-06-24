@@ -56,7 +56,7 @@ export function CTAButton({
   return (
     <span className={cn("inline-flex flex-col", legalAlign === "center" ? "items-center" : "items-start", wrapperClassName)}>
       {button}
-      <BotLegalNote align={legalAlign} />
+      <BotLegalNote align={legalAlign} className={legalClassName} />
     </span>
   );
 }
