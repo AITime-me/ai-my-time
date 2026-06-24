@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, Lead, GlassCard } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
+import { LegalNote } from "@/components/LegalNote";
 import { Reveal } from "@/components/Reveal";
 import { getCases } from "@/lib/site.functions";
 import { trackEvent } from "@/lib/analytics";
@@ -49,10 +50,11 @@ function CasesPage() {
                 {c.task && <p className="mt-3 text-sm"><span className="text-muted-foreground">Задача: </span>{c.task}</p>}
                 {c.solution && <p className="mt-2 text-sm"><span className="text-muted-foreground">Решение: </span>{c.solution}</p>}
                 {c.result && <p className="mt-2 text-sm"><span className="text-muted-foreground">Результат: </span>{c.result}</p>}
-                <div className="mt-6">
+                <div className="mt-6 flex flex-col gap-2">
                   <CTAButton event="click_bot_cases" variant="secondary" arrow>
                     <span onClick={() => trackEvent("click_case_card", { id: c.id })}>Хочу похожее решение</span>
                   </CTAButton>
+                  <LegalNote />
                 </div>
               </GlassCard>
             </Reveal>

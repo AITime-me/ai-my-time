@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, Lead } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
+import { LegalNote } from "@/components/LegalNote";
 import { Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/about")({
@@ -58,8 +59,9 @@ function AboutPage() {
               Я смотрю, где бизнесу не хватает людей, времени и порядка, а потом собираю решение: сайт, AI-помощника, бота, автоматизацию, мини-CRM или другой digital-инструмент под конкретную задачу.
             </p>
           </div>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <CTAButton event="click_bot_hero" size="lg">Обсудить задачу</CTAButton>
+          <div className="mt-8 flex flex-col gap-3">
+            <CTAButton event="click_bot_hero" size="lg" className="self-start">Обсудить задачу</CTAButton>
+            <LegalNote className="max-w-md" />
           </div>
         </div>
         <div className="lg:col-span-5">

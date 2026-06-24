@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, GlassCard, Lead } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
+import { LegalNote } from "@/components/LegalNote";
 import { useState } from "react";
 import { z } from "zod";
 import { useServerFn } from "@tanstack/react-start";
@@ -88,8 +89,9 @@ function ContactsPage() {
           <GlassCard>
             <p className="text-xs uppercase tracking-wider text-muted-foreground">Основной способ</p>
             <p className="mt-3 text-base">Ответить на пару вопросов&nbsp; AI-помощнику — это быстрее&nbsp; и удобнее формы.</p>
-            <div className="mt-5">
-              <CTAButton event="click_bot_hero" size="lg">Ответить на пару вопросов</CTAButton>
+            <div className="mt-5 flex flex-col gap-2">
+              <CTAButton event="click_bot_hero" size="lg" className="self-start">Ответить на пару вопросов</CTAButton>
+              <LegalNote />
             </div>
           </GlassCard>
           <GlassCard>
@@ -137,13 +139,16 @@ function ContactsPage() {
                 </label>
                 {errors.consent && <p className="text-xs text-destructive">{errors.consent}</p>}
                 {errors.form && <p className="text-xs text-destructive">{errors.form}</p>}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-[image:var(--gradient-primary)] px-6 py-3 text-sm font-medium text-[color:var(--lime-foreground)] shadow-[var(--shadow-glow)] disabled:opacity-60"
-                >
-                  {loading ? "Отправляю…" : "Отправить заявку"}
-                </button>
+                <div className="mt-2 flex flex-col gap-2">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-[image:var(--gradient-primary)] px-6 py-3 text-sm font-medium text-[color:var(--lime-foreground)] shadow-[var(--shadow-glow)] disabled:opacity-60"
+                  >
+                    {loading ? "Отправляю…" : "Отправить заявку"}
+                  </button>
+                  <LegalNote />
+                </div>
               </form>
             )}
           </GlassCard>
