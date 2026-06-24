@@ -3,7 +3,6 @@ import { CTAButton } from "./CTAButton";
 import { useSiteSettings } from "./SiteSettingsProvider";
 import { trackEvent } from "@/lib/analytics";
 import { Send, Mail } from "lucide-react";
-import { LegalNote } from "./LegalNote";
 
 const navLinks = [
   { to: "/", label: "Главная" },
@@ -58,7 +57,6 @@ export function Footer() {
                   </a>
                 )}
                 </div>
-                <LegalNote className="max-w-sm" />
               </div>
             </div>
 
