@@ -156,7 +156,12 @@ function LeadsTab() {
                   </select>
                 </td>
                 <td className="py-3 text-right">
-                  <button onClick={async () => { if (confirm("Удалить?")) { await del({ data: { id: l.id } }); qc.invalidateQueries({ queryKey: ["leads"] }); } }} className="text-destructive hover:opacity-80"><Trash2 className="size-4" /></button>
+                  <div className="flex items-center justify-end gap-2">
+                    {(l as { conversation_id?: string | null }).conversation_id ? (
+                      <button title="Открыть диалог" onClick={() => { window.dispatchEvent(new CustomEvent("admin-open-dialog", { detail: (l as { conversation_id: string }).conversation_id })); }} className="text-muted-foreground hover:opacity-80"><MessageSquare className="size-4" /></button>
+                    ) : null}
+                    <button onClick={async () => { if (confirm("Удалить?")) { await del({ data: { id: l.id } }); qc.invalidateQueries({ queryKey: ["leads"] }); } }} className="text-destructive hover:opacity-80"><Trash2 className="size-4" /></button>
+                  </div>
                 </td>
               </tr>
             ))}
