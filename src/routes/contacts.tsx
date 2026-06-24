@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, GlassCard, Lead } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
-import { LegalNote } from "@/components/LegalNote";
+import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { useState } from "react";
 import { z } from "zod";
 import { useServerFn } from "@tanstack/react-start";
@@ -42,6 +42,7 @@ function ContactsPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
+  const [consent, setConsent] = useState(false);
   const [form, setForm] = useState({
     name: "",
     phone_or_telegram: "",
@@ -66,6 +67,10 @@ function ContactsPage() {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErrors({});
+    if (!consent) {
+      setErrors({ consent: "Поставьте галочку, чтобы подтвердить согласие на обработку персональных данных." });
+      return;
+    }
     const raw = {
       name: form.name,
       phone_or_telegram: form.phone_or_telegram,
@@ -112,7 +117,6 @@ function ContactsPage() {
             <p className="mt-3 text-base">Ответить на пару вопросов&nbsp; AI-помощнику — это быстрее&nbsp; и удобнее формы.</p>
             <div className="mt-5 flex flex-col gap-2">
               <CTAButton event="click_bot_hero" size="lg" className="self-start">Ответить на пару вопросов</CTAButton>
-              <LegalNote />
             </div>
           </GlassCard>
           <GlassCard>
@@ -200,7 +204,19 @@ function ContactsPage() {
 
                 {errors.form && <p className="text-xs text-destructive">{errors.form}</p>}
 
-                <div className="mt-2 flex flex-col gap-2">
+                <div className="mt-2 flex flex-col gap-3">
+                  {step === 2 && (
+                    <ConsentCheckbox
+                      checked={consent}
+                      onChange={(v) => {
+                        setConsent(v);
+                        if (v && errors.consent) {
+                          setErrors((e) => { const n = { ...e }; delete n.consent; return n; });
+                        }
+                      }}
+                      error={errors.consent}
+                    />
+                  )}
                   {step === 1 ? (
                     <button
                       type="button"
@@ -218,7 +234,6 @@ function ContactsPage() {
                       {loading ? "Отправляю…" : "Отправить заявку"}
                     </button>
                   )}
-                  <LegalNote />
                 </div>
               </form>
             )}

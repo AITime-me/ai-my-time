@@ -3,7 +3,6 @@ import { MessageCircle, X } from "lucide-react";
 import { useSiteSettings } from "./SiteSettingsProvider";
 import { trackEvent } from "@/lib/analytics";
 import { motion, AnimatePresence } from "framer-motion";
-import { LegalNote } from "./LegalNote";
 
 export function BotWidget() {
   const s = useSiteSettings();
@@ -40,7 +39,6 @@ export function BotWidget() {
             >
               Открыть помощника
             </a>
-            <LegalNote className="mt-2 max-w-none" />
           </motion.div>
         )}
       </AnimatePresence>

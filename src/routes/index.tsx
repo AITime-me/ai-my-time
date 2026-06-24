@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { SiteLayout } from "@/components/SiteLayout";
 import { CTAButton } from "@/components/CTAButton";
-import { LegalNote } from "@/components/LegalNote";
 import { Reveal } from "@/components/Reveal";
 import { Eyebrow, H2, Lead, GlassCard } from "@/components/SectionHeading";
 import { HeroSchema } from "@/components/HeroSchema";
@@ -97,7 +96,6 @@ function HomePage() {
                   Посмотреть решения
                 </Link>
               </div>
-              <LegalNote className="max-w-md" />
             </div>
           </div>
           <div className="lg:col-span-5">
@@ -324,7 +322,6 @@ function HomePage() {
               <CTAButton event="click_bot_cases" size="lg">Обсудить задачу</CTAButton>
               <CTAButton event="click_bot_cases" size="lg" variant="secondary">Записаться на разбор</CTAButton>
             </div>
-            <LegalNote align="center" className="max-w-md" />
           </div>
         </div>
       </section>

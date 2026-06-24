@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, H2, Lead, GlassCard } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
-import { LegalNote } from "@/components/LegalNote";
 import { Reveal } from "@/components/Reveal";
 import { Check } from "lucide-react";
 
@@ -206,7 +205,6 @@ function ServicesIndex() {
           <CTAButton event="click_bot_services_hero" size="lg">
             Обсудить задачу
           </CTAButton>
-          <LegalNote />
         </div>
       </section>
 
@@ -237,7 +235,6 @@ function ServicesIndex() {
                 </div>
                 <div className="mt-6 flex flex-col gap-2">
                   <CTAButton event={s.event}>{s.cta}</CTAButton>
-                  <LegalNote />
                 </div>
               </GlassCard>
             </Reveal>
@@ -279,7 +276,6 @@ function ServicesIndex() {
             <CTAButton event="click_bot_services_final" size="lg">
               Обсудить задачу
             </CTAButton>
-            <LegalNote align="center" />
           </div>
         </GlassCard>
       </section>
