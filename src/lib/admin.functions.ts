@@ -232,7 +232,7 @@ export const adminUpdateConversation = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context as never);
-    const patch: Record<string, string> = {};
+    const patch: { status?: string; admin_note?: string } = {};
     if (data.status !== undefined) patch.status = data.status;
     if (data.admin_note !== undefined) patch.admin_note = data.admin_note;
     const { error } = await context.supabase.from("bot_conversations").update(patch).eq("id", data.id);
