@@ -215,15 +215,14 @@ function HomePage() {
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <Reveal>
           <Eyebrow>Примеры решений</Eyebrow>
-          <H2 className="mt-4">Какие решения можно собрать</H2>
+          <H2 className="mt-4">Какие цифровые решения можно собрать</H2>
         </Reveal>
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {examples.map((e, i) => (
             <Reveal key={e.title} delay={i * 0.04}>
               <GlassCard>
                 <h3 className="text-lg font-semibold">{e.title}</h3>
-                <p className="mt-3 text-sm"><span className="text-muted-foreground">Задача: </span>{e.task}</p>
-                <p className="mt-2 text-sm"><span className="text-muted-foreground">Что внутри: </span>{e.stack}</p>
+                <p className="mt-3 text-sm text-muted-foreground">{e.text}</p>
               </GlassCard>
             </Reveal>
           ))}
