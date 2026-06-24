@@ -12,15 +12,15 @@ function publicClient() {
 }
 
 export const getSiteSettings = createServerFn({ method: "GET" }).handler(async () => {
-  const sb = publicClient();
-  const { data } = await sb.rpc("get_public_site_settings");
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin.rpc("get_public_site_settings");
   const row = Array.isArray(data) ? data[0] : data;
   return row ?? null;
 });
 
 export const getAnalyticsConfig = createServerFn({ method: "GET" }).handler(async () => {
-  const sb = publicClient();
-  const { data } = await sb.rpc("get_public_analytics");
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin.rpc("get_public_analytics");
   const row = Array.isArray(data) ? data[0] : data;
   return row ?? null;
 });
