@@ -352,6 +352,124 @@ function LegalTab() {
   );
 }
 
+function DiagnosticsTab() {
+  const run = useServerFn(adminDiagnostics);
+  const { data, isLoading, isFetching, refetch, error } = useQuery({
+    queryKey: ["admin_diagnostics"],
+    queryFn: () => run(),
+    refetchOnWindowFocus: false,
+  });
+
+  if (isLoading) return <div className="p-6 text-center text-sm text-muted-foreground">Запускаем проверки…</div>;
+  if (error || !data) {
+    return (
+      <GlassCard>
+        <p className="text-sm text-destructive">Не удалось запустить диагностику: {error instanceof Error ? error.message : "неизвестная ошибка"}</p>
+        <button onClick={() => refetch()} className="mt-3 rounded-full glass px-3 py-1.5 text-xs">Повторить</button>
+      </GlassCard>
+    );
+  }
+
+  const allTableOk = data.tables.every((t) => t.read.ok && t.write.ok);
+  const allFnOk = data.functions.every((f) => f.ok);
+  const allEnvOk = data.env.every((e) => e.ok);
+  const overall = data.isAdmin && allTableOk && allFnOk && allEnvOk;
+
+  return (
+    <div className="space-y-4">
+      <GlassCard>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Сводка</p>
+            <p className="mt-1 text-lg font-semibold">
+              {overall
+                ? "✅ Все проверки прошли — сохранение должно работать."
+                : "⚠️ Есть проблемы — см. ниже. Это объясняет, почему «Сохранить» могло не срабатывать."}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Пользователь: {data.user.email || data.user.id} · {data.isAdmin ? "роль admin" : "НЕ admin"}
+            </p>
+          </div>
+          <button onClick={() => refetch()} disabled={isFetching} className="rounded-full glass px-3 py-1.5 text-xs disabled:opacity-50">
+            {isFetching ? "Проверяю…" : "Перезапустить"}
+          </button>
+        </div>
+      </GlassCard>
+
+      <GlassCard>
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">Окружение сервера</p>
+        <ul className="mt-3 space-y-1 text-sm">
+          {data.env.map((c) => (
+            <li key={c.name} className="flex items-start gap-2">
+              <span>{c.ok ? "✅" : "❌"}</span>
+              <span className="font-mono text-xs">{c.name}</span>
+              {c.error && <span className="text-xs text-destructive">{c.error}</span>}
+            </li>
+          ))}
+        </ul>
+      </GlassCard>
+
+      <GlassCard>
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">Функции БД</p>
+        <ul className="mt-3 space-y-2 text-sm">
+          {data.functions.map((c) => (
+            <li key={c.name} className="flex flex-col gap-1">
+              <div className="flex items-start gap-2">
+                <span>{c.ok ? "✅" : "❌"}</span>
+                <span className="font-medium">{c.name}</span>
+              </div>
+              {c.detail && <p className="ml-6 text-xs text-muted-foreground">{c.detail}</p>}
+              {c.error && <p className="ml-6 text-xs text-destructive">{c.error}</p>}
+            </li>
+          ))}
+        </ul>
+      </GlassCard>
+
+      <GlassCard>
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">Таблицы — чтение и запись от лица администратора</p>
+        <p className="mt-1 text-xs text-muted-foreground">«Запись» — это no-op UPDATE тем же значением. Срабатывает RLS и GRANT, как при настоящем сохранении.</p>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="text-xs uppercase tracking-wider text-muted-foreground">
+                <th className="py-2 pr-3">Таблица</th>
+                <th className="py-2 pr-3">Чтение</th>
+                <th className="py-2 pr-3">Запись</th>
+                <th className="py-2 pr-3">Подробности</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.tables.map((t) => (
+                <tr key={t.table} className="border-t border-border/40 align-top">
+                  <td className="py-2 pr-3 font-mono text-xs">{t.table}</td>
+                  <td className="py-2 pr-3">{t.read.ok ? "✅" : "❌"}</td>
+                  <td className="py-2 pr-3">{t.write.ok ? "✅" : "❌"}</td>
+                  <td className="py-2 pr-3 text-xs">
+                    {!t.read.ok && <div className="text-destructive">read: {t.read.error}</div>}
+                    {!t.write.ok && <div className="text-destructive">write: {t.write.error}</div>}
+                    {t.read.ok && t.write.ok && <span className="text-muted-foreground">{t.write.detail || "ok"}</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </GlassCard>
+
+      <GlassCard>
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">Подсказки, если что-то красное</p>
+        <ul className="mt-3 space-y-2 text-xs text-muted-foreground">
+          <li>• <b>permission denied for function has_role</b> — RLS-политики не могут проверить роль. Нужно <code className="rounded bg-white/5 px-1">GRANT EXECUTE ON FUNCTION public.has_role(uuid, app_role) TO authenticated</code>.</li>
+          <li>• <b>permission denied for table …</b> — отсутствуют GRANT на таблицу. Нужно <code className="rounded bg-white/5 px-1">GRANT SELECT, INSERT, UPDATE, DELETE ON public.&lt;table&gt; TO authenticated</code>.</li>
+          <li>• <b>new row violates row-level security policy</b> — есть GRANT, но политика UPDATE/INSERT не пропускает. Проверьте, что у вас роль admin (см. сводку выше) и что в политике стоит <code className="rounded bg-white/5 px-1">has_role(auth.uid(), 'admin')</code>.</li>
+          <li>• <b>JWT expired / Invalid token</b> — выйдите и войдите снова, тогда заголовок Authorization обновится.</li>
+          <li>• «Вы НЕ admin» — попросите назначить вам роль admin через таблицу <code className="rounded bg-white/5 px-1">user_roles</code>.</li>
+        </ul>
+      </GlassCard>
+    </div>
+  );
+}
+
 function LegalEditor({ type }: { type: "privacy" | "offer" }) {
   const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ["legal", type], queryFn: () => getLegalPage({ data: { type } }) });
