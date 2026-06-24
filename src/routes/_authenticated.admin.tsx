@@ -8,23 +8,33 @@ import {
   checkIsAdmin, adminListLeads, adminUpdateLead, adminDeleteLead,
   adminUpdateSettings, adminGetSettings, adminUpdateLegal, adminUpsertService,
   adminUpsertCase, adminDeleteCase, adminUpsertFaq, adminDeleteFaq,
+  adminListConversations, adminGetConversation, adminUpdateConversation,
+  adminDeleteConversation, adminCreateLeadFromConversation,
 } from "@/lib/admin.functions";
 import { getServices, getCases, getFaq, getLegalPage } from "@/lib/site.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, Trash2, Save } from "lucide-react";
+import { LogOut, Trash2, Save, MessageSquare, ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Админка — AI My Time" }, { name: "robots", content: "noindex" }] }),
   component: AdminPage,
 });
 
-const TABS = ["Дашборд","Заявки","Услуги","Кейсы","FAQ","Контакты","Бот","Аналитика","Юр.страницы","SEO"] as const;
+const TABS = ["Дашборд","Заявки","Диалоги","Услуги","Кейсы","FAQ","Контакты","Бот","Аналитика","Юр.страницы","SEO"] as const;
 type Tab = typeof TABS[number];
 
 function AdminPage() {
   const check = useServerFn(checkIsAdmin);
   const { data: gate, isLoading } = useQuery({ queryKey: ["isAdmin"], queryFn: () => check() });
   const [tab, setTab] = useState<Tab>("Дашборд");
+
+  // Allow other tabs to open Dialogs tab with a specific conversation
+  if (typeof window !== "undefined") {
+    (window as unknown as { __adminOpenDialog?: (id: string) => void }).__adminOpenDialog = (id: string) => {
+      sessionStorage.setItem("admin:openDialogId", id);
+      setTab("Диалоги");
+    };
+  }
 
   if (isLoading) {
     return <SiteLayout><div className="p-12 text-center text-muted-foreground">Проверка доступа…</div></SiteLayout>;
@@ -64,6 +74,7 @@ function AdminPage() {
       <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {tab === "Дашборд" && <DashboardTab />}
         {tab === "Заявки" && <LeadsTab />}
+        {tab === "Диалоги" && <DialogsTab />}
         {tab === "Услуги" && <ServicesTab />}
         {tab === "Кейсы" && <CasesTab />}
         {tab === "FAQ" && <FaqTab />}
@@ -153,7 +164,12 @@ function LeadsTab() {
                   </select>
                 </td>
                 <td className="py-3 text-right">
-                  <button onClick={async () => { if (confirm("Удалить?")) { await del({ data: { id: l.id } }); qc.invalidateQueries({ queryKey: ["leads"] }); } }} className="text-destructive hover:opacity-80"><Trash2 className="size-4" /></button>
+                  <div className="flex items-center justify-end gap-2">
+                    {(l as { conversation_id?: string | null }).conversation_id ? (
+                      <button title="Открыть диалог" onClick={() => { (window as unknown as { __adminOpenDialog?: (id: string) => void }).__adminOpenDialog?.((l as { conversation_id: string }).conversation_id); }} className="text-muted-foreground hover:opacity-80"><MessageSquare className="size-4" /></button>
+                    ) : null}
+                    <button onClick={async () => { if (confirm("Удалить?")) { await del({ data: { id: l.id } }); qc.invalidateQueries({ queryKey: ["leads"] }); } }} className="text-destructive hover:opacity-80"><Trash2 className="size-4" /></button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -372,6 +388,222 @@ function AdminTextarea({ name, label, defaultValue, className }: { name: string;
     <div className={className}>
       <label className="text-xs uppercase tracking-wider text-muted-foreground">{label}</label>
       <textarea name={name} defaultValue={defaultValue} rows={3} className="mt-1 w-full rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm" />
+    </div>
+  );
+}
+
+// ============ Dialogs tab ============
+
+const CONV_STATUSES = ["new","in_progress","lead_created","waiting","closed","spam"] as const;
+const CONV_STATUS_LABEL: Record<string, string> = {
+  new: "новый", in_progress: "в работе", lead_created: "заявка создана",
+  waiting: "ждём ответа", closed: "закрыт", spam: "спам",
+};
+const SOURCE_LABEL: Record<string, string> = {
+  site: "сайт", telegram: "Telegram", vk: "VK", max: "MAX", other: "другой",
+};
+
+function DialogsTab() {
+  const list = useServerFn(adminListConversations);
+  const { data } = useQuery({ queryKey: ["bot_conversations"], queryFn: () => list() });
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const v = sessionStorage.getItem("admin:openDialogId");
+    if (v) sessionStorage.removeItem("admin:openDialogId");
+    return v;
+  });
+
+  if (selectedId) return <ConversationView id={selectedId} onBack={() => setSelectedId(null)} />;
+
+  const rows = data ?? [];
+  return (
+    <GlassCard>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="text-muted-foreground">
+              <th className="py-2 pr-3">Пользователь</th>
+              <th className="py-2 pr-3">Контакт</th>
+              <th className="py-2 pr-3">Источник</th>
+              <th className="py-2 pr-3">Первое</th>
+              <th className="py-2 pr-3">Последнее</th>
+              <th className="py-2 pr-3">Сообщение</th>
+              <th className="py-2 pr-3">Статус</th>
+              <th className="py-2 pr-3">Заявка</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((c) => (
+              <tr key={c.id} className="border-t border-border/40 align-top">
+                <td className="py-3 pr-3">{c.user_name || <span className="text-muted-foreground">—</span>}</td>
+                <td className="py-3 pr-3 text-xs">
+                  {c.user_email && <div>{c.user_email}</div>}
+                  {c.user_messenger && <div className="text-muted-foreground">{c.user_messenger}</div>}
+                </td>
+                <td className="py-3 pr-3 text-xs">{SOURCE_LABEL[c.source] || c.source}</td>
+                <td className="py-3 pr-3 text-xs text-muted-foreground">{c.first_message_at ? new Date(c.first_message_at).toLocaleString("ru-RU") : "—"}</td>
+                <td className="py-3 pr-3 text-xs text-muted-foreground">{c.last_message_at ? new Date(c.last_message_at).toLocaleString("ru-RU") : "—"}</td>
+                <td className="py-3 pr-3 text-xs max-w-[220px] truncate" title={c.last_user_message || ""}>{c.last_user_message || <span className="text-muted-foreground">—</span>}</td>
+                <td className="py-3 pr-3 text-xs">{CONV_STATUS_LABEL[c.status] || c.status}</td>
+                <td className="py-3 pr-3 text-xs">{c.lead_id ? "✓" : <span className="text-muted-foreground">—</span>}</td>
+                <td className="py-3 text-right">
+                  <button onClick={() => setSelectedId(c.id)} className="rounded-full glass px-3 py-1 text-xs">Открыть диалог</button>
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 && <tr><td colSpan={9} className="py-6 text-center text-muted-foreground">Пока нет диалогов. Здесь появятся переписки пользователей с AI-помощником.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </GlassCard>
+  );
+}
+
+function ConversationView({ id, onBack }: { id: string; onBack: () => void }) {
+  const qc = useQueryClient();
+  const get = useServerFn(adminGetConversation);
+  const update = useServerFn(adminUpdateConversation);
+  const del = useServerFn(adminDeleteConversation);
+  const createLead = useServerFn(adminCreateLeadFromConversation);
+  const { data, isLoading } = useQuery({ queryKey: ["bot_conversation", id], queryFn: () => get({ data: { id } }) });
+  const [showLeadForm, setShowLeadForm] = useState(false);
+
+  if (isLoading || !data) {
+    return <div className="p-8 text-center text-muted-foreground">Загрузка…</div>;
+  }
+  const { conversation: c, messages, lead } = data;
+
+  return (
+    <div className="space-y-4">
+      <button onClick={onBack} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> К списку диалогов</button>
+
+      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+        <GlassCard>
+          <div className="space-y-3 text-sm">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Пользователь</p>
+              <p className="mt-1 font-medium">{c.user_name || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Контакт</p>
+              <p className="mt-1">{c.user_email || "—"}</p>
+              <p className="text-muted-foreground">{c.user_messenger || ""}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Источник</p>
+              <p className="mt-1">{SOURCE_LABEL[c.source] || c.source}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Первое обращение</p>
+              <p className="mt-1 text-xs">{c.first_message_at ? new Date(c.first_message_at).toLocaleString("ru-RU") : "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Последняя активность</p>
+              <p className="mt-1 text-xs">{c.last_message_at ? new Date(c.last_message_at).toLocaleString("ru-RU") : "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Статус</p>
+              <select
+                value={c.status}
+                onChange={async (e) => { await update({ data: { id: c.id, status: e.target.value } }); qc.invalidateQueries({ queryKey: ["bot_conversation", id] }); qc.invalidateQueries({ queryKey: ["bot_conversations"] }); }}
+                className="mt-1 w-full rounded border border-border/60 bg-background/40 px-2 py-1 text-sm"
+              >
+                {CONV_STATUSES.map((s) => <option key={s} value={s}>{CONV_STATUS_LABEL[s]}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Связанная заявка</p>
+              {lead ? (
+                <div className="mt-1 space-y-1 text-xs">
+                  <p>{lead.name} · {lead.status}</p>
+                  <p className="text-muted-foreground">{lead.email || lead.phone_or_telegram}</p>
+                  <button
+                    onClick={() => { (window as unknown as { __adminGoLeads?: () => void }).__adminGoLeads?.(); }}
+                    className="mt-1 rounded-full glass px-3 py-1 text-xs"
+                  >Перейти к заявке</button>
+                </div>
+              ) : (
+                <button onClick={() => setShowLeadForm((v) => !v)} className="mt-1 rounded-full bg-[image:var(--gradient-primary)] px-3 py-1 text-xs text-[color:var(--lime-foreground)]">
+                  {showLeadForm ? "Отменить" : "Создать заявку"}
+                </button>
+              )}
+            </div>
+
+            {showLeadForm && !lead && (
+              <form
+                className="space-y-2 rounded-lg border border-border/60 bg-background/30 p-3"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const f = new FormData(e.currentTarget);
+                  await createLead({ data: {
+                    conversation_id: c.id,
+                    name: String(f.get("name") || c.user_name || "—"),
+                    email: String(f.get("email") || c.user_email || ""),
+                    phone_or_telegram: String(f.get("phone_or_telegram") || c.user_messenger || ""),
+                    task: String(f.get("task") || ""),
+                    message: String(f.get("message") || ""),
+                    source: `bot_dialog:${c.source}`,
+                  } });
+                  qc.invalidateQueries({ queryKey: ["bot_conversation", id] });
+                  qc.invalidateQueries({ queryKey: ["bot_conversations"] });
+                  qc.invalidateQueries({ queryKey: ["leads"] });
+                  setShowLeadForm(false);
+                }}
+              >
+                <AdminInput name="name" label="Имя" defaultValue={c.user_name || ""} />
+                <AdminInput name="email" label="Email" defaultValue={c.user_email || ""} />
+                <AdminInput name="phone_or_telegram" label="Telegram / телефон" defaultValue={c.user_messenger || ""} />
+                <AdminTextarea name="task" label="Задача" defaultValue={messages.filter((m) => m.sender_type === "user").map((m) => m.message_text).join(" · ").slice(0, 500)} />
+                <AdminTextarea name="message" label="Краткое содержание диалога" defaultValue={`Диалог #${c.id.slice(0, 8)} · сообщений: ${messages.length}`} />
+                <button className="w-full rounded-full bg-[image:var(--gradient-primary)] px-3 py-1.5 text-xs text-[color:var(--lime-foreground)]">Создать</button>
+              </form>
+            )}
+
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Заметка администратора</p>
+              <textarea
+                defaultValue={c.admin_note || ""}
+                rows={4}
+                onBlur={async (e) => { if (e.currentTarget.value !== (c.admin_note || "")) { await update({ data: { id: c.id, admin_note: e.currentTarget.value } }); qc.invalidateQueries({ queryKey: ["bot_conversation", id] }); } }}
+                className="mt-1 w-full rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <button
+              onClick={async () => { if (confirm("Удалить диалог? Сообщения будут удалены безвозвратно.")) { await del({ data: { id: c.id } }); qc.invalidateQueries({ queryKey: ["bot_conversations"] }); onBack(); } }}
+              className="inline-flex items-center gap-2 text-xs text-destructive hover:opacity-80"
+            ><Trash2 className="size-3" /> Удалить диалог</button>
+          </div>
+        </GlassCard>
+
+        <GlassCard>
+          <div className="max-h-[70vh] space-y-3 overflow-y-auto pr-2">
+            {messages.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">В этом диалоге ещё нет сообщений.</p>}
+            {messages.map((m) => {
+              const isUser = m.sender_type === "user";
+              const isBot = m.sender_type === "bot";
+              return (
+                <div key={m.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
+                    isUser ? "bg-[image:var(--gradient-primary)] text-[color:var(--lime-foreground)]"
+                    : isBot ? "glass"
+                    : "border border-amber-500/40 bg-amber-500/10"
+                  }`}>
+                    <p className="whitespace-pre-wrap">{m.message_text}</p>
+                    <p className={`mt-1 text-[10px] ${isUser ? "text-[color:var(--lime-foreground)]/70" : "text-muted-foreground"}`}>
+                      {m.sender_type === "user" ? "Пользователь" : m.sender_type === "bot" ? "Бот" : "Админ"}
+                      {" · "}{new Date(m.created_at).toLocaleString("ru-RU")}
+                      {m.message_channel ? ` · ${m.message_channel}` : ""}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </GlassCard>
+      </div>
     </div>
   );
 }
