@@ -3,6 +3,7 @@ import { useSiteSettings } from "./SiteSettingsProvider";
 import { trackEvent } from "@/lib/analytics";
 import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
+import { BotLegalNote } from "./BotLegalNote";
 
 type Props = {
   children?: ReactNode;
@@ -12,9 +13,19 @@ type Props = {
   className?: string;
   arrow?: boolean;
   label?: string;
+  /** Show the small legal note under the button. Defaults to true because
+   *  every CTAButton leads to the bot / opens an AI-assistant dialog. */
+  withLegal?: boolean;
+  /** Wrapper class for the button + legal note column. */
+  wrapperClassName?: string;
+  legalAlign?: "left" | "center";
 };
 
-export function CTAButton({ children, event = "click_bot_generic", variant = "primary", size = "md", className, arrow = true, label }: Props) {
+export function CTAButton({
+  children, event = "click_bot_generic", variant = "primary", size = "md",
+  className, arrow = true, label,
+  withLegal = true, wrapperClassName, legalAlign = "center",
+}: Props) {
   const s = useSiteSettings();
   const text = children ?? label ?? s.main_cta_text;
   const base =
@@ -27,7 +38,7 @@ export function CTAButton({ children, event = "click_bot_generic", variant = "pr
       "glass text-foreground hover:border-[color:var(--lime)]/40",
     ghost: "text-foreground/80 hover:text-foreground hover:bg-white/5",
   } as const;
-  return (
+  const button = (
     <a
       href={s.bot_link || "#"}
       target={s.bot_link && s.bot_link !== "#" ? "_blank" : undefined}
@@ -38,5 +49,12 @@ export function CTAButton({ children, event = "click_bot_generic", variant = "pr
       <span>{text}</span>
       {arrow && <ArrowRight className="size-4" />}
     </a>
+  );
+  if (!withLegal) return button;
+  return (
+    <span className={cn("inline-flex flex-col", legalAlign === "center" ? "items-center" : "items-start", wrapperClassName)}>
+      {button}
+      <BotLegalNote align={legalAlign} />
+    </span>
   );
 }
