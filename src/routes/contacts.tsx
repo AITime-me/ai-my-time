@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, GlassCard, Lead } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
@@ -9,7 +9,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { submitLead } from "@/lib/site.functions";
 import { trackEvent } from "@/lib/analytics";
 import { useSiteSettings } from "@/components/SiteSettingsProvider";
-import { Send, Mail, Phone, CheckCircle2 } from "lucide-react";
+import { Send, Mail, Phone, CheckCircle2, ArrowRight, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/contacts")({
   head: () => ({
@@ -27,8 +27,8 @@ export const Route = createFileRoute("/contacts")({
 
 const schema = z.object({
   name: z.string().trim().min(2, "Укажите имя").max(100),
-  phone_or_telegram: z.string().trim().max(100).optional().default(""),
-  email: z.string().trim().email("Некорректный email").or(z.literal("")).optional().default(""),
+  phone_or_telegram: z.string().trim().min(3, "Укажите телефон или Telegram").max(100),
+  email: z.string().trim().max(100).optional().default(""),
   business_area: z.string().trim().max(200).optional().default(""),
   task: z.string().trim().max(200).optional().default(""),
   message: z.string().trim().max(2000).optional().default(""),
@@ -41,25 +41,46 @@ function ContactsPage() {
   const [done, setDone] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [form, setForm] = useState({
+    name: "",
+    phone_or_telegram: "",
+    business_area: "",
+    task: "",
+  });
+
+  function update<K extends keyof typeof form>(key: K, value: string) {
+    setForm((f) => ({ ...f, [key]: value }));
+    if (errors[key]) setErrors((e) => { const n = { ...e }; delete n[key]; return n; });
+  }
+
+  function onContinue() {
+    const errs: Record<string, string> = {};
+    if (form.name.trim().length < 2) errs.name = "Укажите имя";
+    if (form.phone_or_telegram.trim().length < 3) errs.phone_or_telegram = "Укажите телефон или Telegram";
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+    setErrors({});
+    setStep(2);
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErrors({});
-    const fd = new FormData(e.currentTarget);
     const raw = {
-      name: String(fd.get("name") || ""),
-      phone_or_telegram: String(fd.get("phone_or_telegram") || ""),
-      email: String(fd.get("email") || ""),
-      business_area: String(fd.get("business_area") || ""),
-      task: String(fd.get("task") || ""),
-      message: String(fd.get("message") || ""),
-      consent: fd.get("consent") === "on",
+      name: form.name,
+      phone_or_telegram: form.phone_or_telegram,
+      email: "",
+      business_area: form.business_area,
+      task: form.task,
+      message: "",
+      consent: true as const,
     };
     const parsed = schema.safeParse(raw);
     if (!parsed.success) {
       const errs: Record<string, string> = {};
       parsed.error.issues.forEach((i) => { errs[i.path.join(".")] = i.message; });
       setErrors(errs);
+      if (errs.name || errs.phone_or_telegram) setStep(1);
       return;
     }
     setLoading(true);
@@ -115,7 +136,7 @@ function ContactsPage() {
 
         <div className="lg:col-span-3">
           <GlassCard>
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Резервная форма</p>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Короткая форма</p>
             {done ? (
               <div className="mt-6 flex flex-col items-start gap-3">
                 <CheckCircle2 className="size-8 text-[color:var(--lime)]" />
@@ -124,29 +145,79 @@ function ContactsPage() {
               </div>
             ) : (
               <form onSubmit={onSubmit} className="mt-4 grid gap-4">
-                <Field name="name" label="Имя" required error={errors.name} />
-                <Field name="phone_or_telegram" label="Телефон или Telegram" />
-                <Field name="email" label="Email" type="email" error={errors.email} />
-                <Field name="business_area" label="Сфера бизнеса" />
-                <Field name="task" label="Что хотите сделать" />
-                <div>
-                  <label className="text-sm text-muted-foreground">Комментарий</label>
-                  <textarea name="message" rows={4} className="mt-1 w-full rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--lime)]/60" />
+                <div className="flex items-start gap-3 rounded-2xl border border-border/40 bg-background/30 p-3">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[image:var(--gradient-primary)] text-[color:var(--lime-foreground)]">
+                    <Sparkles className="size-4" />
+                  </span>
+                  <p className="text-sm text-muted-foreground">
+                    {step === 1
+                      ? "Привет! Как к вам обращаться и куда удобно ответить?"
+                      : "Отлично. Расскажите пару слов о бизнесе — подберу подходящее решение."}
+                  </p>
                 </div>
-                <label className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <input type="checkbox" name="consent" className="mt-0.5 accent-[color:var(--lime)]" />
-                  <span>Я согласен/согласна с <Link to="/privacy" className="underline">политикой конфиденциальности</Link>.</span>
-                </label>
-                {errors.consent && <p className="text-xs text-destructive">{errors.consent}</p>}
+
+                <Field
+                  name="name"
+                  label="Имя"
+                  required
+                  value={form.name}
+                  onChange={(v) => update("name", v)}
+                  error={errors.name}
+                  autoComplete="name"
+                />
+                <Field
+                  name="phone_or_telegram"
+                  label="Телефон или Telegram"
+                  required
+                  value={form.phone_or_telegram}
+                  onChange={(v) => update("phone_or_telegram", v)}
+                  error={errors.phone_or_telegram}
+                  placeholder="+7… или @username"
+                />
+
+                {step === 2 && (
+                  <div className="grid gap-4 duration-300 animate-in fade-in slide-in-from-top-2">
+                    <Field
+                      name="business_area"
+                      label="Сфера бизнеса"
+                      value={form.business_area}
+                      onChange={(v) => update("business_area", v)}
+                      placeholder="Например, медицина, услуги, e-commerce"
+                    />
+                    <div>
+                      <label className="text-sm text-muted-foreground">Что хотите улучшить или обсудить</label>
+                      <textarea
+                        name="task"
+                        rows={3}
+                        value={form.task}
+                        onChange={(e) => update("task", e.target.value)}
+                        placeholder="Коротко: что болит или что хотите запустить"
+                        className="mt-1 w-full rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--lime)]/60"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {errors.form && <p className="text-xs text-destructive">{errors.form}</p>}
+
                 <div className="mt-2 flex flex-col gap-2">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-[image:var(--gradient-primary)] px-6 py-3 text-sm font-medium text-[color:var(--lime-foreground)] shadow-[var(--shadow-glow)] disabled:opacity-60"
-                  >
-                    {loading ? "Отправляю…" : "Отправить заявку"}
-                  </button>
+                  {step === 1 ? (
+                    <button
+                      type="button"
+                      onClick={onContinue}
+                      className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-[image:var(--gradient-primary)] px-6 py-3 text-sm font-medium text-[color:var(--lime-foreground)] shadow-[var(--shadow-glow)]"
+                    >
+                      Продолжить <ArrowRight className="size-4" />
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-[image:var(--gradient-primary)] px-6 py-3 text-sm font-medium text-[color:var(--lime-foreground)] shadow-[var(--shadow-glow)] disabled:opacity-60"
+                    >
+                      {loading ? "Отправляю…" : "Отправить заявку"}
+                    </button>
+                  )}
                   <LegalNote />
                 </div>
               </form>
@@ -158,14 +229,22 @@ function ContactsPage() {
   );
 }
 
-function Field({ name, label, type = "text", required, error }: { name: string; label: string; type?: string; required?: boolean; error?: string }) {
+function Field({
+  name, label, type = "text", required, error, value, onChange, placeholder, autoComplete,
+}: {
+  name: string; label: string; type?: string; required?: boolean; error?: string;
+  value: string; onChange: (v: string) => void; placeholder?: string; autoComplete?: string;
+}) {
   return (
     <div>
       <label className="text-sm text-muted-foreground">{label}{required && <span className="text-destructive"> *</span>}</label>
       <input
         name={name}
         type={type}
-        required={required}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
         className="mt-1 w-full rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--lime)]/60"
       />
       {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
