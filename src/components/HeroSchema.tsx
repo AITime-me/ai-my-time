@@ -18,7 +18,7 @@ export function HeroSchema() {
       <div className="relative">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">Путь клиента</p>
         <p className="mt-1 text-sm text-foreground/80">Как сайт + AI становится одним механизмом</p>
-        <div className="relative mt-6 grid auto-rows-fr grid-cols-2 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+        <div className="relative mt-6 grid auto-rows-fr grid-cols-2 gap-3">
           {nodes.map((n, i) => (
             <motion.div
               key={n.label}
