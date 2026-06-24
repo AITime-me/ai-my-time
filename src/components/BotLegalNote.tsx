@@ -8,7 +8,7 @@ export function BotLegalNote({ className, align = "center" }: { className?: stri
   return (
     <p
       className={cn(
-        "mt-2 text-[10px] leading-snug text-muted-foreground/80 md:text-[11px]",
+        "mt-2 text-[11px] leading-snug text-muted-foreground/80",
         align === "center" ? "text-center" : "text-left",
         className,
       )}
