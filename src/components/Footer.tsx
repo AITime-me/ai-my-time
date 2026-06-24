@@ -3,6 +3,7 @@ import { CTAButton } from "./CTAButton";
 import { useSiteSettings } from "./SiteSettingsProvider";
 import { trackEvent } from "@/lib/analytics";
 import { Send, Mail } from "lucide-react";
+import { LegalNote } from "./LegalNote";
 
 const navLinks = [
   { to: "/", label: "Главная" },
@@ -33,8 +34,9 @@ export function Footer() {
                 <p>Сайты, AI и автоматизация для малого бизнеса, который хочет больше порядка и заявок.</p>
                 <p>Digital-система для автоматизации бизнеса и работы с заявками.</p>
               </div>
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <CTAButton event="click_bot_footer" label="Обсудить задачу" />
+              <div className="mt-6 flex flex-col gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <CTAButton event="click_bot_footer" label="Обсудить задачу" />
                 {s.telegram && (
                   <a
                     href={s.telegram}
@@ -55,6 +57,8 @@ export function Footer() {
                     <Mail className="size-4" /> {s.email}
                   </a>
                 )}
+                </div>
+                <LegalNote className="max-w-sm" />
               </div>
             </div>
 
