@@ -28,6 +28,14 @@ function AdminPage() {
   const { data: gate, isLoading } = useQuery({ queryKey: ["isAdmin"], queryFn: () => check() });
   const [tab, setTab] = useState<Tab>("Дашборд");
 
+  // Allow other tabs to open Dialogs tab with a specific conversation
+  if (typeof window !== "undefined") {
+    (window as unknown as { __adminOpenDialog?: (id: string) => void }).__adminOpenDialog = (id: string) => {
+      sessionStorage.setItem("admin:openDialogId", id);
+      setTab("Диалоги");
+    };
+  }
+
   if (isLoading) {
     return <SiteLayout><div className="p-12 text-center text-muted-foreground">Проверка доступа…</div></SiteLayout>;
   }
