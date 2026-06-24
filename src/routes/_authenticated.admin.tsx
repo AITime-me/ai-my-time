@@ -412,12 +412,70 @@ function DialogsTab() {
     if (v) sessionStorage.removeItem("admin:openDialogId");
     return v;
   });
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [contactQ, setContactQ] = useState("");
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
 
   if (selectedId) return <ConversationView id={selectedId} onBack={() => setSelectedId(null)} />;
 
-  const rows = data ?? [];
+  const all = data ?? [];
+  const sources = Array.from(new Set(all.map((c) => c.source))).filter(Boolean);
+  const filtered = all.filter((c) => {
+    if (statusFilter !== "all" && c.status !== statusFilter) return false;
+    if (sourceFilter !== "all" && c.source !== sourceFilter) return false;
+    if (contactQ) {
+      const cq = contactQ.toLowerCase();
+      const hay = `${c.user_email || ""} ${c.user_messenger || ""}`.toLowerCase();
+      if (!hay.includes(cq)) return false;
+    }
+    if (q) {
+      const qq = q.toLowerCase();
+      const hay = `${c.user_name || ""} ${c.user_email || ""} ${c.user_messenger || ""} ${c.last_user_message || ""}`.toLowerCase();
+      if (!hay.includes(qq)) return false;
+    }
+    return true;
+  });
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const rows = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const resetPage = () => setPage(1);
+
   return (
     <GlassCard>
+      <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); resetPage(); }}
+          className="rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm"
+        >
+          <option value="all">Все статусы</option>
+          {CONV_STATUSES.map((s) => <option key={s} value={s}>{CONV_STATUS_LABEL[s]}</option>)}
+        </select>
+        <select
+          value={sourceFilter}
+          onChange={(e) => { setSourceFilter(e.target.value); resetPage(); }}
+          className="rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm"
+        >
+          <option value="all">Все источники</option>
+          {sources.map((s) => <option key={s} value={s}>{SOURCE_LABEL[s] || s}</option>)}
+        </select>
+        <input
+          placeholder="Email или Telegram"
+          value={contactQ}
+          onChange={(e) => { setContactQ(e.target.value); resetPage(); }}
+          className="rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm"
+        />
+        <input
+          placeholder="Поиск по имени, контакту, сообщению"
+          value={q}
+          onChange={(e) => { setQ(e.target.value); resetPage(); }}
+          className="rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm"
+        />
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
@@ -452,9 +510,25 @@ function DialogsTab() {
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={9} className="py-6 text-center text-muted-foreground">Пока нет диалогов. Здесь появятся переписки пользователей с AI-помощником.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={9} className="py-6 text-center text-muted-foreground">{all.length === 0 ? "Пока нет диалогов. Здесь появятся переписки пользователей с AI-помощником." : "По заданным фильтрам ничего не найдено."}</td></tr>}
           </tbody>
         </table>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+        <div>Найдено: <b className="text-foreground">{total}</b>{total !== all.length ? <> из {all.length}</> : null}</div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={safePage <= 1}
+            className="rounded-full glass px-3 py-1 disabled:opacity-40"
+          >Назад</button>
+          <span>Стр. {safePage} / {totalPages}</span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={safePage >= totalPages}
+            className="rounded-full glass px-3 py-1 disabled:opacity-40"
+          >Вперёд</button>
+        </div>
       </div>
     </GlassCard>
   );
