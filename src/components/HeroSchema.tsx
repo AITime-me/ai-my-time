@@ -25,7 +25,7 @@ export function HeroSchema() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 * i, duration: 0.5 }}
-              className="group relative flex h-full min-h-[140px] min-w-0 flex-col items-start justify-start gap-3 rounded-xl border border-[color:var(--lime)]/25 bg-background/40 p-5 shadow-[inset_0_0_0_1px_rgba(163,230,53,0.04)]"
+              className="group relative flex h-full min-h-[140px] min-w-0 flex-col items-start justify-start gap-3 rounded-xl border border-[color:var(--lime)]/25 bg-background/40 px-4 py-5 shadow-[inset_0_0_0_1px_rgba(163,230,53,0.04)]"
             >
               <span className="grid size-9 place-items-center rounded-lg bg-[image:var(--gradient-primary)] text-[color:var(--lime-foreground)]">
                 <n.icon className="size-4" />
