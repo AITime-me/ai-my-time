@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Globe, Bot, Inbox, Headset, UserCheck, UserPlus, ArrowRight } from "lucide-react";
+import { Globe, Bot, Inbox, Headset, UserCheck, UserPlus, ArrowRight, ArrowDown, ArrowDownLeft } from "lucide-react";
 
 const nodes = [
   { icon: UserPlus, label: "Потенциальный клиент", hint: "человек с задачей" },
@@ -10,6 +10,33 @@ const nodes = [
   { icon: UserCheck, label: "Клиент", hint: "получает результат" },
 ];
 
+function DesktopArrow({ index }: { index: number }) {
+  if (index === 0 || index === 2 || index === 4) {
+    return (
+      <span className="pointer-events-none absolute -right-3 top-1/2 z-10 hidden -translate-y-1/2 sm:block">
+        <ArrowRight className="size-4 text-[color:var(--lime)] drop-shadow-[0_0_6px_var(--lime)]" />
+      </span>
+    );
+  }
+  if (index === 1 || index === 3) {
+    return (
+      <span className="pointer-events-none absolute bottom-[-12px] left-3 z-10 hidden sm:block">
+        <ArrowDownLeft className="size-4 text-[color:var(--lime)] drop-shadow-[0_0_6px_var(--lime)]" />
+      </span>
+    );
+  }
+  return null;
+}
+
+function MobileArrow({ index }: { index: number }) {
+  if (index >= nodes.length - 1) return null;
+  return (
+    <span className="pointer-events-none absolute bottom-[-12px] left-1/2 z-10 -translate-x-1/2 sm:hidden">
+      <ArrowDown className="size-4 text-[color:var(--lime)] drop-shadow-[0_0_6px_var(--lime)]" />
+    </span>
+  );
+}
+
 export function HeroSchema() {
   return (
     <div className="glass relative overflow-hidden rounded-3xl p-6 sm:p-8">
@@ -18,7 +45,7 @@ export function HeroSchema() {
       <div className="relative">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">Путь клиента</p>
         <p className="mt-1 text-sm text-foreground/80">Как сайт + AI становится одним механизмом</p>
-        <div className="relative mt-6 grid auto-rows-fr grid-cols-2 gap-3">
+        <div className="relative mt-6 grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2">
           {nodes.map((n, i) => (
             <motion.div
               key={n.label}
@@ -35,16 +62,8 @@ export function HeroSchema() {
                 <span className="break-words text-[11px] leading-snug text-muted-foreground">{n.hint}</span>
               </div>
               <span className="absolute -top-1 right-2 text-[10px] tabular-nums text-muted-foreground">0{i + 1}</span>
-              {i < nodes.length - 1 && (i + 1) % 2 !== 0 && (
-                <span className="pointer-events-none absolute right-[-14px] top-1/2 z-10 -translate-y-1/2">
-                  <ArrowRight className="size-4 text-[color:var(--lime)] drop-shadow-[0_0_6px_var(--lime)]" />
-                </span>
-              )}
-              {i < nodes.length - 1 && (i + 1) % 2 === 0 && (
-                <span className="pointer-events-none absolute -bottom-3 left-1/2 z-10 -translate-x-1/2 rotate-90">
-                  <ArrowRight className="size-3.5 text-[color:var(--lime)] drop-shadow-[0_0_6px_var(--lime)]" />
-                </span>
-              )}
+              <DesktopArrow index={i} />
+              <MobileArrow index={i} />
             </motion.div>
           ))}
         </div>
