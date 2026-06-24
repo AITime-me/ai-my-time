@@ -3,7 +3,7 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, Lead } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
 import { LegalNote } from "@/components/LegalNote";
-import { Sparkles } from "lucide-react";
+import aboutPhotoAsset from "@/assets/about-photo.png.asset.json";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
