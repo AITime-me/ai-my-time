@@ -26,7 +26,7 @@ type Props = {
 export function CTAButton({
   children, event = "click_bot_generic", variant = "primary", size = "md",
   className, arrow = true, label,
-  withLegal = true, wrapperClassName, legalAlign = "center",
+  withLegal = true, wrapperClassName, legalAlign = "center", legalClassName,
 }: Props) {
   const s = useSiteSettings();
   const text = children ?? label ?? s.main_cta_text;
