@@ -1,8 +1,14 @@
 import { useEffect } from "react";
-import { useSiteSettings } from "./SiteSettingsProvider";
+import { useQuery } from "@tanstack/react-query";
+import { getAnalyticsConfig } from "@/lib/site.functions";
 
 export function Analytics() {
-  const s = useSiteSettings();
+  const { data } = useQuery({
+    queryKey: ["analytics_config"],
+    queryFn: () => getAnalyticsConfig(),
+    staleTime: 5 * 60_000,
+  });
+  const s = data ?? { analytics_enabled: false, yandex_metrika_id: "", google_analytics_id: "" };
   useEffect(() => {
     if (!s.analytics_enabled) return;
     if (s.yandex_metrika_id) {
