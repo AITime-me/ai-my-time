@@ -3,7 +3,6 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, GlassCard } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
-import { LegalNote } from "@/components/LegalNote";
 import { getServiceBySlug } from "@/lib/site.functions";
 import { ArrowLeft } from "lucide-react";
 
@@ -110,7 +109,6 @@ function ServiceDetail() {
               Другие услуги
             </Link>
           </div>
-          <LegalNote className="max-w-md" />
         </div>
       </section>
     </SiteLayout>
