@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
-import { LegalNote } from "@/components/LegalNote";
 import aboutPhotoAsset from "@/assets/about-photo.png.asset.json";
 
 export const Route = createFileRoute("/about")({
@@ -61,7 +60,6 @@ function AboutPage() {
           </div>
           <div className="mt-8 flex flex-col gap-3">
             <CTAButton event="click_bot_hero" size="lg" className="self-start">Обсудить задачу</CTAButton>
-            <LegalNote className="max-w-md" />
           </div>
         </div>
         <div className="lg:col-span-5">
