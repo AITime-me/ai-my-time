@@ -25,14 +25,14 @@ export function Header() {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-0.5 md:flex lg:gap-1">
           {nav.map((n) => (
             <Link
               key={n.to}
               to={n.to}
               activeProps={{ className: "text-foreground bg-white/5" }}
               inactiveProps={{ className: "text-muted-foreground" }}
-              className="rounded-full px-2.5 py-1.5 text-sm transition-colors hover:text-foreground hover:bg-white/5 md:px-3 lg:px-3.5"
+              className="rounded-full px-2.5 py-1.5 text-sm transition-colors hover:text-foreground hover:bg-white/5 md:px-2 lg:px-3.5"
             >
               {n.label}
             </Link>
