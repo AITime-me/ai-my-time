@@ -68,7 +68,7 @@ const examples = [
   { title: "Аналитика и контроль бизнеса", text: "Понимание заявок, источников и эффективности процессов." },
 ];
 
-const tools = ["ChatGPT","Lovable","Cursor","React","Tailwind","Supabase","Telegram","n8n","Google Sheets","CRM","AI tools","Яндекс.Метрика","сайты","боты","автоматизации"];
+const tools = ["ChatGPT","OpenAI","Lovable","Cursor","Cloud Code","React","Tailwind","Supabase","Telegram","n8n","Google Sheets","CRM","AI tools","Яндекс.Метрика","сайты","боты","автоматизации"];
 
 function HomePage() {
   return (
@@ -273,6 +273,9 @@ function HomePage() {
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <Reveal>
           <Eyebrow>Инструменты</Eyebrow>
+          <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
+            Не инструменты ради инструментов — а связка, которая помогает бизнесу работать проще.
+          </p>
           <H2 className="mt-4">Инструменты</H2>
           <div className="mt-8 flex flex-wrap gap-2">
             {tools.map((t) => (
