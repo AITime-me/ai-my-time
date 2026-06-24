@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, Lead, GlassCard } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
+import { LegalNote } from "@/components/LegalNote";
 import { Reveal } from "@/components/Reveal";
 import { getServices } from "@/lib/site.functions";
 import { ArrowRight } from "lucide-react";
@@ -47,7 +48,8 @@ function ServicesIndex() {
                 {s.result && (
                   <p className="mt-2 text-sm"><span className="text-muted-foreground">Результат: </span>{s.result}</p>
                 )}
-                <div className="mt-6 flex flex-wrap items-center gap-3">
+                <div className="mt-6 flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center gap-3">
                   <Link
                     to="/services/$slug" params={{ slug: s.slug }}
                     onClick={() => trackEvent("click_service_card", { slug: s.slug })}
@@ -56,6 +58,8 @@ function ServicesIndex() {
                     Подробнее <ArrowRight className="size-4" />
                   </Link>
                   <CTAButton event="click_bot_services">{s.cta_text || "Обсудить задачу"}</CTAButton>
+                  </div>
+                  <LegalNote />
                 </div>
               </GlassCard>
             </Reveal>
