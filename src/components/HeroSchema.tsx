@@ -35,32 +35,14 @@ export function HeroSchema() {
                 <span className="break-words text-[11px] leading-snug text-muted-foreground">{n.hint}</span>
               </div>
               <span className="absolute -top-1 right-2 text-[10px] tabular-nums text-muted-foreground">0{i + 1}</span>
-              {i < nodes.length - 1 && (
-                <>
-                  {/* 2-col horizontal arrows (mobile, lg, xl) */}
-                  {(i + 1) % 2 !== 0 && (
-                    <span className="pointer-events-none absolute right-[-14px] top-1/2 z-10 block -translate-y-1/2 2xl:hidden">
-                      <ArrowRight className="size-4 text-[color:var(--lime)] drop-shadow-[0_0_6px_var(--lime)]" />
-                    </span>
-                  )}
-                  {/* 3-col horizontal arrows (2xl) */}
-                  {(i + 1) % 3 !== 0 && (
-                    <span className="pointer-events-none absolute right-[-14px] top-1/2 z-10 hidden -translate-y-1/2 2xl:block">
-                      <ArrowRight className="size-4 text-[color:var(--lime)] drop-shadow-[0_0_6px_var(--lime)]" />
-                    </span>
-                  )}
-                </>
-              )}
-              {/* 2-col down arrows (mobile, lg, xl) */}
-              {i < nodes.length - 1 && (i + 1) % 2 === 0 && (
-                <span className="pointer-events-none absolute -bottom-3 left-1/2 z-10 block -translate-x-1/2 rotate-90 2xl:hidden">
-                  <ArrowRight className="size-3.5 text-[color:var(--lime)] drop-shadow-[0_0_6px_var(--lime)]" />
+              {i < nodes.length - 1 && (i + 1) % 2 !== 0 && (
+                <span className="pointer-events-none absolute right-[-14px] top-1/2 z-10 -translate-y-1/2">
+                  <ArrowRight className="size-4 text-[color:var(--lime)] drop-shadow-[0_0_6px_var(--lime)]" />
                 </span>
               )}
-              {/* 3-col down arrow (2xl) */}
-              {i === 2 && (
-                <span className="pointer-events-none absolute -bottom-3 right-3 z-10 hidden rotate-90 2xl:block">
-                  <ArrowRight className="size-4 text-[color:var(--lime)] drop-shadow-[0_0_6px_var(--lime)]" />
+              {i < nodes.length - 1 && (i + 1) % 2 === 0 && (
+                <span className="pointer-events-none absolute -bottom-3 left-1/2 z-10 -translate-x-1/2 rotate-90">
+                  <ArrowRight className="size-3.5 text-[color:var(--lime)] drop-shadow-[0_0_6px_var(--lime)]" />
                 </span>
               )}
             </motion.div>
