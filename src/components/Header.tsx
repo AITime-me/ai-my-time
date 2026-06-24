@@ -40,7 +40,7 @@ export function Header() {
         </nav>
 
         <div className="hidden md:flex items-start">
-          <CTAButton event="click_bot_header" size="md" legalClassName="max-w-[340px]" />
+          <CTAButton event="click_bot_header" size="md" legalClassName="max-w-[440px]" />
         </div>
 
         <button className="md:hidden text-foreground" onClick={() => setOpen((v) => !v)} aria-label="Меню">
