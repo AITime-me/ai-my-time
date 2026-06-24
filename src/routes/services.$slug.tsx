@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, GlassCard } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
+import { LegalNote } from "@/components/LegalNote";
 import { getServiceBySlug } from "@/lib/site.functions";
 import { ArrowLeft } from "lucide-react";
 
@@ -102,11 +103,14 @@ function ServiceDetail() {
             </GlassCard>
           )}
         </div>
-        <div className="mt-10 flex flex-wrap gap-3">
-          <CTAButton event="click_bot_services" size="lg">{data.cta_text || "Обсудить задачу"}</CTAButton>
-          <Link to="/services" className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm glass">
-            Другие услуги
-          </Link>
+        <div className="mt-10 flex flex-col gap-3">
+          <div className="flex flex-wrap gap-3">
+            <CTAButton event="click_bot_services" size="lg">{data.cta_text || "Обсудить задачу"}</CTAButton>
+            <Link to="/services" className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm glass">
+              Другие услуги
+            </Link>
+          </div>
+          <LegalNote className="max-w-md" />
         </div>
       </section>
     </SiteLayout>
