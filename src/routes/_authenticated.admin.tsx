@@ -11,6 +11,7 @@ import {
   adminListConversations, adminGetConversation, adminUpdateConversation,
   adminDeleteConversation, adminCreateLeadFromConversation,
 } from "@/lib/admin.functions";
+import { adminDiagnostics } from "@/lib/admin-diag.functions";
 import { getServices, getCases, getFaq, getLegalPage } from "@/lib/site.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { LogOut, Trash2, Save, MessageSquare, ArrowLeft } from "lucide-react";
@@ -20,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
 });
 
-const TABS = ["Дашборд","Заявки","Диалоги","Услуги","Кейсы","FAQ","Контакты","Бот","Аналитика","Юр.страницы","SEO"] as const;
+const TABS = ["Дашборд","Заявки","Диалоги","Услуги","Кейсы","FAQ","Контакты","Бот","Аналитика","Юр.страницы","SEO","Диагностика"] as const;
 type Tab = typeof TABS[number];
 
 function AdminPage() {
@@ -83,6 +84,7 @@ function AdminPage() {
         {tab === "Аналитика" && <SettingsTab kind="analytics" />}
         {tab === "Юр.страницы" && <LegalTab />}
         {tab === "SEO" && <SettingsTab kind="seo" />}
+        {tab === "Диагностика" && <DiagnosticsTab />}
       </section>
     </SiteLayout>
   );
