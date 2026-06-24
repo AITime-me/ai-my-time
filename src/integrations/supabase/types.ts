@@ -301,6 +301,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_public_analytics: {
+        Args: never
+        Returns: {
+          analytics_enabled: boolean
+          google_analytics_id: string
+          yandex_metrika_id: string
+        }[]
+      }
+      get_public_site_settings: {
+        Args: never
+        Returns: {
+          bot_link: string
+          bot_widget_enabled: boolean
+          bot_widget_text: string
+          email: string
+          main_cta_text: string
+          og_image: string
+          phone: string
+          site_description: string
+          site_title: string
+          social_links: Json
+          telegram: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

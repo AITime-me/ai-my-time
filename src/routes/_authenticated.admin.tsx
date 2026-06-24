@@ -6,10 +6,10 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, GlassCard } from "@/components/SectionHeading";
 import {
   checkIsAdmin, adminListLeads, adminUpdateLead, adminDeleteLead,
-  adminUpdateSettings, adminUpdateLegal, adminUpsertService,
+  adminUpdateSettings, adminGetSettings, adminUpdateLegal, adminUpsertService,
   adminUpsertCase, adminDeleteCase, adminUpsertFaq, adminDeleteFaq,
 } from "@/lib/admin.functions";
-import { getServices, getCases, getFaq, getSiteSettings, getLegalPage } from "@/lib/site.functions";
+import { getServices, getCases, getFaq, getLegalPage } from "@/lib/site.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { LogOut, Trash2, Save } from "lucide-react";
 
@@ -287,11 +287,12 @@ function FaqTab() {
 
 function SettingsTab({ kind }: { kind: "contacts" | "bot" | "analytics" | "seo" }) {
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["site_settings"], queryFn: () => getSiteSettings() });
+  const { data } = useQuery({ queryKey: ["admin_site_settings"], queryFn: () => adminGetSettings() });
   const update = useServerFn(adminUpdateSettings);
   if (!data) return null;
 
-  const fields: Record<string, [keyof typeof data, string, "text"|"checkbox"][]> = {
+  type Field = [keyof NonNullable<typeof data>, string, "text" | "checkbox"];
+  const fields: Record<string, Field[]> = {
     contacts: [["telegram","Telegram URL","text"],["email","Email","text"],["phone","Телефон","text"]],
     bot: [["bot_link","Ссылка на бота","text"],["bot_widget_text","Текст BotWidget","text"],["main_cta_text","Основной CTA","text"],["bot_widget_enabled","Включить BotWidget","checkbox"]],
     analytics: [["yandex_metrika_id","ID Яндекс.Метрики","text"],["google_analytics_id","ID Google Analytics","text"],["analytics_enabled","Включить аналитику","checkbox"]],
@@ -308,7 +309,9 @@ function SettingsTab({ kind }: { kind: "contacts" | "bot" | "analytics" | "seo" 
           patch[k] = t === "checkbox" ? f.get(k) === "on" : String(f.get(k) || "");
         }
         await update({ data: patch as never });
+        qc.invalidateQueries({ queryKey: ["admin_site_settings"] });
         qc.invalidateQueries({ queryKey: ["site_settings"] });
+        qc.invalidateQueries({ queryKey: ["analytics_config"] });
         alert("Сохранено");
       }}>
         {fields[kind].map(([k, label, t]) => (

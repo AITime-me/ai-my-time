@@ -17,6 +17,15 @@ export const checkIsAdmin = createServerFn({ method: "GET" })
     return { isAdmin: !!data, userId: context.userId };
   });
 
+export const adminGetSettings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context as never);
+    const { data, error } = await context.supabase.from("site_settings").select("*").eq("id", 1).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data;
+  });
+
 export const adminListLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
