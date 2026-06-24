@@ -40,7 +40,7 @@ export function Header() {
         </nav>
 
         <div className="hidden md:flex items-center">
-          <CTAButton event="click_bot_header" size="md" />
+          <CTAButton event="click_bot_header" size="md" withLegal={false} />
         </div>
 
         <button className="md:hidden text-foreground" onClick={() => setOpen((v) => !v)} aria-label="Меню">
@@ -62,7 +62,7 @@ export function Header() {
               </Link>
             ))}
             <div className="mt-3 flex flex-col gap-2">
-              <CTAButton event="click_bot_header" size="lg" className="w-full" />
+              <CTAButton event="click_bot_header" size="lg" className="w-full" wrapperClassName="w-full" />
             </div>
           </nav>
         </div>
