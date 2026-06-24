@@ -68,7 +68,7 @@ const examples = [
   { title: "Аналитика и контроль бизнеса", text: "Понимание заявок, источников и эффективности процессов." },
 ];
 
-const tools = ["ChatGPT","Lovable","Cursor","React","Tailwind","Supabase","Telegram","n8n","Google Sheets","CRM","AI tools","Яндекс.Метрика","сайты","боты","автоматизации"];
+const tools = ["ChatGPT","OpenAI","Lovable","Cursor","Cloud Code","React","Tailwind","Supabase","Telegram","n8n","Google Sheets","CRM","AI tools","Яндекс.Метрика","сайты","боты","автоматизации"];
 
 function HomePage() {
   return (
