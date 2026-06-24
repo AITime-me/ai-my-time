@@ -8,7 +8,7 @@ export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
       { title: "Светлана Кузнецова — AI/digital-специалист, проект AI My Time" },
-      { name: "description", content: "Светлана Кузнецова: предпринимательница, маркетолог и AI/digital-специалист. Создаю сайты, AI-помощников и автоматизацию для малого бизнеса." },
+      { name: "description", content: "Светлана Кузнецова: предприниматель, маркетолог и AI/digital-специалист. Создаю сайты, AI-помощников и автоматизацию для малого бизнеса." },
       { property: "og:title", content: "Светлана Кузнецова — AI My Time" },
       { property: "og:description", content: "AI/digital-специалист, проект AI My Time" },
       { property: "og:url", content: "/about" },
@@ -26,7 +26,7 @@ function AboutPage() {
           <Eyebrow>Обо мне</Eyebrow>
           <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">Светлана Кузнецова</h1>
           <p className="mt-5 text-lg text-muted-foreground">
-            Я Светлана Кузнецова. Предпринимательница, маркетолог и AI/digital-специалист.
+            Я Светлана Кузнецова. Предприниматель, маркетолог и AI/digital-специалист.
           </p>
           <div className="mt-6 space-y-4 text-base text-foreground/85">
             <p>
@@ -56,7 +56,7 @@ function AboutPage() {
               </div>
               <div>
                 <p className="text-3xl font-semibold tracking-tight text-gradient">Светлана Кузнецова</p>
-                <p className="mt-2 text-sm text-muted-foreground">AI / digital специалист · маркетолог · предпринимательница</p>
+                <p className="mt-2 text-sm text-muted-foreground">AI / digital специалист · маркетолог · предприниматель</p>
               </div>
             </div>
           </div>
