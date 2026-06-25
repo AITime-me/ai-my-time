@@ -5,6 +5,15 @@ import { Eyebrow, Lead, GlassCard } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
 import { Reveal } from "@/components/Reveal";
 import { getCases } from "@/lib/site.functions";
+
+type CaseItem = {
+  id: string;
+  title: string;
+  category?: string | null;
+  task?: string | null;
+  solution?: string | null;
+  result?: string | null;
+};
 import { trackEvent } from "@/lib/analytics";
 
 export const Route = createFileRoute("/cases")({
