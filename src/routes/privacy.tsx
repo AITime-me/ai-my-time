@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow } from "@/components/SectionHeading";
 import { getLegalPage } from "@/lib/site.functions";
+import { LegalContent } from "@/components/LegalContent";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -26,9 +27,7 @@ function PrivacyPage() {
       <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
         <Eyebrow>Юридическое</Eyebrow>
         <h1 className="mt-5 text-4xl font-semibold tracking-tight">{data?.title}</h1>
-        <article className="prose prose-invert mt-8 max-w-none whitespace-pre-wrap text-base text-foreground/85">
-          {data?.content}
-        </article>
+        <LegalContent content={data?.content} />
       </section>
     </SiteLayout>
   );
