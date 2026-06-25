@@ -100,7 +100,7 @@ function AboutPage() {
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {approachSteps.map((step, index) => (
             <div key={step.title} className="glass rounded-2xl p-6">
-              <span className="text-xs uppercase tracking-wider text-[color:var(--lime)]">0{index + 1}</span>
+              <span className="text-xs uppercase tabular-nums tracking-normal text-[color:var(--lime)]">{`0${index + 1}`}</span>
               <h3 className="mt-3 text-base font-medium leading-snug">{step.title}</h3>
               <p className="mt-2 text-sm text-foreground/80">{step.description}</p>
             </div>
