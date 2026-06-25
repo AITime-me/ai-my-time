@@ -114,7 +114,7 @@ function ContactsPage() {
         <div className="lg:col-span-2 space-y-4">
           <GlassCard>
             <p className="text-xs uppercase tracking-wider text-muted-foreground">Основной способ</p>
-            <p className="mt-3 text-base">Ответить на пару вопросов&nbsp; AI-помощнику — это быстрее&nbsp; и удобнее формы.</p>
+            <p className="mt-3 text-base">Ответить на пару вопросов AI-помощнику — быстрее и удобнее, чем заполнять длинную форму.</p>
             <div className="mt-5 flex flex-col gap-2">
               <CTAButton event="click_bot_hero" size="lg" className="self-start">Ответить на пару вопросов</CTAButton>
             </div>
@@ -155,7 +155,7 @@ function ContactsPage() {
                   </span>
                   <p className="text-sm text-muted-foreground">
                     {step === 1
-                      ? "Здравствуйте! Напишите, как я могу к\u00a0 Вам обращаться и где удобно продолжить диалог?"
+                      ? "Здравствуйте! Напишите, как к вам обращаться и где удобнее продолжить диалог?"
                       : "Отлично. Расскажите пару слов о бизнесе — подберу подходящее решение."}
                   </p>
                 </div>
