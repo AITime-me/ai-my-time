@@ -9,6 +9,8 @@ export const Route = createFileRoute("/offer")({
     meta: [
       { title: "Договор оферты — AI My Time" },
       { name: "description", content: "Договор оферты на digital-услуги проекта AI My Time." },
+      { property: "og:title", content: "Договор оферты — AI My Time" },
+      { property: "og:description", content: "Договор оферты на digital-услуги проекта AI My Time." },
       { property: "og:url", content: "/offer" },
     ],
     links: [{ rel: "canonical", href: "/offer" }],
