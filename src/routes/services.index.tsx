@@ -21,6 +21,24 @@ export const Route = createFileRoute("/services/")({
       { name: "twitter:description", content: DESCRIPTION },
     ],
     links: [{ rel: "canonical", href: "/services" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          name: "Услуги AI My Time",
+          description: DESCRIPTION,
+          url: "/services",
+          hasPart: services.map((s) => ({
+            "@type": "Service",
+            name: s.title,
+            description: s.description,
+            provider: { "@type": "Organization", name: "AI My Time" },
+          })),
+        }),
+      },
+    ],
   }),
   component: ServicesIndex,
 });
