@@ -34,10 +34,7 @@ export function ConsentCheckbox({ id = "consent", checked, onChange, error, clas
           <Link
             to="/offer"
             className="underline underline-offset-2 decoration-muted-foreground/40 hover:text-foreground/80"
-          >
-            Договора публичной оферты
-          </Link>
-          .
+          >Договора публичной оферты</Link>.
         </span>
       </label>
       {error && (
