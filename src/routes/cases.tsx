@@ -5,19 +5,49 @@ import { Eyebrow, Lead, GlassCard } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
 import { Reveal } from "@/components/Reveal";
 import { getCases } from "@/lib/site.functions";
+
+type CaseItem = {
+  id: string;
+  title: string;
+  category?: string | null;
+  task?: string | null;
+  solution?: string | null;
+  result?: string | null;
+};
 import { trackEvent } from "@/lib/analytics";
 
 export const Route = createFileRoute("/cases")({
-  head: () => ({
-    meta: [
-      { title: "Примеры AI-решений для бизнеса | AI My Time" },
-      { name: "description", content: "Примеры сайтов, AI-помощников, ботов, мини-CRM и автоматизаций для малого бизнеса от Светланы Кузнецовой." },
-      { property: "og:title", content: "Примеры решений AI My Time" },
-      { property: "og:description", content: "Сайты, AI-помощники, боты, мини-CRM, автоматизация" },
-      { property: "og:url", content: "/cases" },
-    ],
-    links: [{ rel: "canonical", href: "/cases" }],
-  }),
+  head: ({ loaderData }) => {
+    const cases = Array.isArray(loaderData) ? (loaderData as CaseItem[]) : [];
+    return {
+      meta: [
+        { title: "Примеры AI-решений для бизнеса | AI My Time" },
+        { name: "description", content: "Примеры сайтов, AI-помощников, ботов, мини-CRM и автоматизаций для малого бизнеса от Светланы Кузнецовой." },
+        { property: "og:title", content: "Примеры решений AI My Time" },
+        { property: "og:description", content: "Сайты, AI-помощники, боты, мини-CRM, автоматизация" },
+        { property: "og:url", content: "/cases" },
+      ],
+      links: [{ rel: "canonical", href: "/cases" }],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            name: "Примеры решений AI My Time",
+            description: "Примеры сайтов, AI-помощников, ботов, мини-CRM и автоматизаций для малого бизнеса от Светланы Кузнецовой.",
+            url: "/cases",
+            hasPart: cases.map((c) => ({
+              "@type": "CreativeWork",
+              name: c.title,
+              description: [c.task, c.solution, c.result].filter(Boolean).join(" "),
+              about: c.category,
+            })),
+          }),
+        },
+      ],
+    };
+  },
   loader: ({ context }) => context.queryClient.ensureQueryData({ queryKey: ["cases"], queryFn: () => getCases() }),
   component: CasesPage,
 });

@@ -14,6 +14,23 @@ export const Route = createFileRoute("/about")({
       { property: "og:url", content: "/about" },
     ],
     links: [{ rel: "canonical", href: "/about" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Person",
+          name: "Светлана Кузнецова",
+          jobTitle: "AI/digital-специалист, предприниматель и маркетолог",
+          worksFor: {
+            "@type": "Organization",
+            name: "AI My Time",
+          },
+          description: "Предприниматель, маркетолог и AI/digital-специалист. Создаёт сайты, AI-помощников и автоматизацию для малого бизнеса.",
+          url: "/about",
+        }),
+      },
+    ],
   }),
   component: AboutPage,
 });
