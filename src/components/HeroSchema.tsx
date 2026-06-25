@@ -61,7 +61,7 @@ export function HeroSchema() {
                 <span className="break-words text-sm font-medium leading-snug">{n.label}</span>
                 <span className="break-words text-[11px] leading-snug text-muted-foreground">{n.hint}</span>
               </div>
-              <span className="absolute -top-1 right-2 text-[10px] tabular-nums text-muted-foreground">0{i + 1}</span>
+              <span className="absolute -top-1 right-2 text-[10px] tabular-nums tracking-normal text-muted-foreground">{`0${i + 1}`}</span>
               <DesktopArrow index={i} />
               <MobileArrow index={i} />
             </motion.div>
