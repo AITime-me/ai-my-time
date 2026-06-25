@@ -42,12 +42,12 @@ function AuthPage() {
         <p className="mt-2 text-sm text-muted-foreground">Доступ только для администраторов проекта.</p>
         <form onSubmit={onSubmit} className="mt-8 glass space-y-4 rounded-2xl p-6">
           <div>
-            <label className="text-sm text-muted-foreground">Email</label>
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm" />
+            <label htmlFor="auth-email" className="text-sm text-muted-foreground">Email</label>
+            <input id="auth-email" name="email" type="email" required autoComplete="email" aria-label="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="text-sm text-muted-foreground">Пароль</label>
-            <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm" />
+            <label htmlFor="auth-password" className="text-sm text-muted-foreground">Пароль</label>
+            <input id="auth-password" name="password" type="password" required autoComplete="current-password" aria-label="Пароль" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm" />
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
           <button disabled={loading} className="w-full rounded-full bg-[image:var(--gradient-primary)] px-5 py-2.5 text-sm font-medium text-[color:var(--lime-foreground)] disabled:opacity-60">

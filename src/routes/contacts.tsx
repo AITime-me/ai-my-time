@@ -189,13 +189,15 @@ function ContactsPage() {
                       placeholder="Например, медицина, услуги, e-commerce"
                     />
                     <div>
-                      <label className="text-sm text-muted-foreground">Что хотите улучшить или обсудить</label>
+                      <label htmlFor="task" className="text-sm text-muted-foreground">Что хотите улучшить или обсудить</label>
                       <textarea
+                        id="task"
                         name="task"
                         rows={3}
                         value={form.task}
                         onChange={(e) => update("task", e.target.value)}
                         placeholder="Коротко: что болит или что хотите запустить"
+                        aria-label="Что хотите улучшить или обсудить"
                         className="mt-1 w-full rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--lime)]/60"
                       />
                     </div>
@@ -250,19 +252,27 @@ function Field({
   name: string; label: string; type?: string; required?: boolean; error?: string;
   value: string; onChange: (v: string) => void; placeholder?: string; autoComplete?: string;
 }) {
+  const id = `field-${name}`;
+  const errorId = `${id}-error`;
   return (
     <div>
-      <label className="text-sm text-muted-foreground">{label}{required && <span className="text-destructive"> *</span>}</label>
+      <label htmlFor={id} className="text-sm text-muted-foreground">{label}{required && <span className="text-destructive"> *</span>}</label>
       <input
+        id={id}
         name={name}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        required={required}
+        aria-label={label}
+        aria-required={required || undefined}
+        aria-invalid={!!error || undefined}
+        aria-describedby={error ? errorId : undefined}
         className="mt-1 w-full rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--lime)]/60"
       />
-      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+      {error && <p id={errorId} className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
   );
 }
