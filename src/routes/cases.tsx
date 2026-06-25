@@ -18,7 +18,7 @@ import { trackEvent } from "@/lib/analytics";
 
 export const Route = createFileRoute("/cases")({
   head: ({ loaderData }) => {
-    const cases = Array.isArray(loaderData) ? loaderData : [];
+    const cases = Array.isArray(loaderData) ? (loaderData as CaseItem[]) : [];
     return {
       meta: [
         { title: "Примеры AI-решений для бизнеса | AI My Time" },
