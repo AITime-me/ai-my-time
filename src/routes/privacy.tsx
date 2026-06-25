@@ -9,6 +9,8 @@ export const Route = createFileRoute("/privacy")({
     meta: [
       { title: "Политика конфиденциальности — AI My Time" },
       { name: "description", content: "Политика конфиденциальности сайта проекта AI My Time." },
+      { property: "og:title", content: "Политика конфиденциальности — AI My Time" },
+      { property: "og:description", content: "Политика конфиденциальности сайта проекта AI My Time." },
       { property: "og:url", content: "/privacy" },
     ],
     links: [{ rel: "canonical", href: "/privacy" }],

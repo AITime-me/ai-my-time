@@ -7,9 +7,9 @@ import aboutPhotoAsset from "@/assets/about-photo.png.asset.json";
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "Светлана Кузнецова — AI/digital-специалист, проект AI My Time" },
+      { title: "Об авторе AI My Time — Светлана Кузнецова" },
       { name: "description", content: "Светлана Кузнецова: предприниматель, маркетолог и AI/digital-специалист. Создаю сайты, AI-помощников и автоматизацию для малого бизнеса." },
-      { property: "og:title", content: "Светлана Кузнецова — AI My Time" },
+      { property: "og:title", content: "Об авторе AI My Time — Светлана Кузнецова" },
       { property: "og:description", content: "AI/digital-специалист, проект AI My Time" },
       { property: "og:url", content: "/about" },
     ],

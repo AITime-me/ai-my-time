@@ -15,9 +15,9 @@ import { useState } from "react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Светлана Кузнецова — сайты и AI-помощники для малого бизнеса | AI My Time" },
+      { title: "AI My Time — сайты и AI для бизнеса" },
       { name: "description", content: "Светлана Кузнецова, проект AI My Time: сайты, AI-помощники, боты и автоматизация для малого бизнеса, которому не хватает людей, времени и порядка." },
-      { property: "og:title", content: "Светлана Кузнецова — AI My Time" },
+      { property: "og:title", content: "AI My Time — сайты и AI для бизнеса" },
       { property: "og:description", content: "Сайты, AI-помощники, боты и автоматизация для малого бизнеса" },
       { property: "og:url", content: "/" },
     ],

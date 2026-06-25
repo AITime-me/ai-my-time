@@ -5,7 +5,7 @@ import { CTAButton } from "@/components/CTAButton";
 import { Reveal } from "@/components/Reveal";
 import { Check } from "lucide-react";
 
-const TITLE = "Услуги AI My Time — сайты, AI-помощники, боты и автоматизация бизнеса";
+const TITLE = "Услуги AI My Time — сайты, боты и AI";
 const DESCRIPTION = "Сайты для бизнеса с SEO, AI-администраторы, чат-боты, автоматизация на n8n, приложения для бизнеса, OpenClaw Bot и аналитика для малого бизнеса.";
 
 export const Route = createFileRoute("/services/")({
