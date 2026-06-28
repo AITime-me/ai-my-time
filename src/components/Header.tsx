@@ -39,8 +39,8 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="hidden md:flex items-start">
-          <CTAButton event="click_bot_header" size="md" legalClassName="max-w-[520px] md:text-[9px] lg:text-[10px] xl:text-[11px]" />
+        <div className="hidden md:flex items-center">
+          <CTAButton event="click_bot_header" size="md" withLegal={false} />
         </div>
 
         <button className="md:hidden text-foreground" onClick={() => setOpen((v) => !v)} aria-label="Меню">
@@ -61,8 +61,8 @@ export function Header() {
                 {n.label}
               </Link>
             ))}
-            <div className="mt-3 flex flex-col gap-2">
-              <CTAButton event="click_bot_header" size="lg" className="w-full" wrapperClassName="w-full" />
+            <div className="mt-3">
+              <CTAButton event="click_bot_header" size="lg" className="w-full" withLegal={false} />
             </div>
           </nav>
         </div>

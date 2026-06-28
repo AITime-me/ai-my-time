@@ -36,15 +36,11 @@ function ContactsPage() {
       <section className="mx-auto grid max-w-7xl gap-6 px-4 py-12 sm:px-6 lg:grid-cols-5 lg:px-8">
         <div className="space-y-4 lg:col-span-2">
           <GlassCard>
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Основной способ</p>
-            <p className="mt-3 text-base">
-              Ответьте на пару вопросов AI-помощнику — так проще понять задачу и выбрать подходящее решение.
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Основной способ связи</p>
+            <p className="mt-3 text-base text-muted-foreground">
+              Диалог с AI-помощником помогает быстро понять задачу, собрать вводные и передать информацию для
+              дальнейшей работы.
             </p>
-            <div className="mt-5 flex flex-col gap-2">
-              <CTAButton event="click_bot_hero" size="lg" className="self-start">
-                Ответить на пару вопросов
-              </CTAButton>
-            </div>
           </GlassCard>
           <GlassCard>
             <p className="text-xs uppercase tracking-wider text-muted-foreground">Прямые контакты</p>
