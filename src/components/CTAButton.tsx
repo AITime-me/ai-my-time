@@ -26,7 +26,7 @@ type Props = {
 export function CTAButton({
   children, event = "click_bot_generic", variant = "primary", size = "md",
   className, arrow = true, label,
-  withLegal = false, wrapperClassName, legalAlign = "center", legalClassName,
+  withLegal = true, wrapperClassName, legalAlign = "center", legalClassName,
 }: Props) {
   const s = useSiteSettings();
   const text = children ?? label ?? s.main_cta_text;
@@ -56,9 +56,9 @@ export function CTAButton({
   );
   if (!withLegal) return button;
   return (
-    <span className={cn("inline-flex flex-col", legalAlign === "center" ? "items-center" : "items-start", wrapperClassName)}>
+    <span className={cn("inline-flex max-w-full flex-col", legalAlign === "center" ? "items-center" : "items-start", wrapperClassName)}>
       {button}
-      <BotLegalNote align={legalAlign} className={legalClassName} />
+      <BotLegalNote align={legalAlign} className={cn("max-w-[22rem]", legalClassName)} />
     </span>
   );
 }
