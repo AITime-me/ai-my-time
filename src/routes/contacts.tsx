@@ -1,10 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, GlassCard, Lead } from "@/components/SectionHeading";
-import { CTAButton } from "@/components/CTAButton";
 import { trackEvent } from "@/lib/analytics";
 import { useSiteSettings } from "@/components/SiteSettingsProvider";
-import { Send, Mail, Phone, Sparkles } from "lucide-react";
+import { Send, Mail, Phone } from "lucide-react";
 
 export const Route = createFileRoute("/contacts")({
   head: () => ({
@@ -87,26 +86,29 @@ function ContactsPage() {
           <GlassCard className="flex flex-col gap-5 sm:p-8">
             <div className="flex items-start gap-3">
               <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[image:var(--gradient-primary)] text-[color:var(--lime-foreground)] shadow-[var(--shadow-glow)]">
-                <Sparkles className="size-5" />
+                <Send className="size-5" />
               </span>
               <div>
                 <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
-                  Расскажите о задаче AI-помощнику
+                  Обсудить задачу
                 </h2>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
-                  AI-помощник задаст несколько уточняющих вопросов, поможет сформулировать запрос и передаст
-                  информацию для дальнейшей работы.
+                  Напишите в Telegram, если хотите обсудить сайт, AI-администратора, онлайн-запись,
+                  CRM или автоматизацию для салона красоты.
                 </p>
               </div>
             </div>
-            <CTAButton
-              event="click_bot_contacts"
-              label="Задать вопрос AI-помощнику"
-              size="lg"
-              legalAlign="left"
-              className="self-start"
-              legalClassName="max-w-xl"
-            />
+            {s.telegram && (
+              <a
+                href={s.telegram}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackEvent("click_telegram_contacts")}
+                className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-[image:var(--gradient-primary)] px-7 py-3.5 text-base font-medium text-[color:var(--lime-foreground)] shadow-[var(--shadow-glow)] transition-all hover:-translate-y-0.5 hover:brightness-110"
+              >
+                <Send className="size-4" /> Написать в Telegram
+              </a>
+            )}
           </GlassCard>
         </div>
       </section>

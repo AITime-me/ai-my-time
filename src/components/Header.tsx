@@ -5,7 +5,7 @@ import { CTAButton } from "./CTAButton";
 
 const nav = [
   { to: "/services", label: "Услуги" },
-  { to: "/cases", label: "Решения" },
+  { to: "/cases", label: "Проекты" },
   { to: "/about", label: "Обо мне" },
   { to: "/contacts", label: "Контакты" },
 ] as const;

@@ -112,6 +112,7 @@ export type Database = {
         Row: {
           category: string | null
           created_at: string
+          ecosystem_role: string | null
           id: string
           image_url: string | null
           is_active: boolean
@@ -120,6 +121,7 @@ export type Database = {
           seo_title: string | null
           solution: string | null
           sort_order: number
+          status: string | null
           task: string | null
           title: string
           updated_at: string
@@ -127,6 +129,7 @@ export type Database = {
         Insert: {
           category?: string | null
           created_at?: string
+          ecosystem_role?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
@@ -135,6 +138,7 @@ export type Database = {
           seo_title?: string | null
           solution?: string | null
           sort_order?: number
+          status?: string | null
           task?: string | null
           title: string
           updated_at?: string
@@ -142,6 +146,7 @@ export type Database = {
         Update: {
           category?: string | null
           created_at?: string
+          ecosystem_role?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
@@ -150,6 +155,7 @@ export type Database = {
           seo_title?: string | null
           solution?: string | null
           sort_order?: number
+          status?: string | null
           task?: string | null
           title?: string
           updated_at?: string
