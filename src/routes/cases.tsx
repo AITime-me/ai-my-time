@@ -15,6 +15,7 @@ type CaseItem = {
   task?: string | null;
   solution?: string | null;
   ecosystem_role?: string | null;
+  note?: string | null;
 };
 
 export const Route = createFileRoute("/cases")({
@@ -100,6 +101,9 @@ function CasesPage() {
               </li>
             ))}
           </ol>
+          <p className="mt-4 max-w-3xl text-sm text-muted-foreground">
+            OpenClaw — надсистемный слой управления: работает не только с кейсом «Твоё время», а со всеми проектами AI My Time.
+          </p>
         </GlassCard>
       </section>
 
@@ -121,6 +125,7 @@ function CasesPage() {
                 {c.task && <p className="mt-3 text-sm"><span className="text-muted-foreground">Задача: </span>{c.task}</p>}
                 {c.solution && <p className="mt-2 text-sm"><span className="text-muted-foreground">Что создаётся: </span>{c.solution}</p>}
                 {c.ecosystem_role && <p className="mt-2 text-sm"><span className="text-muted-foreground">Роль в экосистеме: </span>{c.ecosystem_role}</p>}
+                {c.note && <p className="mt-3 text-xs leading-relaxed text-muted-foreground/80 border-l-2 border-[color:var(--lime)]/40 pl-3">{c.note}</p>}
                 <div className="mt-6 flex flex-col gap-2">
                   <CTAButton event="click_bot_cases" variant="secondary" arrow />
                 </div>
