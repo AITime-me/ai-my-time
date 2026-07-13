@@ -15,6 +15,7 @@ type CaseItem = {
   task?: string | null;
   solution?: string | null;
   ecosystem_role?: string | null;
+  note?: string | null;
 };
 
 export const Route = createFileRoute("/cases")({
