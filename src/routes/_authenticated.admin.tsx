@@ -254,6 +254,7 @@ function CasesTab() {
                 solution: String(f.get("solution")),
                 result: String(f.get("result")),
                 ecosystem_role: String(f.get("ecosystem_role")),
+                note: String(f.get("note")),
                 is_active: f.get("is_active") === "on",
               }});
               qc.invalidateQueries({ queryKey: ["cases"] }); alert("Сохранено");
