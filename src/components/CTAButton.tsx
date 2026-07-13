@@ -40,7 +40,7 @@ export function CTAButton({
       "glass text-foreground hover:border-[color:var(--lime)]/40",
     ghost: "text-foreground/80 hover:text-foreground hover:bg-white/5",
   } as const;
-  const href = s.telegram || s.bot_link || "#";
+  const href = s.bot_link || s.telegram || "#";
   const isExternal = href !== "#";
   const button = (
     <a
