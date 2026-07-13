@@ -116,6 +116,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_active: boolean
+          note: string | null
           result: string | null
           seo_description: string | null
           seo_title: string | null
@@ -133,6 +134,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          note?: string | null
           result?: string | null
           seo_description?: string | null
           seo_title?: string | null
@@ -150,6 +152,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          note?: string | null
           result?: string | null
           seo_description?: string | null
           seo_title?: string | null
