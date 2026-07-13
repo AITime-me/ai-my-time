@@ -7,7 +7,7 @@ import { Send, Mail } from "lucide-react";
 const navLinks = [
   { to: "/", label: "Главная" },
   { to: "/services", label: "Услуги" },
-  { to: "/cases", label: "Решения" },
+  { to: "/cases", label: "Проекты" },
   { to: "/about", label: "Обо мне" },
   { to: "/contacts", label: "Контакты" },
 ];
