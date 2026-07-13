@@ -1,0 +1,1 @@
+UPDATE public.site_settings SET main_cta_text = 'Обсудить с AI-помощником', bot_widget_enabled = true, bot_widget_text = 'AI-помощник';
