@@ -26,7 +26,7 @@ type Props = {
 export function CTAButton({
   children, event = "click_bot_generic", variant = "primary", size = "md",
   className, arrow = true, label,
-  withLegal = true, wrapperClassName, legalAlign = "center", legalClassName,
+  withLegal = false, wrapperClassName, legalAlign = "center", legalClassName,
 }: Props) {
   const s = useSiteSettings();
   const text = children ?? label ?? s.main_cta_text;
@@ -40,10 +40,12 @@ export function CTAButton({
       "glass text-foreground hover:border-[color:var(--lime)]/40",
     ghost: "text-foreground/80 hover:text-foreground hover:bg-white/5",
   } as const;
+  const href = s.telegram || s.bot_link || "#";
+  const isExternal = href !== "#";
   const button = (
     <a
-      href={s.bot_link || "#"}
-      target={s.bot_link && s.bot_link !== "#" ? "_blank" : undefined}
+      href={href}
+      target={isExternal ? "_blank" : undefined}
       rel="noopener noreferrer"
       onClick={() => trackEvent(event)}
       className={cn(base, sizes, variants[variant], className)}
