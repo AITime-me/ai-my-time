@@ -249,18 +249,22 @@ function CasesTab() {
                 id: c.id,
                 title: String(f.get("title")),
                 category: String(f.get("category")),
+                status: String(f.get("status")),
                 task: String(f.get("task")),
                 solution: String(f.get("solution")),
                 result: String(f.get("result")),
+                ecosystem_role: String(f.get("ecosystem_role")),
                 is_active: f.get("is_active") === "on",
               }});
               qc.invalidateQueries({ queryKey: ["cases"] }); alert("Сохранено");
             }}>
               <AdminInput name="title" label="Название" defaultValue={c.title} className="sm:col-span-2" />
-              <AdminInput name="category" label="Категория" defaultValue={c.category || ""} className="sm:col-span-2" />
+              <AdminInput name="category" label="Категория" defaultValue={c.category || ""} />
+              <AdminInput name="status" label="Статус" defaultValue={(c as unknown as { status?: string | null }).status || ""} />
               <AdminTextarea name="task" label="Задача" defaultValue={c.task || ""} />
-              <AdminTextarea name="solution" label="Решение" defaultValue={c.solution || ""} />
-              <AdminTextarea name="result" label="Результат" defaultValue={c.result || ""} className="sm:col-span-2" />
+              <AdminTextarea name="solution" label="Что создаётся" defaultValue={c.solution || ""} />
+              <AdminTextarea name="ecosystem_role" label="Роль в экосистеме" defaultValue={(c as unknown as { ecosystem_role?: string | null }).ecosystem_role || ""} className="sm:col-span-2" />
+              <AdminTextarea name="result" label="Результат (не используется для незапущенных проектов)" defaultValue={c.result || ""} className="sm:col-span-2" />
               <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="is_active" defaultChecked={c.is_active} /> Показывать на сайте</label>
               <div className="flex gap-2 sm:col-span-2">
                 <button className="rounded-full bg-[image:var(--gradient-primary)] px-4 py-2 text-sm text-[color:var(--lime-foreground)]">Сохранить</button>
