@@ -37,8 +37,8 @@ function ContactsPage() {
           <GlassCard>
             <p className="text-xs uppercase tracking-wider text-muted-foreground">Основной способ связи</p>
             <p className="mt-3 text-base text-muted-foreground">
-              Диалог с AI-помощником помогает быстро понять задачу, собрать вводные и передать информацию для
-              дальнейшей работы.
+              Напишите в Telegram, чтобы обсудить задачу. Я помогу определить, какой digital-инструмент
+              подойдёт вашему бизнесу: сайт, AI-помощник, CRM, автоматизация или система аналитики.
             </p>
           </GlassCard>
           <GlassCard>
@@ -93,8 +93,8 @@ function ContactsPage() {
                   Обсудить задачу
                 </h2>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
-                  Напишите в Telegram, если хотите обсудить сайт, AI-администратора, онлайн-запись,
-                  CRM или автоматизацию для салона красоты.
+                  Напишите в Telegram, если хотите обсудить сайт, AI-помощника, CRM, автоматизацию,
+                  аналитику или внутренний digital-инструмент для бизнеса.
                 </p>
               </div>
             </div>
