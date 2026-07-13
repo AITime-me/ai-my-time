@@ -127,6 +127,7 @@ export const adminUpsertCase = createServerFn({ method: "POST" })
     solution: z.string().optional().nullable(),
     result: z.string().optional().nullable(),
     ecosystem_role: z.string().optional().nullable(),
+    note: z.string().optional().nullable(),
     image_url: z.string().optional().nullable(),
     sort_order: z.number().optional(),
     is_active: z.boolean().optional(),
