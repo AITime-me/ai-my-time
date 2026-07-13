@@ -265,6 +265,7 @@ function CasesTab() {
               <AdminTextarea name="task" label="Задача" defaultValue={c.task || ""} />
               <AdminTextarea name="solution" label="Что создаётся" defaultValue={c.solution || ""} />
               <AdminTextarea name="ecosystem_role" label="Роль в экосистеме" defaultValue={(c as unknown as { ecosystem_role?: string | null }).ecosystem_role || ""} className="sm:col-span-2" />
+              <AdminTextarea name="note" label="Юридическая/уточняющая подпись под карточкой" defaultValue={(c as unknown as { note?: string | null }).note || ""} className="sm:col-span-2" />
               <AdminTextarea name="result" label="Результат (не используется для незапущенных проектов)" defaultValue={c.result || ""} className="sm:col-span-2" />
               <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="is_active" defaultChecked={c.is_active} /> Показывать на сайте</label>
               <div className="flex gap-2 sm:col-span-2">
