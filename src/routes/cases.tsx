@@ -22,10 +22,10 @@ export const Route = createFileRoute("/cases")({
     const cases = Array.isArray(loaderData) ? (loaderData as CaseItem[]) : [];
     return {
       meta: [
-        { title: "Проекты для салонов красоты | AI My Time" },
-        { name: "description", content: "Проекты для салонов красоты: сайт, AI-администратор, онлайн-запись и CRM, калькулятор экономики процедур, внутренний AI-ассистент владельца." },
-        { property: "og:title", content: "Проекты для салонов красоты" },
-        { property: "og:description", content: "Экосистема цифровых решений для салонов красоты: сайт, AI-администратор, онлайн-запись, CRM, аналитика." },
+        { title: "B2B-проекты: сайты, AI и автоматизация | AI My Time" },
+        { name: "description", content: "Примеры B2B-проектов AI My Time: сайты с SEO-логикой, AI-администраторы, онлайн-запись, CRM, аналитика и AI-ассистенты владельца. Кейс на примере студии красоты «Твоё время»." },
+        { property: "og:title", content: "B2B-проекты: сайты, AI и автоматизация" },
+        { property: "og:description", content: "Примеры B2B-проектов AI My Time: сайты, AI-администраторы, онлайн-запись, CRM, аналитика и AI-ассистенты владельца. Кейс на примере студии «Твоё время»." },
         { property: "og:url", content: "/cases" },
       ],
       links: [{ rel: "canonical", href: "/cases" }],
@@ -35,8 +35,8 @@ export const Route = createFileRoute("/cases")({
           children: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "CollectionPage",
-            name: "Проекты для салонов красоты",
-            description: "Проекты для салонов красоты: сайт, AI-администратор, онлайн-запись, CRM, аналитика.",
+            name: "B2B-проекты AI My Time",
+            description: "Примеры цифровых систем для малого и сервисного бизнеса: сайты, AI-администраторы, онлайн-запись, CRM, аналитика и AI-ассистенты владельца.",
             url: "/cases",
             hasPart: cases.map((c) => ({
               "@type": "CreativeWork",
@@ -67,20 +67,29 @@ function CasesPage() {
   return (
     <SiteLayout>
       <section className="mx-auto max-w-7xl px-4 pt-14 sm:px-6 lg:px-8">
-        <Eyebrow>Портфолио</Eyebrow>
-        <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">Проекты для салонов красоты</h1>
+        <Eyebrow>B2B-портфолио</Eyebrow>
+        <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">Примеры цифровых систем для бизнеса</h1>
         <Lead className="max-w-3xl">
-          Я создаю цифровые решения для салонов красоты, в которых маркетинг, сайт, общение с клиенткой,
-          онлайн-запись и управление процессами связаны в одну систему. Проекты находятся на разных стадиях:
-          от архитектуры и MVP до внедрения. Здесь нет выдуманных результатов — только то, что уже
-          создано или спроектировано.
+          AI My Time создаёт цифровые решения для малого и сервисного бизнеса: сайты, AI-помощников,
+          автоматизацию, онлайн-запись, CRM и внутренние инструменты управления. Ниже — сквозной кейс на
+          примере студии красоты «Твоё время», где маркетинг, клиентский путь, запись и управление
+          процессами проектируются как единая система. Проекты находятся на разных стадиях: от
+          архитектуры и MVP до внедрения. Здесь нет выдуманных результатов — только то, что уже создано
+          или спроектировано.
         </Lead>
       </section>
 
       <section className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
         <GlassCard className="hover:-translate-y-0 hover:border-border/60 hover:shadow-none">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Экосистема «Твоё время»</p>
-          <ol className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-3 text-sm">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            Сквозной кейс: экосистема сервисного бизнеса на примере студии «Твоё время»
+          </p>
+          <p className="mt-3 max-w-3xl text-sm text-muted-foreground">
+            Эта схема применима не только к салону красоты. Она показывает, как связать привлечение
+            клиентов, сайт, AI-коммуникацию, запись, CRM и управленческую аналитику в одном
+            бизнес-контуре.
+          </p>
+          <ol className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-3 text-sm">
             {ecosystemSteps.map((step, i) => (
               <li key={step} className="flex items-center gap-2">
                 <span className="rounded-full border border-border/60 bg-white/5 px-3 py-1.5 text-foreground/90">
