@@ -101,3 +101,11 @@ class AdminAuthService:
         if user is None or not user.is_active:
             raise ValueError("invalid session")
         return AdminActor(user_id=user.id, email=user.email, role=user.role)
+
+    async def logout(self, *, session_token: str) -> None:
+        session = await self._session.scalar(
+            select(AdminSession).where(AdminSession.token_hash == _token_digest(session_token))
+        )
+        if session is not None and session.revoked_at is None:
+            session.revoked_at = datetime.now(timezone.utc)
+            await self._session.flush()
