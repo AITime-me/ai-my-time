@@ -1,0 +1,144 @@
+"""A provider-free worker contract for durable outbound messages.
+
+It deliberately contains no bot token, HTTP call or Telegram URL. A real
+provider adapter will be injected later, after infrastructure approval.
+"""
+
+from __future__ import annotations
+
+import uuid
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from typing import Protocol
+
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from app.models import OutboundMessage
+from app.db.session import session_scope
+
+
+@dataclass(frozen=True)
+class OutboundDelivery:
+    message_id: uuid.UUID
+    user_id: uuid.UUID
+    channel: str
+    payload: dict[str, object]
+    lease_token: uuid.UUID
+
+
+class OutboundTransport(Protocol):
+    async def deliver(self, message: OutboundDelivery) -> None: ...
+
+
+class OutboundDeliveryService:
+    """Claims work once, then marks that exact lease sent or retryable."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def claim(self, *, limit: int, lease_seconds: int = 60) -> list[OutboundDelivery]:
+        if not 1 <= limit <= 100:
+            raise ValueError("outbound claim limit must be between 1 and 100")
+        now = datetime.now(timezone.utc)
+        await self._session.execute(
+            update(OutboundMessage)
+            .where(
+                OutboundMessage.status == "processing",
+                OutboundMessage.lease_expires_at < now,
+            )
+            .values(status="pending", lease_token=None, lease_expires_at=None)
+        )
+        rows = list(
+            (
+                await self._session.scalars(
+                    select(OutboundMessage)
+                    .where(OutboundMessage.status == "pending")
+                    .order_by(OutboundMessage.created_at, OutboundMessage.id)
+                    .limit(limit)
+                    .with_for_update(skip_locked=True)
+                )
+            ).all()
+        )
+        deliveries: list[OutboundDelivery] = []
+        for row in rows:
+            lease_token = uuid.uuid4()
+            row.status = "processing"
+            row.lease_token = lease_token
+            row.lease_expires_at = now + timedelta(seconds=lease_seconds)
+            row.attempt_count += 1
+            row.last_error_code = None
+            deliveries.append(
+                OutboundDelivery(
+                    message_id=row.id,
+                    user_id=row.user_id,
+                    channel=row.channel,
+                    payload=row.payload_json,
+                    lease_token=lease_token,
+                )
+            )
+        await self._session.flush()
+        return deliveries
+
+    async def mark_sent(self, delivery: OutboundDelivery) -> None:
+        result = await self._session.execute(
+            update(OutboundMessage)
+            .where(
+                OutboundMessage.id == delivery.message_id,
+                OutboundMessage.status == "processing",
+                OutboundMessage.lease_token == delivery.lease_token,
+            )
+            .values(
+                status="sent",
+                sent_at=datetime.now(timezone.utc),
+                lease_token=None,
+                lease_expires_at=None,
+                last_error_code=None,
+            )
+        )
+        if result.rowcount != 1:
+            raise ValueError("outbound delivery lease is no longer active")
+
+    async def mark_retry(self, delivery: OutboundDelivery, *, error_code: str) -> None:
+        result = await self._session.execute(
+            update(OutboundMessage)
+            .where(
+                OutboundMessage.id == delivery.message_id,
+                OutboundMessage.status == "processing",
+                OutboundMessage.lease_token == delivery.lease_token,
+            )
+            .values(
+                status="pending",
+                lease_token=None,
+                lease_expires_at=None,
+                last_error_code=error_code[:120],
+            )
+        )
+        if result.rowcount != 1:
+            raise ValueError("outbound delivery lease is no longer active")
+
+
+class OutboundWorker:
+    """Runs a bounded batch through an injected transport; no network by default."""
+
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession], transport: OutboundTransport) -> None:
+        self._session_factory = session_factory
+        self._transport = transport
+
+    async def run_once(self, *, limit: int = 20) -> int:
+        async with session_scope(self._session_factory) as session:
+            deliveries = await OutboundDeliveryService(session).claim(limit=limit)
+        sent_count = 0
+        for delivery in deliveries:
+            try:
+                await self._transport.deliver(delivery)
+            except Exception as error:
+                async with session_scope(self._session_factory) as session:
+                    await OutboundDeliveryService(session).mark_retry(
+                        delivery, error_code=type(error).__name__
+                    )
+            else:
+                async with session_scope(self._session_factory) as session:
+                    await OutboundDeliveryService(session).mark_sent(delivery)
+                sent_count += 1
+        return sent_count

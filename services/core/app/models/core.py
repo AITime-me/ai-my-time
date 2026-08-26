@@ -117,7 +117,7 @@ class LeadBotSession(Timestamped, Base):
 
 
 class OutboundMessage(Base):
-    """Provider-neutral outbox. Workers may send only rows marked pending."""
+    """Provider-neutral outbox with a short delivery lease for each worker."""
 
     __tablename__ = "outbound_messages"
     __table_args__ = (
@@ -136,6 +136,9 @@ class OutboundMessage(Base):
     dedupe_key: Mapped[str] = mapped_column(String(180), nullable=False)
     status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="pending")
     attempt_count: Mapped[int] = mapped_column(nullable=False, server_default="0")
+    lease_token: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
