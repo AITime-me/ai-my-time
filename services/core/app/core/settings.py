@@ -6,9 +6,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Non-secret runtime settings for the core API.
 
-    Database and provider credentials are intentionally not introduced in the
-    first scaffold. They are added only together with their isolated runtime
-    and secret-delivery path.
+    Provider credentials are intentionally not introduced in this scaffold.
+    DATABASE_URL is optional locally and required by the migration/deploy
+    commands; it is never logged by application code.
     """
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     app_name: str = "A.I. My Time Core"
     app_env: str = "development"
     app_version: str = "0.1.0"
+    database_url: str | None = None
 
 
 @lru_cache
