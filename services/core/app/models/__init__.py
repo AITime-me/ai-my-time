@@ -1,4 +1,6 @@
 from app.models.core import (
+    AdminSession,
+    AdminUser,
     BusinessProfile,
     ConferenceEntry,
     DiagnosticReport,
@@ -11,6 +13,8 @@ from app.models.core import (
 )
 
 __all__ = [
+    "AdminSession",
+    "AdminUser",
     "BusinessProfile",
     "ConferenceEntry",
     "DiagnosticReport",

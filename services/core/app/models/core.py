@@ -63,6 +63,43 @@ class UserIdentity(Timestamped, Base):
     external_id: Mapped[str] = mapped_column(String(256), nullable=False)
 
 
+class AdminUser(Timestamped, Base):
+    """Human operator account, intentionally separate from Telegram leads."""
+
+    __tablename__ = "admin_users"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(String(512), nullable=False)
+    role: Mapped[str] = mapped_column(String(24), nullable=False)
+    is_active: Mapped[bool] = mapped_column(nullable=False, server_default="true")
+    password_changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class AdminSession(Base):
+    """Only the digest is durable; a raw session token is never stored."""
+
+    __tablename__ = "admin_sessions"
+    __table_args__ = (Index("ix_admin_sessions_user_expires", "admin_user_id", "expires_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    admin_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("admin_users.id", ondelete="RESTRICT"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class Touchpoint(Base):
     __tablename__ = "touchpoints"
     __table_args__ = (

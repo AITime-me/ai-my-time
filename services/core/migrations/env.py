@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from app.core.settings import get_settings
 from app.db.base import Base
 from app.models import (  # noqa: F401
+    AdminSession,
+    AdminUser,
     BusinessProfile,
     ConferenceEntry,
     DiagnosticReport,
