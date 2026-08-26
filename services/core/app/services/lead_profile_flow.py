@@ -83,6 +83,8 @@ class LeadProfileFlow:
         step_index = _STEP_INDEX.get(question_code)
         if step_index is None:
             raise ValueError("unsupported profile question")
+        if value not in PROFILE_STEPS[step_index].options:
+            raise ValueError("unsupported profile answer")
         is_last = step_index == len(PROFILE_STEPS) - 1
         await ProfileService(self._session).save(
             SaveProfileAnswersCommand(

@@ -7,11 +7,13 @@ import os
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 
 from app.core.settings import get_settings
 from app.db.session import create_session_factory, session_scope
 from app.main import create_app
+from app.models import DiagnosticSession, LeadBotSession, OutboundMessage
+from app.services.lead_profile_flow import PROFILE_STEPS
 
 
 def _test_database_url() -> str:
@@ -46,6 +48,73 @@ def test_private_start_is_secret_checked_and_idempotent(monkeypatch: pytest.Monk
     finally:
         get_settings.cache_clear()
         asyncio.run(_clear_conference_tables(database_url))
+
+
+def test_profile_callbacks_advance_only_the_expected_question(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_url = _test_database_url()
+    asyncio.run(_clear_conference_tables(database_url))
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("TELEGRAM_LEAD_WEBHOOK_SECRET", "test-lead-webhook-secret")
+    get_settings.cache_clear()
+    headers = {"X-Telegram-Bot-Api-Secret-Token": "test-lead-webhook-secret"}
+    telegram_user_id = 901002
+    start_payload = {
+        "update_id": 1002,
+        "message": {
+            "chat": {"type": "private"},
+            "from": {"id": telegram_user_id},
+            "text": "/start qr_conf_main",
+        },
+    }
+    try:
+        with TestClient(create_app()) as client:
+            assert client.post("/webhooks/telegram/lead", json=start_payload, headers=headers).status_code == 204
+            invalid = _callback_payload(
+                update_id=1003,
+                telegram_user_id=telegram_user_id,
+                data="profile:team_size:1–3",
+            )
+            assert client.post("/webhooks/telegram/lead", json=invalid, headers=headers).status_code == 204
+            for index, step in enumerate(PROFILE_STEPS, start=1004):
+                payload = _callback_payload(
+                    update_id=index,
+                    telegram_user_id=telegram_user_id,
+                    data=f"profile:{step.code}:{step.options[0]}",
+                )
+                assert client.post("/webhooks/telegram/lead", json=payload, headers=headers).status_code == 204
+        assert asyncio.run(_flow_counts(database_url)) == ("completed", 7, 1)
+    finally:
+        get_settings.cache_clear()
+        asyncio.run(_clear_conference_tables(database_url))
+
+
+def _callback_payload(*, update_id: int, telegram_user_id: int, data: str) -> dict[str, object]:
+    return {
+        "update_id": update_id,
+        "callback_query": {
+            "id": f"callback-{update_id}",
+            "from": {"id": telegram_user_id},
+            "message": {"chat": {"type": "private"}},
+            "data": data,
+        },
+    }
+
+
+async def _flow_counts(database_url: str) -> tuple[str, int, int]:
+    factory = create_session_factory(database_url)
+    try:
+        async with session_scope(factory) as session:
+            flow = await session.scalar(select(LeadBotSession))
+            assert flow is not None
+            return (
+                flow.status,
+                await session.scalar(select(func.count()).select_from(OutboundMessage)),
+                await session.scalar(select(func.count()).select_from(DiagnosticSession)),
+            )
+    finally:
+        await factory.kw["bind"].dispose()
 
 
 async def _clear_conference_tables(database_url: str) -> None:
