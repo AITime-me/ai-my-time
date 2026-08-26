@@ -13,12 +13,14 @@ import pytest
 from sqlalchemy import text
 
 from app.db.session import create_session_factory, session_scope
-from app.models import DiagnosticSession
+from app.models import DiagnosticReport, DiagnosticSession
 from app.schemas.conference import ConferenceStartCommand
 from app.schemas.diagnostic import PrepareDiagnosticCommand
+from app.schemas.diagnostic_report import RecordDiagnosticReportCommand
 from app.schemas.profile import SaveProfileAnswersCommand
 from app.services.conference_intake import ConferenceIntakeService
 from app.services.diagnostic import DiagnosticPreparationService
+from app.services.diagnostic_report import DiagnosticReportService
 from app.services.profile import ProfileService
 
 
@@ -98,6 +100,37 @@ async def _run_flow(database_url: str) -> None:
             assert diagnostic is not None
             assert diagnostic.status == "prepared"
             assert len(diagnostic.input_snapshot_json["profile_answers"]) == 6
+
+        report_command = RecordDiagnosticReportCommand(
+            diagnostic_session_id=diagnostic_result.diagnostic_session_id,
+            summary="Нужно сделать следующий шаг по заявке видимым для команды.",
+            priorities=[
+                {
+                    "title": "Статус новой заявки",
+                    "reason": "Следующий ответственный не зафиксирован",
+                    "confidence": "high",
+                }
+            ],
+            next_steps=[
+                {
+                    "title": "Единая очередь",
+                    "action": "Зафиксировать единый вход и обязательный следующий шаг",
+                }
+            ],
+            limitations=["Результат основан на ответах анкеты."],
+        )
+        async with session_scope(session_factory) as session:
+            report_result = await DiagnosticReportService(session).record(report_command)
+            assert report_result.created is True
+            assert report_result.status == "ready"
+            report = await session.get(DiagnosticReport, report_result.report_id)
+            assert report is not None
+            assert report.priorities_json[0]["confidence"] == "high"
+
+        async with session_scope(session_factory) as session:
+            duplicate_report = await DiagnosticReportService(session).record(report_command)
+            assert duplicate_report.created is False
+            assert duplicate_report.report_id == report_result.report_id
     finally:
         try:
             async with session_scope(session_factory) as session:
