@@ -2,8 +2,7 @@
 
 Минимальный FastAPI-каркас будущего Telegram-контура.
 
-На этом шаге есть только liveness endpoint `GET /healthz`. Нет базы данных,
-webhook, токенов, AI-провайдеров и внешней отправки сообщений.
-
-Следующие контролируемые этапы: PostgreSQL/Alembic, единая identity, durable
-Telegram ingress и только затем сценарий `conference_2026`.
+В нём есть health-check, начальная Alembic-схема и изолированная бизнес-логика
+первого шага `conference_2026`: стабильный Telegram ID → внутренний user_id →
+источник → запись конференции. Telegram webhook, токены, LLM и production
+deployment пока намеренно не подключены.

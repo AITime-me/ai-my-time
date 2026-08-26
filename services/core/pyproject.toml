@@ -26,4 +26,4 @@ dev = [
 testpaths = ["tests"]
 
 [tool.setuptools]
-packages = ["app", "app.api", "app.api.routes", "app.core", "app.db", "app.models"]
+packages = ["app", "app.api", "app.api.routes", "app.core", "app.db", "app.models", "app.schemas", "app.services"]
