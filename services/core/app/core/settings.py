@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_version: str = "0.1.0"
     database_url: str | None = None
+    telegram_lead_webhook_secret: str | None = None
 
 
 @lru_cache
