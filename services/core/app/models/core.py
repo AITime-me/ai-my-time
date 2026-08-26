@@ -86,6 +86,49 @@ class Touchpoint(Base):
     )
 
 
+class BusinessProfile(Timestamped, Base):
+    """Current state projection of profile completion, without personal data."""
+
+    __tablename__ = "business_profiles"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    )
+    status: Mapped[str] = mapped_column(
+        String(40), nullable=False, server_default="in_progress"
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ProfileAnswer(Base):
+    """Versioned answer: later edits preserve a concise change history."""
+
+    __tablename__ = "profile_answers"
+    __table_args__ = (
+        UniqueConstraint("user_id", "question_code", "revision", name="uq_profile_answers_revision"),
+        Index("ix_profile_answers_user_question", "user_id", "question_code"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    question_code: Mapped[str] = mapped_column(String(80), nullable=False)
+    answer_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    revision: Mapped[int] = mapped_column(nullable=False, server_default="1")
+    answered_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class Event(Base):
     __tablename__ = "events"
     __table_args__ = (

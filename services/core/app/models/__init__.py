@@ -1,3 +1,19 @@
-from app.models.core import ConferenceEntry, Event, Touchpoint, User, UserIdentity
+from app.models.core import (
+    BusinessProfile,
+    ConferenceEntry,
+    Event,
+    ProfileAnswer,
+    Touchpoint,
+    User,
+    UserIdentity,
+)
 
-__all__ = ["ConferenceEntry", "Event", "Touchpoint", "User", "UserIdentity"]
+__all__ = [
+    "BusinessProfile",
+    "ConferenceEntry",
+    "Event",
+    "ProfileAnswer",
+    "Touchpoint",
+    "User",
+    "UserIdentity",
+]
