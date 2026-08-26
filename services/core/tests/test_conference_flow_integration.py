@@ -18,6 +18,7 @@ from app.schemas.conference import ConferenceStartCommand
 from app.schemas.diagnostic import PrepareDiagnosticCommand
 from app.schemas.diagnostic_report import RecordDiagnosticReportCommand
 from app.schemas.profile import SaveProfileAnswersCommand
+from app.services.admin_read import AdminLeadReadService
 from app.services.conference_intake import ConferenceIntakeService
 from app.services.diagnostic import DiagnosticPreparationService
 from app.services.diagnostic_report import DiagnosticReportService
@@ -131,6 +132,15 @@ async def _run_flow(database_url: str) -> None:
             duplicate_report = await DiagnosticReportService(session).record(report_command)
             assert duplicate_report.created is False
             assert duplicate_report.report_id == report_result.report_id
+
+        async with session_scope(session_factory) as session:
+            admin_list = await AdminLeadReadService(session).list_recent()
+            assert len(admin_list.items) == 1
+            assert admin_list.items[0].user_id == first_entry.user_id
+            assert admin_list.items[0].lifecycle_stage == "diagnostic_ready"
+            assert admin_list.items[0].conference_code == "conference_2026"
+            assert admin_list.items[0].diagnostic_status == "ready"
+            assert admin_list.items[0].diagnostic_summary == report_command.summary
     finally:
         try:
             async with session_scope(session_factory) as session:
