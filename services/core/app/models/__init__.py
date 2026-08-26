@@ -1,6 +1,8 @@
 from app.models.core import (
     BusinessProfile,
     ConferenceEntry,
+    DiagnosticReport,
+    DiagnosticSession,
     Event,
     ProfileAnswer,
     Touchpoint,
@@ -11,6 +13,8 @@ from app.models.core import (
 __all__ = [
     "BusinessProfile",
     "ConferenceEntry",
+    "DiagnosticReport",
+    "DiagnosticSession",
     "Event",
     "ProfileAnswer",
     "Touchpoint",

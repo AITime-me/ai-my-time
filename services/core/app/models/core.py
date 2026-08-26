@@ -129,6 +129,45 @@ class ProfileAnswer(Base):
     )
 
 
+class DiagnosticSession(Timestamped, Base):
+    """One reproducible diagnostic run using a snapshot of profile answers."""
+
+    __tablename__ = "diagnostic_sessions"
+    __table_args__ = (Index("ix_diagnostic_sessions_user_created", "user_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        String(40), nullable=False, server_default="prepared"
+    )
+    input_snapshot_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class DiagnosticReport(Timestamped, Base):
+    """Structured result, intentionally separate from raw model/provider output."""
+
+    __tablename__ = "diagnostic_reports"
+    __table_args__ = (UniqueConstraint("diagnostic_session_id", name="uq_diagnostic_reports_session"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    diagnostic_session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("diagnostic_sessions.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    priorities_json: Mapped[list[object]] = mapped_column(JSONB, nullable=False)
+    next_steps_json: Mapped[list[object]] = mapped_column(JSONB, nullable=False)
+    limitations_json: Mapped[list[object]] = mapped_column(JSONB, nullable=False)
+
+
 class Event(Base):
     __tablename__ = "events"
     __table_args__ = (
