@@ -10,6 +10,8 @@ from app.models.core import (
     Touchpoint,
     User,
     UserIdentity,
+    LeadBotSession,
+    OutboundMessage,
 )
 
 __all__ = [
@@ -24,4 +26,6 @@ __all__ = [
     "Touchpoint",
     "User",
     "UserIdentity",
+    "LeadBotSession",
+    "OutboundMessage",
 ]
