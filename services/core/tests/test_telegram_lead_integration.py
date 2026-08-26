@@ -50,6 +50,29 @@ def test_private_start_is_secret_checked_and_idempotent(monkeypatch: pytest.Monk
         asyncio.run(_clear_conference_tables(database_url))
 
 
+def test_unrelated_or_malformed_telegram_payload_is_acknowledged_without_action(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_url = _test_database_url()
+    asyncio.run(_clear_conference_tables(database_url))
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("TELEGRAM_LEAD_WEBHOOK_SECRET", "test-lead-webhook-secret")
+    get_settings.cache_clear()
+    headers = {"X-Telegram-Bot-Api-Secret-Token": "test-lead-webhook-secret"}
+    try:
+        with TestClient(create_app()) as client:
+            assert client.post(
+                "/webhooks/telegram/lead", json={"message": {"chat": {}}}, headers=headers
+            ).status_code == 204
+            assert client.post(
+                "/webhooks/telegram/lead", json={"edited_message": {}}, headers=headers
+            ).status_code == 204
+        assert asyncio.run(_flow_counts(database_url)) == (None, 0, 0)
+    finally:
+        get_settings.cache_clear()
+        asyncio.run(_clear_conference_tables(database_url))
+
+
 def test_profile_callbacks_advance_only_the_expected_question(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -102,12 +125,17 @@ def _callback_payload(*, update_id: int, telegram_user_id: int, data: str) -> di
     }
 
 
-async def _flow_counts(database_url: str) -> tuple[str, int, int]:
+async def _flow_counts(database_url: str) -> tuple[str | None, int, int]:
     factory = create_session_factory(database_url)
     try:
         async with session_scope(factory) as session:
             flow = await session.scalar(select(LeadBotSession))
-            assert flow is not None
+            if flow is None:
+                return (
+                    None,
+                    await session.scalar(select(func.count()).select_from(OutboundMessage)),
+                    await session.scalar(select(func.count()).select_from(DiagnosticSession)),
+                )
             return (
                 flow.status,
                 await session.scalar(select(func.count()).select_from(OutboundMessage)),

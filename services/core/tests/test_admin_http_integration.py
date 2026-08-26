@@ -13,6 +13,8 @@ from app.core.settings import get_settings
 from app.db.session import create_session_factory, session_scope
 from app.main import create_app
 from app.services.admin_auth import AdminAuthService
+from app.schemas.conference import ConferenceStartCommand
+from app.services.conference_intake import ConferenceIntakeService
 
 
 def _test_database_url() -> str:
@@ -27,10 +29,12 @@ def _test_database_url() -> str:
 def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pytest.MonkeyPatch) -> None:
     database_url = _test_database_url()
     asyncio.run(_bootstrap_test_owner(database_url))
+    asyncio.run(_create_test_lead(database_url))
     monkeypatch.setenv("DATABASE_URL", database_url)
     get_settings.cache_clear()
     try:
         with TestClient(create_app()) as client:
+            assert client.get("/admin/leads").status_code == 401
             login = client.post(
                 "/admin/auth/login",
                 json={"email": "owner@example.test", "password": "StrongPassword2026"},
@@ -39,6 +43,14 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             assert "session_token" not in login.text
             assert "HttpOnly" in login.headers["set-cookie"]
             assert client.get("/admin/auth/me").json()["role"] == "owner"
+            leads = client.get("/admin/leads?limit=1")
+            assert leads.status_code == 200
+            payload = leads.json()
+            assert payload["limit"] == 1
+            assert len(payload["items"]) == 1
+            assert payload["items"][0]["conference_code"] == "admin-http-proof"
+            assert "telegram_user_id" not in str(payload)
+            assert "900011" not in str(payload)
             assert client.post("/admin/auth/logout").status_code == 403
             assert client.post(
                 "/admin/auth/logout", headers={"Origin": "http://testserver"}
@@ -46,7 +58,7 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             assert client.get("/admin/auth/me").status_code == 401
     finally:
         get_settings.cache_clear()
-        asyncio.run(_clear_admin_tables(database_url))
+        asyncio.run(_clear_test_tables(database_url))
 
 
 async def _bootstrap_test_owner(database_url: str) -> None:
@@ -66,5 +78,31 @@ async def _clear_admin_tables(database_url: str) -> None:
     try:
         async with session_scope(factory) as session:
             await session.execute(text("TRUNCATE TABLE admin_sessions, admin_users RESTART IDENTITY CASCADE"))
+    finally:
+        await factory.kw["bind"].dispose()
+
+
+async def _create_test_lead(database_url: str) -> None:
+    factory = create_session_factory(database_url)
+    try:
+        async with session_scope(factory) as session:
+            await session.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
+            await ConferenceIntakeService(session).start(
+                ConferenceStartCommand(
+                    telegram_user_id="900011", qr_code="admin-http-proof"
+                )
+            )
+    finally:
+        await factory.kw["bind"].dispose()
+
+
+async def _clear_test_tables(database_url: str) -> None:
+    factory = create_session_factory(database_url)
+    try:
+        async with session_scope(factory) as session:
+            await session.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
+            await session.execute(
+                text("TRUNCATE TABLE admin_sessions, admin_users RESTART IDENTITY CASCADE")
+            )
     finally:
         await factory.kw["bind"].dispose()
