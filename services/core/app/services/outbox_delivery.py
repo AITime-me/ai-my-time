@@ -14,7 +14,7 @@ from typing import Protocol
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.models import OutboundMessage
+from app.models import OutboundMessage, UserIdentity
 from app.db.session import session_scope
 
 
@@ -25,6 +25,7 @@ class OutboundDelivery:
     channel: str
     payload: dict[str, object]
     lease_token: uuid.UUID
+    recipient_id: str | None = None
 
 
 class OutboundTransport(Protocol):
@@ -68,6 +69,12 @@ class OutboundDeliveryService:
             row.lease_expires_at = now + timedelta(seconds=lease_seconds)
             row.attempt_count += 1
             row.last_error_code = None
+            recipient_id = await self._session.scalar(
+                select(UserIdentity.external_id).where(
+                    UserIdentity.user_id == row.user_id,
+                    UserIdentity.provider == "telegram",
+                )
+            )
             deliveries.append(
                 OutboundDelivery(
                     message_id=row.id,
@@ -75,6 +82,7 @@ class OutboundDeliveryService:
                     channel=row.channel,
                     payload=row.payload_json,
                     lease_token=lease_token,
+                    recipient_id=recipient_id,
                 )
             )
         await self._session.flush()
