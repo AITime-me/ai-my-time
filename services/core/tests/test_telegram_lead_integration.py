@@ -14,6 +14,7 @@ from app.db.session import create_session_factory, session_scope
 from app.main import create_app
 from app.models import DiagnosticSession, LeadBotSession, OutboundMessage
 from app.services.lead_profile_flow import PROFILE_STEPS
+from tests.doubles import ScriptedDiagnosticProvider
 
 
 def _test_database_url() -> str:
@@ -92,7 +93,9 @@ def test_profile_callbacks_advance_only_the_expected_question(
         },
     }
     try:
-        with TestClient(create_app()) as client:
+        app = create_app()
+        app.state.diagnostic_provider_factory = ScriptedDiagnosticProvider
+        with TestClient(app) as client:
             assert client.post("/webhooks/telegram/lead", json=start_payload, headers=headers).status_code == 204
             invalid = _callback_payload(
                 update_id=1003,

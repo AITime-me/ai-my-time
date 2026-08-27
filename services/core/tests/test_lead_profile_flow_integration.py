@@ -13,6 +13,7 @@ from app.models import DiagnosticSession, LeadBotSession, OutboundMessage
 from app.schemas.conference import ConferenceStartCommand
 from app.services.conference_intake import ConferenceIntakeService
 from app.services.lead_profile_flow import LeadProfileFlow, PROFILE_STEPS
+from tests.doubles import ScriptedDiagnosticProvider
 
 
 def _test_database_url() -> str:
@@ -89,12 +90,12 @@ async def _run_flow(database_url: str) -> None:
             entry = await ConferenceIntakeService(session).start(
                 ConferenceStartCommand(telegram_user_id="900002", qr_code="qr_conf_main")
             )
-            flow = LeadProfileFlow(session)
+            flow = LeadProfileFlow(session, ScriptedDiagnosticProvider())
             await flow.start(user_id=entry.user_id)
             await flow.start(user_id=entry.user_id)
 
         async with session_scope(factory) as session:
-            flow = LeadProfileFlow(session)
+            flow = LeadProfileFlow(session, ScriptedDiagnosticProvider())
             for step in PROFILE_STEPS:
                 result = await flow.answer(
                     user_id=entry.user_id, question_code=step.code, value=step.options[0]

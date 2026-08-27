@@ -15,8 +15,9 @@ from app.schemas.diagnostic import PrepareDiagnosticCommand
 from app.schemas.profile import SaveProfileAnswersCommand
 from app.services.conference_intake import ConferenceIntakeService
 from app.services.diagnostic import DiagnosticPreparationService
-from app.services.diagnostic_dialogue import DiagnosticDialogueService, _opening_question
+from app.services.diagnostic_dialogue import DiagnosticDialogueService
 from app.services.profile import ProfileService
+from tests.doubles import ScriptedDiagnosticProvider
 
 
 def _url() -> str:
@@ -28,14 +29,6 @@ def _url() -> str:
 
 def test_dialogue_is_bounded_price_safe_and_cta_idempotent() -> None:
     asyncio.run(_run(_url()))
-
-
-def test_scripted_opening_has_distinct_profile_branches() -> None:
-    chat_branch = _opening_question({"profile_answers": {"client_flow": {"value": "Мессенджеры"}, "current_tools": {"value": "В чатах"}}})
-    crm_branch = _opening_question({"profile_answers": {"client_flow": {"value": "Сайт"}, "current_tools": {"value": "В CRM"}}})
-    assert "кто первым его видит" in chat_branch
-    assert "вынуждена действовать вручную" in crm_branch
-    assert chat_branch != crm_branch
 
 
 async def _run(url: str) -> None:
@@ -53,7 +46,7 @@ async def _run(url: str) -> None:
                 {"question_code": "automation_goal", "value": "Не терять информацию"},
             ]))
             prepared = await DiagnosticPreparationService(session).prepare(PrepareDiagnosticCommand(user_id=entry.user_id))
-            service = DiagnosticDialogueService(session)
+            service = DiagnosticDialogueService(session, ScriptedDiagnosticProvider())
             await service.open(diagnostic_session_id=prepared.diagnostic_session_id)
             opening = await session.scalar(
                 select(OutboundMessage.payload_json).where(OutboundMessage.dedupe_key == f"diagnostic:{prepared.diagnostic_session_id}:opening")
@@ -72,7 +65,7 @@ async def _run(url: str) -> None:
             report = await session.scalar(select(DiagnosticReport).where(DiagnosticReport.diagnostic_session_id == diagnostic.id))
             assert report is not None and report.role_split_json["automation"]
             assert await session.scalar(select(func.count()).select_from(DiagnosticTurn).where(DiagnosticTurn.diagnostic_session_id == diagnostic.id)) == 4
-            assert await DiagnosticDialogueService(session).receive(user_id=entry.user_id, text="А что ещё можно сделать?")
+            assert await DiagnosticDialogueService(session, ScriptedDiagnosticProvider()).receive(user_id=entry.user_id, text="А что ещё можно сделать?")
             assert await session.scalar(select(func.count()).select_from(DiagnosticTurn).where(DiagnosticTurn.diagnostic_session_id == diagnostic.id)) == 4
             messages = (await session.scalars(select(OutboundMessage).where(OutboundMessage.user_id == entry.user_id))).all()
             assert len({message.dedupe_key for message in messages}) == len(messages)
@@ -82,8 +75,8 @@ async def _run(url: str) -> None:
             for section in ("Короткий вывод", "Приоритет", "Что можно изменить", "Граница решения", "Автоматизация", "AI", "Человек", "Что ещё уточнить"):
                 assert section in result_text
             assert "уверенность:" not in result_text.lower()
-            assert "На ближайшую неделю" in result_text
-            service = DiagnosticDialogueService(session)
+            assert "В течение недели" in result_text
+            service = DiagnosticDialogueService(session, ScriptedDiagnosticProvider())
             assert await service.consultation_requested(user_id=entry.user_id, diagnostic_session_id=diagnostic.id)
             assert await service.consultation_requested(user_id=entry.user_id, diagnostic_session_id=diagnostic.id)
         async with session_scope(factory) as session:

@@ -41,8 +41,26 @@ class GeneratedDiagnostic:
     role_split: DiagnosticRoleSplitInput = field(default_factory=DiagnosticRoleSplitInput)
 
 
+@dataclass(frozen=True)
+class DiagnosticConversationInput:
+    diagnostic_session_id: uuid.UUID
+    user_id: uuid.UUID
+    profile_snapshot: dict[str, object]
+    turns: list[tuple[str, str]]
+
+
+@dataclass(frozen=True)
+class DiagnosticConversationResponse:
+    question: str | None = None
+    diagnostic: GeneratedDiagnostic | None = None
+
+
 class DiagnosticProvider(Protocol):
     async def generate(self, diagnostic_input: DiagnosticInput) -> GeneratedDiagnostic: ...
+
+
+class DiagnosticConversationProvider(Protocol):
+    async def advance(self, diagnostic_input: DiagnosticConversationInput) -> DiagnosticConversationResponse: ...
 
 
 class DiagnosticGenerationService:

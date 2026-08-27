@@ -1,4 +1,4 @@
-"""Bounded local Diagnostic AI MVP flow; no external model or provider is used here."""
+"""Bounded Diagnostic AI flow; conversation content comes from an injected provider."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.diagnostic_assets import load_diagnostic_prompt_bundle
 from app.models import DiagnosticReport, DiagnosticSession, DiagnosticTurn, Event, User
 from app.schemas.diagnostic_report import RecordDiagnosticReportCommand
+from app.services.diagnostic_generation import DiagnosticConversationInput, DiagnosticConversationProvider, GeneratedDiagnostic
 from app.services.diagnostic_report import DiagnosticReportService
 from app.services.outbox import OutboundQueue
 
@@ -32,15 +33,17 @@ def _cta_button(session_id: uuid.UUID) -> list[dict[str, str]]:
 class DiagnosticDialogueService:
     """Stores no more than four user clarifications and closes the session deterministically."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, provider: DiagnosticConversationProvider) -> None:
         self._session = session
+        self._provider = provider
         self._outbox = OutboundQueue(session)
 
     async def open(self, *, diagnostic_session_id: uuid.UUID) -> None:
         diagnostic = await self._session.get(DiagnosticSession, diagnostic_session_id)
         if diagnostic is None or diagnostic.status != "diagnostic_active":
             return
-        question = _opening_question(diagnostic.input_snapshot_json)
+        response = await self._provider.advance(self._input(diagnostic, []))
+        question = self._question(response)
         await self._append(diagnostic.id, "assistant", question)
         await self._message(diagnostic, question, "opening", [])
 
@@ -68,12 +71,16 @@ class DiagnosticDialogueService:
             return True
         await self._append(diagnostic.id, "user", cleaned[:2000])
         user_turns += 1
-        if user_turns == 1:
-            question = await self._followup_question(diagnostic)
-            await self._append(diagnostic.id, "assistant", question)
-            await self._message(diagnostic, question, f"question:{user_turns + 1}", [])
+        turns = await self._turns(diagnostic.id)
+        response = await self._provider.advance(self._input(diagnostic, turns))
+        if response.diagnostic is not None:
+            await self._complete(diagnostic, response.diagnostic)
             return True
-        await self._complete(diagnostic)
+        if user_turns >= 4:
+            raise ValueError("diagnostic provider did not complete after four user turns")
+        question = self._question(response)
+        await self._append(diagnostic.id, "assistant", question)
+        await self._message(diagnostic, question, f"question:{user_turns + 1}", [])
         return True
 
     async def consultation_requested(self, *, user_id: uuid.UUID, diagnostic_session_id: uuid.UUID) -> bool:
@@ -107,82 +114,42 @@ class DiagnosticDialogueService:
         ))
         self._session.add(DiagnosticTurn(diagnostic_session_id=diagnostic_id, turn_index=int(index or 0) + 1, actor=actor, content=content))
 
-    async def _followup_question(self, diagnostic: DiagnosticSession) -> str:
-        first_answer = await self._session.scalar(
-            select(DiagnosticTurn.content).where(
-                DiagnosticTurn.diagnostic_session_id == diagnostic.id,
-                DiagnosticTurn.actor == "user",
-            ).order_by(DiagnosticTurn.turn_index).limit(1)
+    async def _turns(self, diagnostic_id: uuid.UUID) -> list[tuple[str, str]]:
+        rows = (await self._session.scalars(select(DiagnosticTurn).where(
+            DiagnosticTurn.diagnostic_session_id == diagnostic_id
+        ).order_by(DiagnosticTurn.turn_index))).all()
+        return [(row.actor, row.content) for row in rows]
+
+    @staticmethod
+    def _input(diagnostic: DiagnosticSession, turns: list[tuple[str, str]]) -> DiagnosticConversationInput:
+        return DiagnosticConversationInput(
+            diagnostic_session_id=diagnostic.id,
+            user_id=diagnostic.user_id,
+            profile_snapshot=diagnostic.input_snapshot_json,
+            turns=turns,
         )
-        reference = _short_reference(first_answer or "этот процесс")
-        pain = _answer_value(diagnostic.input_snapshot_json, "primary_pain")
-        return (
-            f"Вы описали: «{reference}». На каком участке в этом процессе чаще всего теряется «{pain}» "
-            "или сотруднику приходится вручную возвращаться к обращению?"
-        )
+
+    @staticmethod
+    def _question(response) -> str:
+        if response.question is None or response.diagnostic is not None:
+            raise ValueError("diagnostic provider did not return a question")
+        return response.question
 
     async def _message(self, diagnostic: DiagnosticSession, text: str, suffix: str, buttons: list[dict[str, str]]) -> None:
         await self._outbox.enqueue(user_id=diagnostic.user_id, channel="telegram_lead", payload={"kind": "message", "text": text, "buttons": buttons}, dedupe_key=f"diagnostic:{diagnostic.id}:{suffix}")
 
-    async def _complete(self, diagnostic: DiagnosticSession) -> None:
-        snapshot = diagnostic.input_snapshot_json
-        business = _answer_value(snapshot, "business_type")
-        flow = _answer_value(snapshot, "client_flow")
-        tools = _answer_value(snapshot, "current_tools")
-        pain = _answer_value(snapshot, "primary_pain")
-        goal = _answer_value(snapshot, "automation_goal")
+    async def _complete(self, diagnostic: DiagnosticSession, generated: GeneratedDiagnostic) -> None:
         command = RecordDiagnosticReportCommand(
             diagnostic_session_id=diagnostic.id,
-            summary=(
-                f"Для бизнеса «{business}» обращения чаще приходят через «{flow}», а заявки ведутся «{tools}». "
-                f"Гипотеза: при таком пути первым стоит убрать риск потери «{pain}» и поддержать цель «{goal}»."
-            ),
-            priorities=[{
-                "title": f"Сделать следующий шаг по обращению видимым",
-                "reason": f"Это снижает риск потери «{pain}» при передаче обращения из «{flow}» в «{tools}».",
-                "confidence": "medium",
-            }],
-            next_steps=[{
-                "title": "Зафиксировать один следующий шаг",
-                "action": (
-                    f"На ближайшую неделю в канале «{flow}» фиксируйте для каждого нового обращения "
-                    "ответственного и следующий шаг до передачи коллеге."
-                ),
-            }],
-            limitations=["Нужно уточнить роли сотрудников, фактический порядок передачи и используемые системы."],
-            role_split={
-                "automation": ["Фиксация обращения, ответственного и следующего шага"],
-                "ai": ["Краткое выделение сути свободного текста обращения"],
-                "human": ["Решение по нестандартному клиентскому случаю"],
-            },
+            summary=generated.summary,
+            priorities=generated.priorities,
+            next_steps=generated.next_steps,
+            limitations=generated.limitations,
+            role_split=generated.role_split,
         )
         result = await DiagnosticReportService(self._session).record(command)
         if result.created:
             await self._message(diagnostic, _telegram_report(command), "result", _cta_button(diagnostic.id))
-
-
-def _answer_value(snapshot: dict[str, object], code: str) -> str:
-    answers = snapshot.get("profile_answers", {})
-    answer = answers.get(code, {}) if isinstance(answers, dict) else {}
-    value = answer.get("value") if isinstance(answer, dict) else None
-    return value if isinstance(value, str) and value else "не уточнено"
-
-
-def _opening_question(snapshot: dict[str, object]) -> str:
-    flow = _answer_value(snapshot, "client_flow")
-    tools = _answer_value(snapshot, "current_tools")
-    if tools in {"В чатах", "В нескольких местах", "Нигде системно"}:
-        return (
-            f"Когда новое обращение приходит через «{flow}», кто первым его видит и где команда сейчас фиксирует следующий шаг?"
-        )
-    return (
-        f"Когда новое обращение приходит через «{flow}» и попадает в «{tools}», на каком шаге команда чаще всего вынуждена действовать вручную?"
-    )
-
-
-def _short_reference(text: str) -> str:
-    normalised = " ".join(text.split())
-    return normalised[:180].rstrip(" .,;:") or "этот процесс"
 
 
 def _telegram_report(report: RecordDiagnosticReportCommand) -> str:

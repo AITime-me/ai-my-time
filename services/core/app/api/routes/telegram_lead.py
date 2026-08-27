@@ -23,6 +23,7 @@ from app.schemas.conference import ConferenceStartCommand
 from app.services.conference_intake import ConferenceIntakeService
 from app.services.lead_profile_flow import LeadProfileFlow
 from app.services.diagnostic_dialogue import DiagnosticDialogueService
+from app.adapters.yandex_diagnostic import build_diagnostic_provider
 
 router = APIRouter(tags=["telegram-lead"])
 _SECRET_HEADER = "X-Telegram-Bot-Api-Secret-Token"
@@ -64,20 +65,21 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
         if user_id is None:
             return Response(status_code=204)
         if isinstance(update, DiagnosticText):
-            await DiagnosticDialogueService(session).receive(user_id=user_id, text=update.text)
+            diagnostic_provider = _diagnostic_provider(request)
+            await DiagnosticDialogueService(session, diagnostic_provider).receive(user_id=user_id, text=update.text)
             return Response(status_code=204)
         if isinstance(update, ConsultationRequest):
             try:
                 diagnostic_session_id = uuid.UUID(update.diagnostic_session_id)
             except ValueError:
                 return Response(status_code=204)
-            await DiagnosticDialogueService(session).consultation_requested(
+            await DiagnosticDialogueService(session, _diagnostic_provider(request)).consultation_requested(
                 user_id=user_id, diagnostic_session_id=diagnostic_session_id
             )
             return Response(status_code=204)
         assert isinstance(update, ProfileAnswer)
         try:
-            await LeadProfileFlow(session).answer(
+            await LeadProfileFlow(session, _diagnostic_provider(request)).answer(
                 user_id=user_id,
                 question_code=update.question_code,
                 value=update.value,
@@ -85,3 +87,13 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
         except ValueError:
             return Response(status_code=204)
     return Response(status_code=204)
+
+
+def _diagnostic_provider(request: Request):
+    factory = getattr(request.app.state, "diagnostic_provider_factory", None)
+    if factory is not None:
+        return factory()
+    try:
+        return build_diagnostic_provider(request.app.state.settings)
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail="diagnostic provider is not configured") from error

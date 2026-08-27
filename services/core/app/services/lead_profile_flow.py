@@ -13,6 +13,7 @@ from app.schemas.diagnostic import PrepareDiagnosticCommand
 from app.schemas.profile import SaveProfileAnswersCommand
 from app.services.diagnostic import DiagnosticPreparationService
 from app.services.diagnostic_dialogue import DiagnosticDialogueService
+from app.services.diagnostic_generation import DiagnosticConversationProvider
 from app.services.outbox import OutboundQueue
 from app.services.profile import ProfileService
 
@@ -89,9 +90,10 @@ def _step_payload(step: ProfileStep) -> dict[str, object]:
 class LeadProfileFlow:
     """Stores state before queuing the next prompt; no provider call is made."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, diagnostic_provider: DiagnosticConversationProvider | None = None) -> None:
         self._session = session
         self._outbox = OutboundQueue(session)
+        self._diagnostic_provider = diagnostic_provider
 
     async def start(self, *, user_id: uuid.UUID) -> LeadBotSession:
         user = await self._session.get(User, user_id)
@@ -140,7 +142,9 @@ class LeadProfileFlow:
             prepared = await DiagnosticPreparationService(self._session).prepare(
                 PrepareDiagnosticCommand(user_id=user_id)
             )
-            await DiagnosticDialogueService(self._session).open(
+            if self._diagnostic_provider is None:
+                raise ValueError("diagnostic provider is not configured")
+            await DiagnosticDialogueService(self._session, self._diagnostic_provider).open(
                 diagnostic_session_id=prepared.diagnostic_session_id
             )
             return flow
