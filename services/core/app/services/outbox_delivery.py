@@ -17,6 +17,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.models import OutboundMessage, UserIdentity
 from app.db.session import session_scope
 
+MAX_DELIVERY_ATTEMPTS = 5
+RETRY_BASE_SECONDS = 5
+RETRY_MAX_SECONDS = 300
+
 
 @dataclass(frozen=True)
 class OutboundDelivery:
@@ -108,6 +112,30 @@ class OutboundDeliveryService:
             raise ValueError("outbound delivery lease is no longer active")
 
     async def mark_retry(self, delivery: OutboundDelivery, *, error_code: str) -> None:
+        attempt_count = await self._session.scalar(
+            select(OutboundMessage.attempt_count).where(
+                OutboundMessage.id == delivery.message_id,
+                OutboundMessage.status == "processing",
+                OutboundMessage.lease_token == delivery.lease_token,
+            )
+        )
+        if attempt_count is None:
+            raise ValueError("outbound delivery lease is no longer active")
+        if attempt_count >= MAX_DELIVERY_ATTEMPTS:
+            values = {
+                "status": "failed",
+                "lease_token": None,
+                "lease_expires_at": None,
+                "last_error_code": error_code[:120],
+            }
+        else:
+            delay_seconds = min(RETRY_BASE_SECONDS * 2 ** (attempt_count - 1), RETRY_MAX_SECONDS)
+            values = {
+                "status": "processing",
+                "lease_token": None,
+                "lease_expires_at": datetime.now(timezone.utc) + timedelta(seconds=delay_seconds),
+                "last_error_code": error_code[:120],
+            }
         result = await self._session.execute(
             update(OutboundMessage)
             .where(
@@ -115,12 +143,7 @@ class OutboundDeliveryService:
                 OutboundMessage.status == "processing",
                 OutboundMessage.lease_token == delivery.lease_token,
             )
-            .values(
-                status="pending",
-                lease_token=None,
-                lease_expires_at=None,
-                last_error_code=error_code[:120],
-            )
+            .values(**values)
         )
         if result.rowcount != 1:
             raise ValueError("outbound delivery lease is no longer active")
