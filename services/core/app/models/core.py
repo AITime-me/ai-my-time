@@ -248,6 +248,32 @@ class DiagnosticReport(Timestamped, Base):
     priorities_json: Mapped[list[object]] = mapped_column(JSONB, nullable=False)
     next_steps_json: Mapped[list[object]] = mapped_column(JSONB, nullable=False)
     limitations_json: Mapped[list[object]] = mapped_column(JSONB, nullable=False)
+    role_split_json: Mapped[dict[str, object]] = mapped_column(
+        JSONB, nullable=False, server_default="{}"
+    )
+
+
+class DiagnosticTurn(Base):
+    """A bounded, auditable diagnostic conversation, separate from the profile snapshot."""
+
+    __tablename__ = "diagnostic_turns"
+    __table_args__ = (
+        UniqueConstraint("diagnostic_session_id", "turn_index", name="uq_diagnostic_turns_session_index"),
+        Index("ix_diagnostic_turns_session_index", "diagnostic_session_id", "turn_index"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    diagnostic_session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("diagnostic_sessions.id", ondelete="RESTRICT"), nullable=False
+    )
+    turn_index: Mapped[int] = mapped_column(nullable=False)
+    actor: Mapped[str] = mapped_column(String(16), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class Event(Base):

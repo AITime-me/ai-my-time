@@ -7,7 +7,7 @@ the strict report shape. This module does not know providers, keys or URLs.
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from sqlalchemy import select
@@ -17,6 +17,7 @@ from app.models import DiagnosticReport, DiagnosticSession
 from app.schemas.diagnostic_report import (
     DiagnosticNextStepInput,
     DiagnosticPriorityInput,
+    DiagnosticRoleSplitInput,
     RecordDiagnosticReportCommand,
     RecordDiagnosticReportResult,
 )
@@ -37,6 +38,7 @@ class GeneratedDiagnostic:
     priorities: list[DiagnosticPriorityInput]
     next_steps: list[DiagnosticNextStepInput]
     limitations: list[str]
+    role_split: DiagnosticRoleSplitInput = field(default_factory=DiagnosticRoleSplitInput)
 
 
 class DiagnosticProvider(Protocol):
@@ -65,7 +67,7 @@ class DiagnosticGenerationService:
                 created=False,
                 status=diagnostic.status,
             )
-        if diagnostic.status != "prepared":
+        if diagnostic.status not in {"prepared", "diagnostic_active"}:
             raise ValueError("diagnostic session is not ready for generation")
 
         generated = await self._provider.generate(
@@ -82,6 +84,7 @@ class DiagnosticGenerationService:
                 priorities=generated.priorities,
                 next_steps=generated.next_steps,
                 limitations=generated.limitations,
+                role_split=generated.role_split,
             )
         )
         if result.created:
@@ -89,10 +92,11 @@ class DiagnosticGenerationService:
                 user_id=diagnostic.user_id,
                 channel="telegram_lead",
                 payload={
-                    "kind": "diagnostic_result",
-                    "summary": generated.summary,
-                    "priorities": [item.model_dump() for item in generated.priorities],
-                    "next_steps": [item.model_dump() for item in generated.next_steps],
+                    "kind": "message",
+                    "text": generated.summary,
+                    "buttons": [
+                        {"text": "Записаться на онлайн-консультацию", "callback_data": f"diagnostic:consult:{diagnostic.id}"}
+                    ],
                 },
                 dedupe_key=f"diagnostic:{diagnostic.id}:result",
             )

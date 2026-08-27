@@ -99,7 +99,7 @@ async def _run_flow(database_url: str) -> None:
             )
             diagnostic = await session.get(DiagnosticSession, diagnostic_result.diagnostic_session_id)
             assert diagnostic is not None
-            assert diagnostic.status == "prepared"
+            assert diagnostic.status == "diagnostic_active"
             assert len(diagnostic.input_snapshot_json["profile_answers"]) == 6
 
         report_command = RecordDiagnosticReportCommand(
@@ -123,7 +123,7 @@ async def _run_flow(database_url: str) -> None:
         async with session_scope(session_factory) as session:
             report_result = await DiagnosticReportService(session).record(report_command)
             assert report_result.created is True
-            assert report_result.status == "ready"
+            assert report_result.status == "diagnostic_completed"
             report = await session.get(DiagnosticReport, report_result.report_id)
             assert report is not None
             assert report.priorities_json[0]["confidence"] == "high"
@@ -139,7 +139,7 @@ async def _run_flow(database_url: str) -> None:
             assert admin_list.items[0].user_id == first_entry.user_id
             assert admin_list.items[0].lifecycle_stage == "diagnostic_ready"
             assert admin_list.items[0].conference_code == "conference_2026"
-            assert admin_list.items[0].diagnostic_status == "ready"
+            assert admin_list.items[0].diagnostic_status == "diagnostic_completed"
             assert admin_list.items[0].diagnostic_summary == report_command.summary
     finally:
         try:

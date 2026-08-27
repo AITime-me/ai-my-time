@@ -12,6 +12,7 @@ from app.models import LeadBotSession, User
 from app.schemas.diagnostic import PrepareDiagnosticCommand
 from app.schemas.profile import SaveProfileAnswersCommand
 from app.services.diagnostic import DiagnosticPreparationService
+from app.services.diagnostic_dialogue import DiagnosticDialogueService
 from app.services.outbox import OutboundQueue
 from app.services.profile import ProfileService
 
@@ -136,18 +137,11 @@ class LeadProfileFlow:
             flow.status = "completed"
             flow.state = "complete"
             flow.version += 1
-            await DiagnosticPreparationService(self._session).prepare(
+            prepared = await DiagnosticPreparationService(self._session).prepare(
                 PrepareDiagnosticCommand(user_id=user_id)
             )
-            await self._outbox.enqueue(
-                user_id=user_id,
-                channel="telegram_lead",
-                payload={
-                    "kind": "message",
-                    "text": "Спасибо. Собираю для вас приоритеты и следующий шаг.",
-                    "buttons": [],
-                },
-                dedupe_key=f"profile:{user_id}:complete:message",
+            await DiagnosticDialogueService(self._session).open(
+                diagnostic_session_id=prepared.diagnostic_session_id
             )
             return flow
         next_step = PROFILE_STEPS[step_index + 1]

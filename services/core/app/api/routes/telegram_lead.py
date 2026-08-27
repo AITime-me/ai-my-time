@@ -7,13 +7,22 @@ import hmac
 from fastapi import APIRouter, HTTPException, Request, Response
 from sqlalchemy import select
 
-from app.adapters.telegram_lead import ProfileAnswer, StartProfile, adapt_telegram_lead_payload
+import uuid
+
+from app.adapters.telegram_lead import (
+    ConsultationRequest,
+    DiagnosticText,
+    ProfileAnswer,
+    StartProfile,
+    adapt_telegram_lead_payload,
+)
 from app.db.dependencies import get_session_factory
 from app.db.session import session_scope
 from app.models import UserIdentity
 from app.schemas.conference import ConferenceStartCommand
 from app.services.conference_intake import ConferenceIntakeService
 from app.services.lead_profile_flow import LeadProfileFlow
+from app.services.diagnostic_dialogue import DiagnosticDialogueService
 
 router = APIRouter(tags=["telegram-lead"])
 _SECRET_HEADER = "X-Telegram-Bot-Api-Secret-Token"
@@ -45,7 +54,6 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
             await LeadProfileFlow(session).start(user_id=entry.user_id)
             return Response(status_code=204)
 
-        assert isinstance(update, ProfileAnswer)
         user_id = await session.scalar(
             select(UserIdentity.user_id).where(
                 UserIdentity.provider == "telegram",
@@ -55,6 +63,19 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
         )
         if user_id is None:
             return Response(status_code=204)
+        if isinstance(update, DiagnosticText):
+            await DiagnosticDialogueService(session).receive(user_id=user_id, text=update.text)
+            return Response(status_code=204)
+        if isinstance(update, ConsultationRequest):
+            try:
+                diagnostic_session_id = uuid.UUID(update.diagnostic_session_id)
+            except ValueError:
+                return Response(status_code=204)
+            await DiagnosticDialogueService(session).consultation_requested(
+                user_id=user_id, diagnostic_session_id=diagnostic_session_id
+            )
+            return Response(status_code=204)
+        assert isinstance(update, ProfileAnswer)
         try:
             await LeadProfileFlow(session).answer(
                 user_id=user_id,

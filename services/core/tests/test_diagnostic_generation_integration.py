@@ -100,7 +100,7 @@ async def _run_generation(database_url: str) -> None:
             assert await session.scalar(select(func.count()).select_from(OutboundMessage)) == 1
             payload = await session.scalar(select(OutboundMessage.payload_json))
             assert payload is not None
-            assert payload["kind"] == "diagnostic_result"
+            assert payload["kind"] == "message"
     finally:
         try:
             async with session_scope(factory) as session:

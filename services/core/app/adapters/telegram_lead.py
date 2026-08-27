@@ -45,7 +45,19 @@ class ProfileAnswer:
     value: str
 
 
-TelegramLeadInput = StartProfile | ProfileAnswer
+@dataclass(frozen=True)
+class DiagnosticText:
+    telegram_user_id: str
+    text: str
+
+
+@dataclass(frozen=True)
+class ConsultationRequest:
+    telegram_user_id: str
+    diagnostic_session_id: str
+
+
+TelegramLeadInput = StartProfile | ProfileAnswer | DiagnosticText | ConsultationRequest
 
 
 def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
@@ -72,6 +84,8 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
             return StartProfile(
                 telegram_user_id=str(message.from_.id), entry_code=entry_code
             )
+        if not message.text.strip().startswith("/"):
+            return DiagnosticText(telegram_user_id=str(message.from_.id), text=message.text)
 
     callback = update.callback_query
     if (
@@ -82,13 +96,13 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
     ):
         return None
     parsed = _profile_callback(callback.data)
-    if parsed is None:
-        return None
-    return ProfileAnswer(
-        telegram_user_id=str(callback.from_.id),
-        question_code=parsed[0],
-        value=parsed[1],
-    )
+    if parsed is not None:
+        return ProfileAnswer(telegram_user_id=str(callback.from_.id), question_code=parsed[0], value=parsed[1])
+    if callback.data.startswith("diagnostic:consult:"):
+        session_id = callback.data.removeprefix("diagnostic:consult:")
+        if session_id:
+            return ConsultationRequest(telegram_user_id=str(callback.from_.id), diagnostic_session_id=session_id)
+    return None
 
 
 def _start_parameter(text: str) -> str | None:

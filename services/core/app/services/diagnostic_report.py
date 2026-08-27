@@ -39,7 +39,7 @@ class DiagnosticReportService:
                 created=False,
                 status=diagnostic.status,
             )
-        if diagnostic.status != "prepared":
+        if diagnostic.status not in {"prepared", "diagnostic_active"}:
             raise ValueError("diagnostic session is not ready for a report")
 
         report = DiagnosticReport(
@@ -48,8 +48,9 @@ class DiagnosticReportService:
             priorities_json=[item.model_dump() for item in command.priorities],
             next_steps_json=[item.model_dump() for item in command.next_steps],
             limitations_json=command.limitations,
+            role_split_json=command.role_split.model_dump(),
         )
-        diagnostic.status = "ready"
+        diagnostic.status = "diagnostic_completed"
         diagnostic.completed_at = datetime.now(timezone.utc)
         user = await self._session.get(User, diagnostic.user_id)
         if user is None:
