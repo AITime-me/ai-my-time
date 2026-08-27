@@ -40,7 +40,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-    networks: [private]
+    networks: [private, edge]
 
   worker:
     image: ai-my-time-core:${AI_MY_TIME_RELEASE_SHA:?AI_MY_TIME_RELEASE_SHA is required}
@@ -64,3 +64,4 @@ volumes:
 networks:
   private:
     internal: true
+  edge:
