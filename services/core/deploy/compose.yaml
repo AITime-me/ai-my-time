@@ -1,0 +1,66 @@
+name: ai-my-time
+
+services:
+  postgres:
+    image: postgres:16.15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ai_my_time
+      POSTGRES_USER: ai_my_time
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - /srv/ai-my-time/secrets/postgres_password:/run/secrets/postgres_password:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_my_time -d ai_my_time"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [private]
+
+  api:
+    image: ai-my-time-core:${AI_MY_TIME_RELEASE_SHA:?AI_MY_TIME_RELEASE_SHA is required}
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      DATABASE_URL_FILE: /run/secrets/database_url
+      TELEGRAM_LEAD_WEBHOOK_SECRET_FILE: /run/secrets/telegram_webhook_secret
+    volumes:
+      - /srv/ai-my-time/secrets/database_url:/run/secrets/database_url:ro
+      - /srv/ai-my-time/secrets/telegram_webhook_secret:/run/secrets/telegram_webhook_secret:ro
+    ports:
+      - "127.0.0.1:18181:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; assert urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [private]
+
+  worker:
+    image: ai-my-time-core:${AI_MY_TIME_RELEASE_SHA:?AI_MY_TIME_RELEASE_SHA is required}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      DATABASE_URL_FILE: /run/secrets/database_url
+      TELEGRAM_BOT_TOKEN_FILE: /run/secrets/telegram_bot_token
+    volumes:
+      - /srv/ai-my-time/secrets/database_url:/run/secrets/database_url:ro
+      - /srv/ai-my-time/secrets/telegram_bot_token:/run/secrets/telegram_bot_token:ro
+    command: ["python", "-m", "scripts.run_outbound_worker"]
+    networks: [private]
+
+volumes:
+  postgres_data:
+
+networks:
+  private:
+    internal: true
