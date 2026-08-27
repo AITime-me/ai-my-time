@@ -48,7 +48,7 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             payload = leads.json()
             assert payload["limit"] == 1
             assert len(payload["items"]) == 1
-            assert payload["items"][0]["conference_code"] == "admin-http-proof"
+            assert payload["items"][0]["conference_code"] == "conference_2026"
             assert "telegram_user_id" not in str(payload)
             assert "900011" not in str(payload)
             assert client.post("/admin/auth/logout").status_code == 403
@@ -86,7 +86,13 @@ async def _create_test_lead(database_url: str) -> None:
     factory = create_session_factory(database_url)
     try:
         async with session_scope(factory) as session:
-            await session.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
+            await session.execute(
+                text(
+                    "TRUNCATE TABLE outbound_messages, lead_bot_sessions, diagnostic_reports, "
+                    "diagnostic_sessions, profile_answers, business_profiles, conference_entries, "
+                    "events, touchpoints, user_identities, users RESTART IDENTITY CASCADE"
+                )
+            )
             await ConferenceIntakeService(session).start(
                 ConferenceStartCommand(
                     telegram_user_id="900011", qr_code="admin-http-proof"
@@ -100,7 +106,13 @@ async def _clear_test_tables(database_url: str) -> None:
     factory = create_session_factory(database_url)
     try:
         async with session_scope(factory) as session:
-            await session.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
+            await session.execute(
+                text(
+                    "TRUNCATE TABLE outbound_messages, lead_bot_sessions, diagnostic_reports, "
+                    "diagnostic_sessions, profile_answers, business_profiles, conference_entries, "
+                    "events, touchpoints, user_identities, users RESTART IDENTITY CASCADE"
+                )
+            )
             await session.execute(
                 text("TRUNCATE TABLE admin_sessions, admin_users RESTART IDENTITY CASCADE")
             )
