@@ -153,8 +153,11 @@ class DiagnosticDialogueService:
                 "confidence": "medium",
             }],
             next_steps=[{
-                "title": "Проверить один реальный путь обращения",
-                "action": "На консультации восстановить путь от первого контакта до результата и выбрать одну точку контроля следующего шага.",
+                "title": "Зафиксировать один следующий шаг",
+                "action": (
+                    f"На ближайшую неделю в канале «{flow}» фиксируйте для каждого нового обращения "
+                    "ответственного и следующий шаг до передачи коллеге."
+                ),
             }],
             limitations=["Нужно уточнить роли сотрудников, фактический порядок передачи и используемые системы."],
             role_split={
@@ -199,11 +202,10 @@ def _telegram_report(report: RecordDiagnosticReportCommand) -> str:
     next_step = report.next_steps[0]
     roles = report.role_split
     limitations = report.limitations
-    confidence = {"high": "высокая", "medium": "средняя", "low": "низкая"}.get(priority.confidence, "средняя")
     return (
         "Первичный разбор готов.\n\n"
         f"Короткий вывод\n{summary}\n\n"
-        f"Приоритет\n• {priority.title}: {priority.reason} (уверенность: {confidence}).\n\n"
+        f"Приоритет\n• {priority.title}: {priority.reason}\n\n"
         f"Что можно изменить\n• {next_step.title}: {next_step.action}\n\n"
         "Граница решения\n"
         f"• Автоматизация: {roles.automation[0]}\n"

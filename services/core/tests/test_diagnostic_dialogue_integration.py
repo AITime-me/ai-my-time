@@ -81,6 +81,8 @@ async def _run(url: str) -> None:
             result_text = str(result_payload["text"])
             for section in ("Короткий вывод", "Приоритет", "Что можно изменить", "Граница решения", "Автоматизация", "AI", "Человек", "Что ещё уточнить"):
                 assert section in result_text
+            assert "уверенность:" not in result_text.lower()
+            assert "На ближайшую неделю" in result_text
             service = DiagnosticDialogueService(session)
             assert await service.consultation_requested(user_id=entry.user_id, diagnostic_session_id=diagnostic.id)
             assert await service.consultation_requested(user_id=entry.user_id, diagnostic_session_id=diagnostic.id)
