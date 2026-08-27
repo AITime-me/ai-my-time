@@ -21,7 +21,7 @@ services:
   api:
     image: ai-my-time-core:${AI_MY_TIME_RELEASE_SHA:?AI_MY_TIME_RELEASE_SHA is required}
     build:
-      context: .
+      context: ..
     restart: unless-stopped
     depends_on:
       postgres:
