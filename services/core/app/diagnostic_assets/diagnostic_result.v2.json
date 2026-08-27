@@ -1,0 +1,25 @@
+{
+  "contract_version": "v2",
+  "description": "Internal methodology-aligned result contract. It is intentionally separate from persisted DiagnosticResult v1.",
+  "required_fields": [
+    "evidence.facts",
+    "mechanism",
+    "problem_types",
+    "problem_scale",
+    "solution_class_id",
+    "client_view.what_is_happening",
+    "client_view.where_result_is_lost",
+    "client_view.future_process",
+    "client_view.system_responsibilities",
+    "client_view.human_responsibilities"
+  ],
+  "optional_fields": [
+    "evidence.inferences",
+    "evidence.hypotheses",
+    "client_view.ai_responsibilities",
+    "client_view.open_questions"
+  ],
+  "problem_types": ["execution_gap", "feedback_gap", "observability_gap", "growth_gap"],
+  "problem_scales": ["point_task", "process", "cross_system_contour", "systemic_problem", "continuous_intellectual_work"],
+  "solution_class_source": "solution_catalog.v1"
+}
