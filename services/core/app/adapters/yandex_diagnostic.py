@@ -51,7 +51,10 @@ class YandexDiagnosticProvider:
             raise YandexDiagnosticProviderError("YandexGPT non-production provider is disabled")
         if not settings.yandex_nonprod_folder_id or not settings.yandex_nonprod_api_key_path:
             raise YandexDiagnosticProviderError("YandexGPT non-production configuration is incomplete")
+        if settings.yandex_nonprod_model != "yandexgpt/latest":
+            raise YandexDiagnosticProviderError("unsupported YandexGPT non-production model")
         self._folder_id = settings.yandex_nonprod_folder_id
+        self._model = settings.yandex_nonprod_model
         self._key_path = Path(settings.yandex_nonprod_api_key_path)
         self._bundle = load_diagnostic_prompt_bundle(settings.diagnostic_prompt_version)
         self._sender = sender
@@ -74,7 +77,7 @@ class YandexDiagnosticProvider:
 
     def _request_body(self, diagnostic_input: DiagnosticConversationInput) -> bytes:
         payload = {
-            "modelUri": f"gpt://{self._folder_id}/yandexgpt-lite/latest",
+            "modelUri": f"gpt://{self._folder_id}/{self._model}",
             # A compact Russian report can still exceed the provider's short
             # completion budget when it must close valid JSON.
             "completionOptions": {"stream": False, "temperature": 0.2, "maxTokens": "2500"},

@@ -40,7 +40,7 @@ def test_provider_uses_bundle_and_parses_question(tmp_path) -> None:
     assert received["url"] == "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"
     assert received["api_key"] == "secret-not-for-output"
     payload = json.loads(str(received["body"]))
-    assert payload["modelUri"] == "gpt://folder-test/yandexgpt-lite/latest"
+    assert payload["modelUri"] == "gpt://folder-test/yandexgpt/latest"
     assert payload["responseFormat"] == {"jsonObject": {}}
     assert "System guardrails" in payload["messages"][0]["text"]
     assert "Diagnostic methodology knowledge base" in payload["messages"][0]["text"]

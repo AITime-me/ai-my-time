@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     diagnostic_prompt_version: str = "v1"
     yandex_nonprod_folder_id: str | None = None
     yandex_nonprod_api_key_path: str | None = None
+    yandex_nonprod_model: str = "yandexgpt/latest"
 
 
 @lru_cache
