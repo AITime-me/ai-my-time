@@ -26,4 +26,7 @@ dev = [
 testpaths = ["tests"]
 
 [tool.setuptools]
-packages = ["app", "app.adapters", "app.api", "app.api.routes", "app.core", "app.db", "app.models", "app.schemas", "app.services", "scripts"]
+packages = ["app", "app.adapters", "app.api", "app.api.routes", "app.core", "app.db", "app.diagnostic_assets", "app.models", "app.schemas", "app.services", "scripts"]
+
+[tool.setuptools.package-data]
+"app.diagnostic_assets" = ["*.md"]

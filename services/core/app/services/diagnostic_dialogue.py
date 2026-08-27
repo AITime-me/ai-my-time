@@ -8,6 +8,7 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.diagnostic_assets import load_diagnostic_prompt_bundle
 from app.models import DiagnosticReport, DiagnosticSession, DiagnosticTurn, Event, User
 from app.schemas.diagnostic_report import RecordDiagnosticReportCommand
 from app.services.diagnostic_report import DiagnosticReportService
@@ -19,21 +20,10 @@ CTA_TEXT = (
     "На онлайн-консультации эксперт AI My Time разберёт этот процесс подробнее и поможет "
     "определить, что имеет смысл автоматизировать в первую очередь."
 )
-PRICE_REPLY = (
-    "Стоимость автоматизации рассчитывается индивидуально: она зависит от процесса, "
-    "используемых систем, интеграций и объёма разработки. Точный расчёт можно получить "
-    "после уточнения задачи на онлайн-консультации с экспертом."
-)
+PRICE_REPLY = load_diagnostic_prompt_bundle().price_reply
 CONSULTATION_CONFIRMATION = (
     "Запрос на онлайн-консультацию зафиксирован. Эксперт AI My Time увидит его в рабочем списке для связи."
 )
-METHODOLOGY_PROMPT = """Ты проводишь короткую первичную диагностику A.I. My Time.
-Опирайся только на ответы пользователя; отделяй факты от гипотез. Ищи AS-IS,
-ручной разрыв и осторожный TO-BE. Разделяй обычную автоматизацию, AI и решение
-человека. Не выдавай ТЗ, архитектуру, интеграционную схему или полный проект.
-Задай 2–4 коротких вопроса и закончи разбором с CTA. Никогда не называй цену,
-бюджет, диапазон, "от" или любой ценовой ориентир."""
-
 _PRICE_RE = re.compile(r"(?:цен|стоим|бюджет|прайс|тариф|сколько\s+стоит|\bот\s+\d)", re.I)
 def _cta_button(session_id: uuid.UUID) -> list[dict[str, str]]:
     return [{"text": "Записаться на онлайн-консультацию", "callback_data": f"diagnostic:consult:{session_id}"}]
