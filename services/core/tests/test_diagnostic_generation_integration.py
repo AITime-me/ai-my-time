@@ -72,12 +72,12 @@ async def _run_generation(database_url: str) -> None:
                 SaveProfileAnswersCommand(
                     user_id=entry.user_id,
                     answers=[
-                        {"question_code": "business_type", "value": "Автосервис"},
+                        {"question_code": "business_type", "value": "Услуги"},
                         {"question_code": "team_size", "value": "4–10"},
-                        {"question_code": "client_flow", "value": "Telegram"},
-                        {"question_code": "current_tools", "value": "Чаты"},
+                        {"question_code": "client_flow", "value": "Мессенджеры"},
+                        {"question_code": "current_tools", "value": "В чатах"},
                         {"question_code": "primary_pain", "value": "Заявки"},
-                        {"question_code": "automation_goal", "value": "Следующий шаг"},
+                        {"question_code": "automation_goal", "value": "Не забывать вернуться к клиенту"},
                     ],
                     complete=True,
                 )

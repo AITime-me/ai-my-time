@@ -17,7 +17,7 @@ def _delivery(*, recipient_id: str | None = "900001") -> OutboundDelivery:
         recipient_id=recipient_id,
         payload={
             "kind": "message",
-            "text": "Чем занимается ваш бизнес?",
+            "text": "Что является основой вашего бизнеса?",
             "buttons": [{"text": "Услуги", "callback_data": "profile:business_type:Услуги"}],
         },
         lease_token=uuid.uuid4(),

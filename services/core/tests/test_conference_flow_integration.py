@@ -81,12 +81,12 @@ async def _run_flow(database_url: str) -> None:
                     user_id=first_entry.user_id,
                     complete=True,
                     answers=[
-                        {"question_code": "business_type", "value": "Автосервис"},
+                        {"question_code": "business_type", "value": "Услуги"},
                         {"question_code": "team_size", "value": "7"},
-                        {"question_code": "client_flow", "value": "Звонки и Telegram"},
-                        {"question_code": "current_tools", "value": "Таблица и чат"},
-                        {"question_code": "primary_pain", "value": "Теряются заявки"},
-                        {"question_code": "automation_goal", "value": "Видеть следующий шаг"},
+                        {"question_code": "client_flow", "value": "Мессенджеры"},
+                        {"question_code": "current_tools", "value": "В таблицах"},
+                        {"question_code": "primary_pain", "value": "Заявки"},
+                        {"question_code": "automation_goal", "value": "Не забывать вернуться к клиенту"},
                     ],
                 )
             )
