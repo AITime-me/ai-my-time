@@ -64,6 +64,8 @@ async def _run(url: str) -> None:
             assert diagnostic is not None and diagnostic.status == "diagnostic_completed"
             report = await session.scalar(select(DiagnosticReport).where(DiagnosticReport.diagnostic_session_id == diagnostic.id))
             assert report is not None and report.role_split_json["automation"]
+            assert report.result_version == "v2"
+            assert report.result_json["problem_types"] == ["execution_gap", "observability_gap"]
             assert await session.scalar(select(func.count()).select_from(DiagnosticTurn).where(DiagnosticTurn.diagnostic_session_id == diagnostic.id)) == 4
             assert await DiagnosticDialogueService(session, ScriptedDiagnosticProvider()).receive(user_id=entry.user_id, text="А что ещё можно сделать?")
             assert await session.scalar(select(func.count()).select_from(DiagnosticTurn).where(DiagnosticTurn.diagnostic_session_id == diagnostic.id)) == 4
@@ -72,10 +74,10 @@ async def _run(url: str) -> None:
             assert any("Стоимость автоматизации" in str(message.payload_json) for message in messages)
             result_payload = next(message.payload_json for message in messages if message.dedupe_key.endswith(":result"))
             result_text = str(result_payload["text"])
-            for section in ("Короткий вывод", "Приоритет", "Что можно изменить", "Граница решения", "Автоматизация", "AI", "Человек", "Что ещё уточнить"):
+            for section in ("Что сейчас происходит", "Где теряется результат", "Как это может работать", "Что может взять на себя система", "Что останется человеку", "Что ещё важно понять"):
                 assert section in result_text
-            assert "уверенность:" not in result_text.lower()
-            assert "В течение недели" in result_text
+            assert "execution_gap" not in result_text
+            assert "role_split" not in result_text
             service = DiagnosticDialogueService(session, ScriptedDiagnosticProvider())
             assert await service.consultation_requested(user_id=entry.user_id, diagnostic_session_id=diagnostic.id)
             assert await service.consultation_requested(user_id=entry.user_id, diagnostic_session_id=diagnostic.id)
