@@ -15,7 +15,7 @@ from app.schemas.diagnostic import PrepareDiagnosticCommand
 from app.schemas.profile import SaveProfileAnswersCommand
 from app.services.conference_intake import ConferenceIntakeService
 from app.services.diagnostic import DiagnosticPreparationService
-from app.services.diagnostic_dialogue import DiagnosticDialogueService
+from app.services.diagnostic_dialogue import DiagnosticDialogueService, _opening_question
 from app.services.profile import ProfileService
 
 
@@ -28,6 +28,14 @@ def _url() -> str:
 
 def test_dialogue_is_bounded_price_safe_and_cta_idempotent() -> None:
     asyncio.run(_run(_url()))
+
+
+def test_scripted_opening_has_distinct_profile_branches() -> None:
+    chat_branch = _opening_question({"profile_answers": {"client_flow": {"value": "Мессенджеры"}, "current_tools": {"value": "В чатах"}}})
+    crm_branch = _opening_question({"profile_answers": {"client_flow": {"value": "Сайт"}, "current_tools": {"value": "В CRM"}}})
+    assert "кто первым его видит" in chat_branch
+    assert "вынуждена действовать вручную" in crm_branch
+    assert chat_branch != crm_branch
 
 
 async def _run(url: str) -> None:
@@ -47,8 +55,16 @@ async def _run(url: str) -> None:
             prepared = await DiagnosticPreparationService(session).prepare(PrepareDiagnosticCommand(user_id=entry.user_id))
             service = DiagnosticDialogueService(session)
             await service.open(diagnostic_session_id=prepared.diagnostic_session_id)
+            opening = await session.scalar(
+                select(OutboundMessage.payload_json).where(OutboundMessage.dedupe_key == f"diagnostic:{prepared.diagnostic_session_id}:opening")
+            )
+            assert opening is not None and "Мессенджеры" in str(opening) and "следующий шаг" in str(opening)
             await service.receive(user_id=entry.user_id, text="Сколько стоит автоматизация?")
             await service.receive(user_id=entry.user_id, text="Менеджер получает сообщение в чате.")
+            followup = await session.scalar(
+                select(OutboundMessage.payload_json).where(OutboundMessage.dedupe_key == f"diagnostic:{prepared.diagnostic_session_id}:question:2")
+            )
+            assert followup is not None and "Менеджер получает сообщение в чате" in str(followup)
             await service.receive(user_id=entry.user_id, text="Информация теряется при передаче смене.")
         async with session_scope(factory) as session:
             diagnostic = await session.get(DiagnosticSession, prepared.diagnostic_session_id)
@@ -61,6 +77,10 @@ async def _run(url: str) -> None:
             messages = (await session.scalars(select(OutboundMessage).where(OutboundMessage.user_id == entry.user_id))).all()
             assert len({message.dedupe_key for message in messages}) == len(messages)
             assert any("Стоимость автоматизации" in str(message.payload_json) for message in messages)
+            result_payload = next(message.payload_json for message in messages if message.dedupe_key.endswith(":result"))
+            result_text = str(result_payload["text"])
+            for section in ("Короткий вывод", "Приоритет", "Что можно изменить", "Граница решения", "Автоматизация", "AI", "Человек", "Что ещё уточнить"):
+                assert section in result_text
             service = DiagnosticDialogueService(session)
             assert await service.consultation_requested(user_id=entry.user_id, diagnostic_session_id=diagnostic.id)
             assert await service.consultation_requested(user_id=entry.user_id, diagnostic_session_id=diagnostic.id)
