@@ -12,11 +12,10 @@ from typing import Any
 
 from app.core.settings import Settings
 from app.diagnostic_assets import load_diagnostic_prompt_bundle
-from app.schemas.diagnostic_report import DiagnosticNextStepInput, DiagnosticPriorityInput, DiagnosticRoleSplitInput
+from app.diagnostic_assets import validate_diagnostic_result_v2
 from app.services.diagnostic_generation import (
     DiagnosticConversationInput,
     DiagnosticConversationResponse,
-    GeneratedDiagnostic,
 )
 
 _URL = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"
@@ -82,15 +81,15 @@ class YandexDiagnosticProvider:
             # completion budget when it must close valid JSON.
             "completionOptions": {"stream": False, "temperature": 0.2, "maxTokens": "2500"},
             "messages": [
-                {"role": "system", "text": "\n\n".join((self._bundle.guardrails, self._bundle.prompt, self._bundle.knowledge_base))},
+                {"role": "system", "text": "\n\n".join((self._bundle.guardrails, self._bundle.prompt, self._bundle.knowledge_base, self._bundle.solution_catalog.model_dump_json()))},
                 {"role": "user", "text": json.dumps({
                     "profile_snapshot": diagnostic_input.profile_snapshot,
                     "dialogue": [{"actor": actor, "content": content} for actor, content in diagnostic_input.turns],
                     "required_response": {
                         "question": "one short Russian question, or null",
-                        "report": "null, or the complete DiagnosticResult v1 object",
+                        "report": "null, or the complete DiagnosticResult v2 object",
                     },
-                    "rule": "Ask a contextual question until enough evidence is present; after 2-4 user replies return report and question null. Return JSON only.",
+                    "rule": "Ask a contextual question until enough evidence is present; do not exceed four user replies. Return JSON only.",
                 }, ensure_ascii=False)},
             ],
             # Native JSON mode prevents Markdown/prose around the contract.
@@ -109,20 +108,13 @@ class YandexDiagnosticProvider:
         question = raw.get("question")
         report = raw.get("report")
         # The model occasionally returns both fields despite the prompt. The
-        # bounded application state is authoritative: questions before two
-        # replies, report afterwards. This keeps the provider from extending
-        # the dialogue or leaking a premature report.
-        if isinstance(question, str) and question.strip() and (user_turn_count < 2 or not isinstance(report, dict)):
+        # Application state remains authoritative: a report needs at least one
+        # reply to the opening question and no conversation may exceed four.
+        if isinstance(question, str) and question.strip() and (not isinstance(report, dict) or user_turn_count == 0):
             return DiagnosticConversationResponse(question=question.strip()[:1000])
-        if isinstance(report, dict) and user_turn_count >= 2:
+        if isinstance(report, dict) and user_turn_count >= 1:
             try:
-                return DiagnosticConversationResponse(diagnostic=GeneratedDiagnostic(
-                    summary=report["summary"],
-                    priorities=[DiagnosticPriorityInput.model_validate(item) for item in report["priorities"]],
-                    next_steps=[DiagnosticNextStepInput.model_validate(item) for item in report["next_steps"]],
-                    limitations=list(report.get("limitations", [])),
-                    role_split=DiagnosticRoleSplitInput.model_validate(report.get("role_split", {})),
-                ))
+                return DiagnosticConversationResponse(diagnostic=validate_diagnostic_result_v2(report))
             except (KeyError, TypeError, ValueError) as error:
                 raise YandexDiagnosticProviderError("YandexGPT returned an invalid diagnostic report") from error
         raise YandexDiagnosticProviderError("YandexGPT returned an invalid diagnostic response")

@@ -10,8 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.diagnostic_assets import load_diagnostic_prompt_bundle
 from app.models import DiagnosticReport, DiagnosticSession, DiagnosticTurn, Event, User
-from app.schemas.diagnostic_report import RecordDiagnosticReportCommand
-from app.services.diagnostic_generation import DiagnosticConversationInput, DiagnosticConversationProvider, GeneratedDiagnostic
+from app.schemas.diagnostic_report import RecordDiagnosticReportV2Command
+from app.schemas.diagnostic_result_v2 import DiagnosticResultV2
+from app.services.diagnostic_generation import DiagnosticConversationInput, DiagnosticConversationProvider
 from app.services.diagnostic_report import DiagnosticReportService
 from app.services.outbox import OutboundQueue
 
@@ -138,36 +139,28 @@ class DiagnosticDialogueService:
     async def _message(self, diagnostic: DiagnosticSession, text: str, suffix: str, buttons: list[dict[str, str]]) -> None:
         await self._outbox.enqueue(user_id=diagnostic.user_id, channel="telegram_lead", payload={"kind": "message", "text": text, "buttons": buttons}, dedupe_key=f"diagnostic:{diagnostic.id}:{suffix}")
 
-    async def _complete(self, diagnostic: DiagnosticSession, generated: GeneratedDiagnostic) -> None:
-        command = RecordDiagnosticReportCommand(
-            diagnostic_session_id=diagnostic.id,
-            summary=generated.summary,
-            priorities=generated.priorities,
-            next_steps=generated.next_steps,
-            limitations=generated.limitations,
-            role_split=generated.role_split,
-        )
-        result = await DiagnosticReportService(self._session).record(command)
+    async def _complete(self, diagnostic: DiagnosticSession, generated: DiagnosticResultV2) -> None:
+        command = RecordDiagnosticReportV2Command(diagnostic_session_id=diagnostic.id, result=generated)
+        result = await DiagnosticReportService(self._session).record_v2(command)
         if result.created:
-            await self._message(diagnostic, _telegram_report(command), "result", _cta_button(diagnostic.id))
+            await self._message(diagnostic, _telegram_report(generated), "result", _cta_button(diagnostic.id))
 
 
-def _telegram_report(report: RecordDiagnosticReportCommand) -> str:
-    # The report is already validated by the storage boundary; this formatter remains deliberately plain-text.
-    summary = report.summary
-    priority = report.priorities[0]
-    next_step = report.next_steps[0]
-    roles = report.role_split
-    limitations = report.limitations
+def _telegram_report(report: DiagnosticResultV2) -> str:
+    """Client view contains no internal v2 names and tolerates optional AI/questions."""
+    view = report.client_view
+    blocks = [
+        "Первичный разбор готов.",
+        f"Что сейчас происходит\n{view.what_is_happening}",
+        f"Где теряется результат\n{view.where_result_is_lost}",
+        f"Как это может работать\n{view.future_process}",
+        "Что может взять на себя система\n" + "\n".join(f"• {item}" for item in view.system_responsibilities),
+    ]
+    if view.ai_responsibilities:
+        blocks.append("Где может помочь AI\n" + "\n".join(f"• {item}" for item in view.ai_responsibilities))
+    blocks.append("Что останется человеку\n" + "\n".join(f"• {item}" for item in view.human_responsibilities))
+    if view.open_questions:
+        blocks.append("Что ещё важно понять\n" + "\n".join(f"• {item}" for item in view.open_questions))
     return (
-        "Первичный разбор готов.\n\n"
-        f"Короткий вывод\n{summary}\n\n"
-        f"Приоритет\n• {priority.title}: {priority.reason}\n\n"
-        f"Что можно изменить\n• {next_step.title}: {next_step.action}\n\n"
-        "Граница решения\n"
-        f"• Автоматизация: {roles.automation[0]}\n"
-        f"• AI: {roles.ai[0]}\n"
-        f"• Человек: {roles.human[0]}\n\n"
-        f"Что ещё уточнить\n• {limitations[0]}\n\n"
-        + CTA_TEXT
+        "\n\n".join(blocks) + "\n\n" + CTA_TEXT
     )

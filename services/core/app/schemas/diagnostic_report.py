@@ -4,6 +4,8 @@ import uuid
 
 from pydantic import BaseModel, Field
 
+from app.schemas.diagnostic_result_v2 import DiagnosticResultV2
+
 
 class DiagnosticPriorityInput(BaseModel):
     title: str = Field(min_length=1, max_length=160)
@@ -36,3 +38,10 @@ class RecordDiagnosticReportResult(BaseModel):
     diagnostic_session_id: uuid.UUID
     created: bool
     status: str
+
+
+class RecordDiagnosticReportV2Command(BaseModel):
+    """New versioned result boundary; v1 remains available for existing reports."""
+
+    diagnostic_session_id: uuid.UUID
+    result: DiagnosticResultV2

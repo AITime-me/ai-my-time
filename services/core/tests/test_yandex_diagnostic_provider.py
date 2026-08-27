@@ -74,3 +74,35 @@ def test_provider_prefers_question_before_two_replies(tmp_path) -> None:
         yandex_nonprod_folder_id="folder-test", yandex_nonprod_api_key_path=str(key_path),
     ), sender=lambda _url, _body, _key: {"result": {"alternatives": [{"message": {"text": '{"question":"Кто отвечает?","report":{"summary":"x","priorities":[],"next_steps":[]}}'}}]}})
     assert asyncio.run(provider.advance(_input())).question == "Кто отвечает?"
+
+
+def test_provider_parses_v2_result_after_one_grounded_reply(tmp_path) -> None:
+    key_path = tmp_path / "api-key"
+    key_path.write_text("secret", encoding="utf-8")
+    report = {
+        "contract_version": "v2",
+        "evidence": {"facts": ["Заявки теряются между сменами"]},
+        "mechanism": "Передача не закрепляет ответственного.",
+        "problem_types": ["execution_gap", "observability_gap"],
+        "problem_scale": "process",
+        "solution_class_id": "lead_intake_contour",
+        "client_view": {
+            "what_is_happening": "Заявки передаются вручную.",
+            "where_result_is_lost": "Не видно следующего шага.",
+            "future_process": "Передача фиксируется с ответственным.",
+            "system_responsibilities": ["Фиксировать передачу"],
+            "human_responsibilities": ["Решать исключения"],
+        },
+    }
+    provider = YandexDiagnosticProvider(Settings(
+        app_env="nonproduction", diagnostic_provider="yandex_nonprod",
+        yandex_nonprod_folder_id="folder-test", yandex_nonprod_api_key_path=str(key_path),
+    ), sender=lambda _url, _body, _key: {"result": {"alternatives": [{"message": {"text": json.dumps({"question": None, "report": report})}}]}})
+    response = provider._parse(
+        {"result": {"alternatives": [{"message": {"text": json.dumps({"question": None, "report": report})}}]}},
+        user_turn_count=1,
+    )
+
+    assert response.question is None
+    assert response.diagnostic is not None
+    assert response.diagnostic.problem_types == ["execution_gap", "observability_gap"]

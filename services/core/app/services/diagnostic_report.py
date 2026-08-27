@@ -11,7 +11,10 @@ from app.models import DiagnosticReport, DiagnosticSession, Event, User
 from app.schemas.diagnostic_report import (
     RecordDiagnosticReportCommand,
     RecordDiagnosticReportResult,
+    RecordDiagnosticReportV2Command,
 )
+from app.schemas.diagnostic_result_v2 import validate_diagnostic_result_v2_catalog_membership
+from app.diagnostic_assets import load_solution_catalog
 
 
 class DiagnosticReportService:
@@ -21,7 +24,7 @@ class DiagnosticReportService:
         self._session = session
 
     async def record(
-        self, command: RecordDiagnosticReportCommand
+        self, command: RecordDiagnosticReportCommand, *, result_version: str = "v1", result_json: dict[str, object] | None = None
     ) -> RecordDiagnosticReportResult:
         diagnostic = await self._session.get(DiagnosticSession, command.diagnostic_session_id)
         if diagnostic is None:
@@ -49,6 +52,8 @@ class DiagnosticReportService:
             next_steps_json=[item.model_dump() for item in command.next_steps],
             limitations_json=command.limitations,
             role_split_json=command.role_split.model_dump(),
+            result_version=result_version,
+            result_json=result_json or {},
         )
         diagnostic.status = "diagnostic_completed"
         diagnostic.completed_at = datetime.now(timezone.utc)
@@ -71,4 +76,31 @@ class DiagnosticReportService:
             diagnostic_session_id=diagnostic.id,
             created=True,
             status=diagnostic.status,
+        )
+
+    async def record_v2(self, command: RecordDiagnosticReportV2Command) -> RecordDiagnosticReportResult:
+        """Persist v2 alongside legacy projection without overwriting v1 reports."""
+        result = validate_diagnostic_result_v2_catalog_membership(command.result, load_solution_catalog())
+        return await self.record(
+            RecordDiagnosticReportCommand(
+                diagnostic_session_id=command.diagnostic_session_id,
+                summary=result.client_view.what_is_happening,
+                priorities=[{
+                    "title": "Где теряется результат",
+                    "reason": result.client_view.where_result_is_lost,
+                    "confidence": "medium",
+                }],
+                next_steps=[{
+                    "title": "Как это может работать",
+                    "action": result.client_view.future_process,
+                }],
+                limitations=result.client_view.open_questions,
+                role_split={
+                    "automation": result.client_view.system_responsibilities,
+                    "ai": result.client_view.ai_responsibilities,
+                    "human": result.client_view.human_responsibilities,
+                },
+            ),
+            result_version="v2",
+            result_json=result.model_dump(mode="json"),
         )

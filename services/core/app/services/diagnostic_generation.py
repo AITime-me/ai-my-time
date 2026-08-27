@@ -23,6 +23,7 @@ from app.schemas.diagnostic_report import (
 )
 from app.services.diagnostic_report import DiagnosticReportService
 from app.services.outbox import OutboundQueue
+from app.schemas.diagnostic_result_v2 import DiagnosticResultV2
 
 
 @dataclass(frozen=True)
@@ -52,7 +53,7 @@ class DiagnosticConversationInput:
 @dataclass(frozen=True)
 class DiagnosticConversationResponse:
     question: str | None = None
-    diagnostic: GeneratedDiagnostic | None = None
+    diagnostic: DiagnosticResultV2 | None = None
 
 
 class DiagnosticProvider(Protocol):

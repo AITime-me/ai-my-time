@@ -251,6 +251,8 @@ class DiagnosticReport(Timestamped, Base):
     role_split_json: Mapped[dict[str, object]] = mapped_column(
         JSONB, nullable=False, server_default="{}"
     )
+    result_version: Mapped[str] = mapped_column(String(20), nullable=False, server_default="v1")
+    result_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
 
 
 class DiagnosticTurn(Base):

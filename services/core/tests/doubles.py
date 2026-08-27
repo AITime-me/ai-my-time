@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from app.schemas.diagnostic_report import DiagnosticNextStepInput, DiagnosticPriorityInput, DiagnosticRoleSplitInput
+from app.schemas.diagnostic_result_v2 import DiagnosticResultV2
 from app.services.diagnostic_generation import (
     DiagnosticConversationInput,
     DiagnosticConversationResponse,
-    GeneratedDiagnostic,
 )
 
 
@@ -27,15 +26,19 @@ class ScriptedDiagnosticProvider:
             return DiagnosticConversationResponse(question=(
                 f"Вы описали: «{user_answers[0][:180]}». Где при этом чаще всего теряется «{values['primary_pain']}»?"
             ))
-        return DiagnosticConversationResponse(diagnostic=GeneratedDiagnostic(
-            summary=(f"Обращения из «{values['client_flow']}» проходят через «{values['current_tools']}». "
-                     f"Гипотеза: сначала стоит снизить риск потери «{values['primary_pain']}»."),
-            priorities=[DiagnosticPriorityInput(title="Сделать следующий шаг видимым", reason="Передача обращения не закрепляет ответственного и следующий шаг.", confidence="medium")],
-            next_steps=[DiagnosticNextStepInput(title="Неделя прозрачных передач", action="В течение недели перед каждой передачей фиксируйте ответственного и следующий шаг в выбранном канале.")],
-            limitations=["Нужно уточнить реальные роли и порядок передачи обращения."],
-            role_split=DiagnosticRoleSplitInput(
-                automation=["Фиксировать обращение, ответственного и следующий шаг"],
-                ai=["Выделять суть свободного текста обращения"],
-                human=["Решать нестандартные клиентские случаи"],
-            ),
-        ))
+        return DiagnosticConversationResponse(diagnostic=DiagnosticResultV2.model_validate({
+            "contract_version": "v2",
+            "evidence": {"facts": [f"Обращения приходят через {values['client_flow']}"]},
+            "mechanism": "Передача обращения не закрепляет ответственного и следующий шаг.",
+            "problem_types": ["execution_gap", "observability_gap"],
+            "problem_scale": "process",
+            "solution_class_id": "lead_intake_contour",
+            "client_view": {
+                "what_is_happening": f"Обращения проходят через «{values['current_tools']}» и передаются вручную.",
+                "where_result_is_lost": "После передачи не всегда видно ответственного и следующий шаг.",
+                "future_process": "Каждое обращение фиксируется, получает ответственного и следующий шаг.",
+                "system_responsibilities": ["Фиксировать обращение, ответственного и следующий шаг"],
+                "human_responsibilities": ["Решать нестандартные клиентские случаи"],
+                "open_questions": ["Нужно уточнить реальные роли и порядок передачи обращения."],
+            },
+        }))

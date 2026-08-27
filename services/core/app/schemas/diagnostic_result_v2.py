@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.solution_catalog import SolutionCatalogV1
 
@@ -19,12 +19,14 @@ ProblemScale = Literal[
 
 
 class DiagnosticEvidenceV2(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     facts: list[str] = Field(min_length=1, max_length=6)
     inferences: list[str] = Field(default_factory=list, max_length=4)
     hypotheses: list[str] = Field(default_factory=list, max_length=4)
 
 
 class DiagnosticClientViewV2(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     what_is_happening: str = Field(min_length=1, max_length=1200)
     where_result_is_lost: str = Field(min_length=1, max_length=1200)
     future_process: str = Field(min_length=1, max_length=1200)
@@ -36,6 +38,8 @@ class DiagnosticClientViewV2(BaseModel):
 
 class DiagnosticResultV2(BaseModel):
     """Methodology-aligned contract; not yet wired into the v1 provider or renderer."""
+
+    model_config = ConfigDict(extra="forbid")
 
     contract_version: Literal["v2"]
     evidence: DiagnosticEvidenceV2
