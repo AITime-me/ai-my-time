@@ -66,3 +66,6 @@ networks:
     internal: true
   edge:
   egress:
+    enable_ipv6: true
+    driver_opts:
+      com.docker.network.bridge.gateway_mode_ipv6: nat

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import http.client
 import json
+import socket
+import ssl
 from collections.abc import Callable, Mapping
 from typing import Any
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.parse import urlsplit
 
 from app.services.outbox_delivery import OutboundDelivery
 
@@ -51,13 +53,46 @@ def telegram_send_payload(message: OutboundDelivery) -> dict[str, object]:
 HttpSender = Callable[[str, bytes], Mapping[str, Any]]
 
 
+def _connect_ipv6(address: tuple[str, int], timeout: float | None = None, source_address=None):
+    """Open the fixed Telegram API connection through DNS-resolved IPv6 only."""
+
+    host, port = address
+    errors: list[OSError] = []
+    for family, socktype, protocol, _, sockaddr in socket.getaddrinfo(
+        host, port, family=socket.AF_INET6, type=socket.SOCK_STREAM
+    ):
+        sock = socket.socket(family, socktype, protocol)
+        try:
+            if timeout is not None:
+                sock.settimeout(timeout)
+            if source_address is not None:
+                sock.bind(source_address)
+            sock.connect(sockaddr)
+            return sock
+        except OSError as error:
+            errors.append(error)
+            sock.close()
+    if errors:
+        raise errors[-1]
+    raise OSError("Telegram API has no IPv6 address")
+
+
 def _send_json(url: str, body: bytes) -> Mapping[str, Any]:
-    request = Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+    parsed = urlsplit(url)
+    if parsed.scheme != "https" or parsed.hostname != "api.telegram.org":
+        raise TelegramDeliveryError("unsupported Telegram API URL")
+    connection = http.client.HTTPSConnection(
+        parsed.hostname, parsed.port or 443, timeout=10, context=ssl.create_default_context()
+    )
+    connection._create_connection = _connect_ipv6
     try:
-        with urlopen(request, timeout=10) as response:  # noqa: S310 - fixed Telegram URL from config
-            decoded = json.loads(response.read().decode("utf-8"))
-    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as error:
+        connection.request("POST", parsed.path, body=body, headers={"Content-Type": "application/json"})
+        response = connection.getresponse()
+        decoded = json.loads(response.read().decode("utf-8"))
+    except (http.client.HTTPException, OSError, ssl.SSLError, TimeoutError, json.JSONDecodeError) as error:
         raise TelegramDeliveryError("Telegram API request failed") from error
+    finally:
+        connection.close()
     if not isinstance(decoded, dict):
         raise TelegramDeliveryError("invalid Telegram API response")
     return decoded

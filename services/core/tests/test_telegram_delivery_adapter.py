@@ -4,6 +4,7 @@ import uuid
 
 import pytest
 
+from app.adapters import telegram_delivery
 from app.adapters.telegram_delivery import TelegramBotTransport, TelegramDeliveryError, telegram_send_payload
 from app.services.outbox_delivery import OutboundDelivery
 
@@ -47,3 +48,21 @@ def test_transport_sends_only_serialized_message_payload() -> None:
     assert len(calls) == 1
     assert calls[0][0].endswith("/sendMessage")
     assert calls[0][1]["chat_id"] == "900001"
+
+
+def test_telegram_network_connector_resolves_only_ipv6(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, object] = {}
+
+    def fake_getaddrinfo(host, port, *, family, type):
+        seen.update(host=host, port=port, family=family, type=type)
+        return []
+
+    monkeypatch.setattr(telegram_delivery.socket, "getaddrinfo", fake_getaddrinfo)
+    with pytest.raises(OSError, match="no IPv6"):
+        telegram_delivery._connect_ipv6(("api.telegram.org", 443))
+    assert seen == {
+        "host": "api.telegram.org",
+        "port": 443,
+        "family": telegram_delivery.socket.AF_INET6,
+        "type": telegram_delivery.socket.SOCK_STREAM,
+    }
