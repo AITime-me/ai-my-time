@@ -9,6 +9,7 @@ from app.db.dependencies import get_session_factory
 from app.db.session import session_scope
 from app.schemas.admin import (
     AdminAttentionList,
+    AdminAnalytics,
     AdminConsultationList,
     AdminDashboard,
     AdminLeadList,
@@ -60,6 +61,17 @@ async def dashboard(request: Request, days: int = Query(default=7)) -> AdminDash
     async with session_scope(factory) as session:
         try:
             return await AdminLeadReadService(session).dashboard(days=days)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="invalid period") from None
+
+
+@router.get("/analytics", response_model=AdminAnalytics)
+async def analytics(request: Request, days: int = Query(default=7)) -> AdminAnalytics:
+    await current_actor(request)
+    factory = get_session_factory(request)
+    async with session_scope(factory) as session:
+        try:
+            return await AdminLeadReadService(session).analytics(days=days)
         except ValueError:
             raise HTTPException(status_code=422, detail="invalid period") from None
 

@@ -28,6 +28,7 @@ from app.schemas.admin import (
     AdminLeadList,
     AdminLeadView,
     AdminPersonDetail,
+    AdminAnalytics,
 )
 
 
@@ -128,6 +129,21 @@ class AdminLeadReadService:
                 "diagnostic_completed": completed,
                 "consultation_requested": consultations,
             },
+        )
+
+    async def analytics(self, *, days: int = 7) -> AdminAnalytics:
+        if days not in {1, 7, 30}:
+            raise ValueError("analytics days must be 1, 7, or 30")
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+        people = await self._count(User, User.created_at >= since)
+        started = await self._count(DiagnosticSession, DiagnosticSession.created_at >= since)
+        completed = await self._count(DiagnosticSession, DiagnosticSession.completed_at.is_not(None), DiagnosticSession.completed_at >= since)
+        requests = await self._count(ConsultationRequest, ConsultationRequest.created_at >= since)
+        return AdminAnalytics(
+            period_days=days, people=people, diagnostic_started=started, diagnostic_completed=completed,
+            consultation_requested=requests,
+            completion_rate=round(completed / started, 4) if started else None,
+            consultation_rate=round(requests / completed, 4) if completed else None,
         )
 
     async def consultations(self, *, status: str | None = None, limit: int = 100) -> AdminConsultationList:

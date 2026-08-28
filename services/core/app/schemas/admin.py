@@ -161,3 +161,13 @@ class AdminBroadcastView(BaseModel):
 
 class AdminBroadcastList(BaseModel):
     items: list[AdminBroadcastView]
+
+
+class AdminAnalytics(BaseModel):
+    period_days: int
+    people: int = Field(ge=0)
+    diagnostic_started: int = Field(ge=0)
+    diagnostic_completed: int = Field(ge=0)
+    consultation_requested: int = Field(ge=0)
+    completion_rate: float | None = None
+    consultation_rate: float | None = None
