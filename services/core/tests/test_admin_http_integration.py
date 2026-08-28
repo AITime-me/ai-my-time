@@ -55,6 +55,9 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             assert people.status_code == 200
             person_id = people.json()["items"][0]["user_id"]
             assert client.get(f"/admin/people/{person_id}").status_code == 200
+            trace = client.get(f"/admin/logs/people/{person_id}")
+            assert trace.status_code == 200
+            assert trace.json()["user_id"] == person_id
             dashboard = client.get("/admin/dashboard?days=7")
             assert dashboard.status_code == 200
             assert dashboard.json()["new_people"] == 1

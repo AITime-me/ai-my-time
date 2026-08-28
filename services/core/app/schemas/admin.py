@@ -116,3 +116,17 @@ class AdminKnowledgeAssetView(BaseModel):
 
 class AdminKnowledgeList(BaseModel):
     items: list[AdminKnowledgeAssetView]
+
+
+class AdminOperationalTraceEvent(BaseModel):
+    occurred_at: datetime
+    component: str
+    event_type: str
+    status: str
+    diagnostic_session_id: uuid.UUID | None = None
+    outbox_message_id: uuid.UUID | None = None
+
+
+class AdminOperationalTrace(BaseModel):
+    user_id: uuid.UUID
+    items: list[AdminOperationalTraceEvent]
