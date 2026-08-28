@@ -12,6 +12,7 @@ import uuid
 
 from app.adapters.telegram_lead import (
     ConsultationRequest,
+    CommunicationCommand,
     DiagnosticText,
     ProfileAnswer,
     StartProfile,
@@ -25,6 +26,7 @@ from app.services.conference_intake import ConferenceIntakeService
 from app.services.lead_profile_flow import LeadProfileFlow
 from app.services.diagnostic_acceptance import DiagnosticAcceptanceService, is_acceptance_start
 from app.services.diagnostic_dialogue import DiagnosticDialogueService
+from app.services.communication import CommunicationConsentService
 from app.adapters.yandex_diagnostic import build_diagnostic_provider
 from app.adapters.telegram_delivery import TelegramCallbackAcknowledger, TelegramDeliveryError
 
@@ -93,6 +95,12 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
             return Response(status_code=204)
         if isinstance(update, DiagnosticText):
             await DiagnosticDialogueService(session, _diagnostic_provider(request)).receive(user_id=user_id, text=update.text)
+            return Response(status_code=204)
+        if isinstance(update, CommunicationCommand):
+            await CommunicationConsentService(session).set_status(
+                user_id=user_id,
+                status="unsubscribed" if update.action == "unsubscribe" else "subscribed",
+            )
             return Response(status_code=204)
         if isinstance(update, ConsultationRequest):
             try:

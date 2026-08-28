@@ -12,7 +12,7 @@ from sqlalchemy import func, select, text
 from app.core.settings import get_settings
 from app.db.session import create_session_factory, session_scope
 from app.main import create_app
-from app.models import DiagnosticSession, DiagnosticTurn, Event, LeadBotSession, OutboundMessage, ProfileAnswer
+from app.models import DiagnosticSession, DiagnosticTurn, Event, LeadBotSession, OutboundMessage, ProfileAnswer, User
 from app.services.lead_profile_flow import PROFILE_STEPS
 from tests.doubles import ScriptedDiagnosticProvider
 
@@ -82,6 +82,27 @@ def test_unrelated_or_malformed_telegram_payload_is_acknowledged_without_action(
                 "/webhooks/telegram/lead", json={"edited_message": {}}, headers=headers
             ).status_code == 204
         assert asyncio.run(_flow_counts(database_url)) == (None, 0, 0)
+    finally:
+        get_settings.cache_clear()
+        asyncio.run(_clear_conference_tables(database_url))
+
+
+def test_stop_and_explicit_subscribe_change_consent_without_erasing_person(monkeypatch: pytest.MonkeyPatch) -> None:
+    database_url = _test_database_url()
+    asyncio.run(_clear_conference_tables(database_url))
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("TELEGRAM_LEAD_WEBHOOK_SECRET", "test-lead-webhook-secret")
+    get_settings.cache_clear()
+    headers = {"X-Telegram-Bot-Api-Secret-Token": "test-lead-webhook-secret"}
+    try:
+        with TestClient(create_app()) as client:
+            for update_id, command in ((1050, "/start qr_conf_main"), (1051, "/stop"), (1052, "/subscribe")):
+                assert client.post(
+                    "/webhooks/telegram/lead",
+                    json={"update_id": update_id, "message": {"chat": {"type": "private"}, "from": {"id": 901010}, "text": command}},
+                    headers=headers,
+                ).status_code == 204
+        assert asyncio.run(_communication_state(database_url)) == ("subscribed", 2, 2)
     finally:
         get_settings.cache_clear()
         asyncio.run(_clear_conference_tables(database_url))
@@ -206,6 +227,18 @@ def test_callback_is_acknowledged_immediately_and_cta_keeps_static_confirmation(
     finally:
         get_settings.cache_clear()
         asyncio.run(_clear_conference_tables(database_url))
+
+
+async def _communication_state(database_url: str) -> tuple[str | None, int, int]:
+    factory = create_session_factory(database_url)
+    try:
+        async with session_scope(factory) as session:
+            user = await session.scalar(select(User))
+            events = int(await session.scalar(select(func.count()).select_from(Event).where(Event.kind.in_(("communication_subscribed", "communication_unsubscribed")))) or 0)
+            messages = int(await session.scalar(select(func.count()).select_from(OutboundMessage).where(OutboundMessage.dedupe_key.like("communication:%"))) or 0)
+            return (user.communication_status if user else None, events, messages)
+    finally:
+        await factory.kw["bind"].dispose()
 
 
 @pytest.mark.parametrize("provider_factory", [None, FailingDiagnosticProvider])

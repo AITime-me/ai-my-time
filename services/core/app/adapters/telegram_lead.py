@@ -56,13 +56,19 @@ class DiagnosticText:
 
 
 @dataclass(frozen=True)
+class CommunicationCommand:
+    telegram_user_id: str
+    action: str
+
+
+@dataclass(frozen=True)
 class ConsultationRequest:
     telegram_user_id: str
     callback_query_id: str
     diagnostic_session_id: str
 
 
-TelegramLeadInput = StartProfile | ProfileAnswer | DiagnosticText | ConsultationRequest
+TelegramLeadInput = StartProfile | ProfileAnswer | DiagnosticText | CommunicationCommand | ConsultationRequest
 
 
 def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
@@ -89,6 +95,9 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
             return StartProfile(
                 telegram_user_id=str(message.from_.id), entry_code=entry_code
             )
+        action = _communication_action(message.text)
+        if action is not None:
+            return CommunicationCommand(telegram_user_id=str(message.from_.id), action=action)
         if not message.text.strip().startswith("/"):
             return DiagnosticText(telegram_user_id=str(message.from_.id), text=message.text)
 
@@ -126,6 +135,15 @@ def _start_parameter(text: str) -> str | None:
     if not parts or parts[0] != "/start":
         return None
     return parts[1].strip() if len(parts) == 2 else "telegram_direct"
+
+
+def _communication_action(text: str) -> str | None:
+    command = text.strip().split(maxsplit=1)[0].casefold()
+    if command == "/stop":
+        return "unsubscribe"
+    if command == "/subscribe":
+        return "subscribe"
+    return None
 
 
 def _profile_callback(data: str) -> tuple[str, str | None, int | None, int | None] | None:
