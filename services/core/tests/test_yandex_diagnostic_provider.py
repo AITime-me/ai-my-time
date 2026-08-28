@@ -97,7 +97,7 @@ def test_provider_prefers_question_before_two_replies(tmp_path) -> None:
     assert asyncio.run(provider.advance(_input())).question == "Кто отвечает?"
 
 
-def test_provider_parses_v2_result_after_one_grounded_reply(tmp_path) -> None:
+def test_provider_normalizes_overflowed_responsibilities_before_v2_validation(tmp_path, caplog: pytest.LogCaptureFixture) -> None:
     key_path = tmp_path / "api-key"
     key_path.write_text("secret", encoding="utf-8")
     report = {
@@ -111,19 +111,25 @@ def test_provider_parses_v2_result_after_one_grounded_reply(tmp_path) -> None:
             "what_is_happening": "Заявки передаются вручную.",
             "where_result_is_lost": "Не видно следующего шага.",
             "future_process": "Передача фиксируется с ответственным.",
-            "system_responsibilities": ["Фиксировать передачу"],
-            "human_responsibilities": ["Решать исключения"],
+            "system_responsibilities": ["Фиксировать передачу", "Назначать ответственного", "Напоминать", "Собирать статистику", "Показывать очередь"],
+            "ai_responsibilities": ["Классифицировать", "Подсказать", "Суммировать", "Лишний пункт"],
+            "human_responsibilities": ["Решать исключения", "Проверять качество", "Выбирать правило", "Лишний пункт"],
         },
     }
     provider = YandexDiagnosticProvider(Settings(
         app_env="nonproduction", diagnostic_provider="yandex_nonprod",
         yandex_nonprod_folder_id="folder-test", yandex_nonprod_api_key_path=str(key_path),
     ), sender=lambda _url, _body, _key: {"result": {"alternatives": [{"message": {"text": json.dumps({"question": None, "report": report})}}]}})
-    response = provider._parse(
-        {"result": {"alternatives": [{"message": {"text": json.dumps({"question": None, "report": report})}}]}},
-        user_turn_count=1,
-    )
+    with caplog.at_level("INFO"):
+        response = provider._parse(
+            {"result": {"alternatives": [{"message": {"text": json.dumps({"question": None, "report": report})}}]}},
+            user_turn_count=1,
+        )
 
     assert response.question is None
     assert response.diagnostic is not None
     assert response.diagnostic.problem_types == ["execution_gap", "observability_gap"]
+    assert response.diagnostic.client_view.system_responsibilities == report["client_view"]["system_responsibilities"][:3]
+    assert response.diagnostic.client_view.ai_responsibilities == report["client_view"]["ai_responsibilities"][:3]
+    assert response.diagnostic.client_view.human_responsibilities == report["client_view"]["human_responsibilities"][:3]
+    assert "normalized YandexGPT diagnostic result list overflow" in caplog.text

@@ -30,9 +30,9 @@ class DiagnosticClientViewV2(BaseModel):
     what_is_happening: str = Field(min_length=1, max_length=1200)
     where_result_is_lost: str = Field(min_length=1, max_length=1200)
     future_process: str = Field(min_length=1, max_length=1200)
-    system_responsibilities: list[str] = Field(min_length=1, max_length=5)
-    ai_responsibilities: list[str] = Field(default_factory=list, max_length=5)
-    human_responsibilities: list[str] = Field(min_length=1, max_length=5)
+    system_responsibilities: list[str] = Field(min_length=1, max_length=3)
+    ai_responsibilities: list[str] = Field(default_factory=list, max_length=3)
+    human_responsibilities: list[str] = Field(min_length=1, max_length=3)
     open_questions: list[str] = Field(default_factory=list, max_length=2)
 
 

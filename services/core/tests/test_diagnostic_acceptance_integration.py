@@ -77,6 +77,17 @@ def test_closed_acceptance_link_restarts_once_and_preserves_diagnostic_history(
             ).status_code == 204
             # A link presented by a different Telegram identity changes nothing.
             assert client.post("/webhooks/telegram/lead", json=_start(43, 901102, start_parameter), headers=headers).status_code == 204
+            # The active acceptance projection, not the completed historical
+            # LeadBotSession, owns its v8+ callbacks.  It reaches one new v2
+            # report while the original completed run remains intact.
+            for version, step in enumerate(PROFILE_STEPS, start=8):
+                assert client.post(
+                    "/webhooks/telegram/lead",
+                    json=_callback(50 + version, owner, f"profile:v2:{version}:{step.code}:0"),
+                    headers=headers,
+                ).status_code == 204
+            assert client.post("/webhooks/telegram/lead", json=_text(70, owner, "Первое уточнение acceptance"), headers=headers).status_code == 204
+            assert client.post("/webhooks/telegram/lead", json=_text(71, owner, "Второе уточнение acceptance"), headers=headers).status_code == 204
 
         asyncio.run(_assert_consumed_restart(database_url, before))
     finally:
@@ -127,23 +138,24 @@ async def _assert_consumed_restart(database_url: str, before: dict[str, object])
         async with session_scope(factory) as session:
             flow = await session.scalar(select(LeadBotSession))
             acceptance = await session.scalar(select(DiagnosticAcceptanceFlow))
-            diagnostic = await session.scalar(select(DiagnosticSession))
-            report = await session.scalar(select(DiagnosticReport))
+            diagnostics = (await session.scalars(select(DiagnosticSession).order_by(DiagnosticSession.created_at))).all()
+            reports = (await session.scalars(select(DiagnosticReport).order_by(DiagnosticReport.created_at))).all()
             grant = await session.scalar(select(DiagnosticAcceptanceGrant))
-            assert flow is not None and acceptance is not None and diagnostic is not None and report is not None and grant is not None
+            assert flow is not None and acceptance is not None and grant is not None
             assert (flow.flow_version, flow.status, flow.state, flow.version) == ("v2", "completed", "complete", 7)
-            assert (acceptance.flow_version, acceptance.status, acceptance.state, acceptance.version) == ("v2", "open", "business_type", 8)
-            assert diagnostic.id == uuid.UUID(before["diagnostic_id"])
-            assert diagnostic.input_snapshot_json == before["diagnostic_snapshot"]
-            assert str(report.id) == before["report_id"]
-            assert int(await session.scalar(select(func.count()).select_from(DiagnosticTurn)) or 0) == before["turns"]
+            assert (acceptance.flow_version, acceptance.status, acceptance.state, acceptance.version) == ("v2", "completed", "complete", 14)
+            assert len(diagnostics) == 2 and len(reports) == 2
+            assert diagnostics[0].id == uuid.UUID(before["diagnostic_id"])
+            assert diagnostics[0].input_snapshot_json == before["diagnostic_snapshot"]
+            assert str(reports[0].id) == before["report_id"]
+            assert int(await session.scalar(select(func.count()).select_from(DiagnosticTurn)) or 0) == before["turns"] + 4
             assert grant.consumed_at is not None
             assert all(
                 grant.prior_flow_snapshot_json[key] == value
                 for key, value in before["flow"].items()
             )
             assert int(await session.scalar(select(func.count()).select_from(User)) or 0) == before["users"]
-            assert int(await session.scalar(select(func.count()).select_from(OutboundMessage)) or 0) == before["outbox"] + 1
+            assert int(await session.scalar(select(func.count()).select_from(OutboundMessage)) or 0) == before["outbox"] + 9
             assert await session.scalar(
                 select(func.count()).select_from(OutboundMessage).group_by(OutboundMessage.dedupe_key).having(func.count() > 1)
             ) is None

@@ -7,6 +7,7 @@ selection and validation, not product methodology or knowledge text.
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from dataclasses import dataclass
 from importlib.resources import files
 
@@ -67,3 +68,25 @@ def validate_diagnostic_result_v2(payload: object) -> DiagnosticResultV2:
     from app.schemas.diagnostic_result_v2 import validate_diagnostic_result_v2_catalog_membership
 
     return validate_diagnostic_result_v2_catalog_membership(result, catalog)
+
+
+def normalize_diagnostic_result_v2(payload: object) -> tuple[object, tuple[str, ...]]:
+    """Trim provider list overflow before strict v2 validation.
+
+    The model's ordering is its stated priority.  This deliberately repairs
+    only overlong responsibility lists, never invents fields or values, and
+    leaves every other contract violation for the strict validator.
+    """
+    if not isinstance(payload, dict):
+        return payload, ()
+    normalized = deepcopy(payload)
+    client_view = normalized.get("client_view")
+    if not isinstance(client_view, dict):
+        return normalized, ()
+    changed: list[str] = []
+    for field in ("system_responsibilities", "ai_responsibilities", "human_responsibilities"):
+        value = client_view.get(field)
+        if isinstance(value, list) and len(value) > 3:
+            client_view[field] = value[:3]
+            changed.append(field)
+    return normalized, tuple(changed)

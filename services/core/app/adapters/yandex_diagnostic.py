@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import urllib.error
 import urllib.request
 from collections.abc import Callable
@@ -12,13 +13,14 @@ from typing import Any
 
 from app.core.settings import Settings
 from app.diagnostic_assets import load_diagnostic_prompt_bundle
-from app.diagnostic_assets import validate_diagnostic_result_v2
+from app.diagnostic_assets import normalize_diagnostic_result_v2, validate_diagnostic_result_v2
 from app.services.diagnostic_generation import (
     DiagnosticConversationInput,
     DiagnosticConversationResponse,
 )
 
 _URL = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"
+_LOG = logging.getLogger(__name__)
 
 
 class YandexDiagnosticProviderError(RuntimeError):
@@ -128,7 +130,13 @@ class YandexDiagnosticProvider:
             return DiagnosticConversationResponse(question=question.strip()[:1000])
         if isinstance(report, dict) and user_turn_count >= 1:
             try:
-                return DiagnosticConversationResponse(diagnostic=validate_diagnostic_result_v2(report))
+                normalized, normalized_fields = normalize_diagnostic_result_v2(report)
+                if normalized_fields:
+                    _LOG.info(
+                        "normalized YandexGPT diagnostic result list overflow",
+                        extra={"normalized_fields": normalized_fields},
+                    )
+                return DiagnosticConversationResponse(diagnostic=validate_diagnostic_result_v2(normalized))
             except (KeyError, TypeError, ValueError) as error:
                 raise YandexDiagnosticProviderError("YandexGPT returned an invalid diagnostic report") from error
         raise YandexDiagnosticProviderError("YandexGPT returned an invalid diagnostic response")

@@ -136,10 +136,22 @@ class LeadProfileFlow:
         value: str | None = None,
         flow_version: int | None = None,
         option_index: int | None = None,
-    ) -> LeadBotSession:
+    ) -> LeadBotSession | DiagnosticAcceptanceFlow:
+        # A consumed acceptance grant creates a separate current projection.
+        # It must win over the historical LeadBotSession, which is retained for
+        # audit only and may already be completed.  Looking up the active
+        # acceptance flow first keeps callbacks on the keyboard that issued
+        # them and leaves ordinary flows unchanged.
         flow = await self._session.scalar(
-            select(LeadBotSession).where(LeadBotSession.user_id == user_id)
+            select(DiagnosticAcceptanceFlow)
+            .where(DiagnosticAcceptanceFlow.user_id == user_id, DiagnosticAcceptanceFlow.status == "open")
+            .order_by(DiagnosticAcceptanceFlow.created_at.desc())
+            .limit(1)
         )
+        if flow is None:
+            flow = await self._session.scalar(
+                select(LeadBotSession).where(LeadBotSession.user_id == user_id)
+            )
         step_index = _STEP_INDEX.get(question_code)
         if (
             flow is None
