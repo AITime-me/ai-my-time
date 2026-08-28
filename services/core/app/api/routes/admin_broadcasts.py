@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, HTTPException, Request
 from app.api.routes.admin_auth import current_actor
 from app.db.dependencies import get_session_factory
@@ -24,4 +26,20 @@ async def draft(payload: AdminBroadcastDraftCreate, request: Request) -> AdminBr
         service = AdminBroadcastService(session); row = await service.create_draft(actor_id=actor.user_id, **payload.model_dump())
         if row is None: raise HTTPException(status_code=404, detail="segment not found")
         count = next(item.eligible_count for item in (await service.segments()).items if item.segment_id == row.segment_id)
-        return AdminBroadcastView(broadcast_id=row.id, segment_id=row.segment_id, title=row.title, body=row.body, status=row.status, eligible_count=count, created_at=row.created_at)
+        return AdminBroadcastView(broadcast_id=row.id, segment_id=row.segment_id, title=row.title, body=row.body, status=row.status, eligible_count=count, queued_count=0, sent_count=0, failed_count=0, created_at=row.created_at)
+
+@router.get("/broadcasts/{broadcast_id}/preview", response_model=AdminBroadcastView)
+async def preview(broadcast_id: uuid.UUID, request: Request) -> AdminBroadcastView:
+    await current_actor(request)
+    async with session_scope(get_session_factory(request)) as session:
+        row = await AdminBroadcastService(session).preview(broadcast_id)
+        if row is None: raise HTTPException(status_code=404, detail="broadcast not found")
+        return row
+
+@router.post("/broadcasts/{broadcast_id}/confirm-send", response_model=AdminBroadcastView)
+async def confirm_send(broadcast_id: uuid.UUID, request: Request) -> AdminBroadcastView:
+    actor = await current_actor(request)
+    async with session_scope(get_session_factory(request)) as session:
+        row = await AdminBroadcastService(session).confirm_send(actor_id=actor.user_id, broadcast_id=broadcast_id)
+        if row is None: raise HTTPException(status_code=404, detail="broadcast not found")
+        return row

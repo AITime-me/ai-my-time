@@ -30,6 +30,7 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
     database_url = _test_database_url()
     asyncio.run(_bootstrap_test_owner(database_url))
     asyncio.run(_create_test_lead(database_url))
+    asyncio.run(_enable_broadcast_recipient(database_url))
     monkeypatch.setenv("DATABASE_URL", database_url)
     get_settings.cache_clear()
     try:
@@ -70,10 +71,18 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             segments = client.get("/admin/segments")
             assert segments.status_code == 200
             eligible = next(item for item in segments.json()["items"] if item["key"] == "eligible_telegram_broadcast")
-            assert eligible["eligible_count"] == 0
+            assert eligible["eligible_count"] == 1
             draft = client.post("/admin/broadcasts/drafts", json={"segment_id": eligible["segment_id"], "title": "Черновик", "body": "Только черновик"})
             assert draft.status_code == 201
             assert draft.json()["status"] == "draft"
+            broadcast_id = draft.json()["broadcast_id"]
+            assert client.get(f"/admin/broadcasts/{broadcast_id}/preview").json()["eligible_count"] == 1
+            queued = client.post(f"/admin/broadcasts/{broadcast_id}/confirm-send")
+            assert queued.status_code == 200
+            assert queued.json()["queued_count"] == 1
+            assert client.post(f"/admin/broadcasts/{broadcast_id}/confirm-send").json()["queued_count"] == 1
+            asyncio.run(_set_broadcast_delivery(database_url, broadcast_id, "sent"))
+            assert client.get(f"/admin/broadcasts/{broadcast_id}/preview").json()["sent_count"] == 1
             assert client.get("/admin/broadcasts").json()["items"][0]["title"] == "Черновик"
             assert client.post("/admin/auth/logout").status_code == 403
             assert client.post(
@@ -122,6 +131,24 @@ async def _create_test_lead(database_url: str) -> None:
                     telegram_user_id="900011", qr_code="admin-http-proof"
                 )
             )
+    finally:
+        await factory.kw["bind"].dispose()
+
+
+async def _enable_broadcast_recipient(database_url: str) -> None:
+    factory = create_session_factory(database_url)
+    try:
+        async with session_scope(factory) as session:
+            await session.execute(text("UPDATE users SET marketing_consent_status = 'confirmed', telegram_reachability = 'allowed', communication_status = 'subscribed'"))
+    finally:
+        await factory.kw["bind"].dispose()
+
+
+async def _set_broadcast_delivery(database_url: str, broadcast_id: str, status: str) -> None:
+    factory = create_session_factory(database_url)
+    try:
+        async with session_scope(factory) as session:
+            await session.execute(text("UPDATE outbound_messages SET status = :status WHERE dedupe_key LIKE :prefix"), {"status": status, "prefix": f"broadcast:{broadcast_id}:%"})
     finally:
         await factory.kw["bind"].dispose()
 

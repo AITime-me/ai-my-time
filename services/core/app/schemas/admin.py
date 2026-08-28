@@ -156,6 +156,9 @@ class AdminBroadcastView(BaseModel):
     body: str
     status: str
     eligible_count: int = Field(ge=0)
+    queued_count: int = Field(ge=0)
+    sent_count: int = Field(ge=0)
+    failed_count: int = Field(ge=0)
     created_at: datetime
 
 
