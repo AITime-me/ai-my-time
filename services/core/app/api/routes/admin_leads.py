@@ -10,6 +10,7 @@ from app.db.session import session_scope
 from app.schemas.admin import (
     AdminAttentionList,
     AdminAnalytics,
+    AdminConsentUpdate,
     AdminConsultationList,
     AdminDashboard,
     AdminLeadList,
@@ -84,6 +85,26 @@ async def person(user_id: uuid.UUID, request: Request) -> AdminPersonDetail:
         result = await AdminLeadReadService(session).person(user_id)
         if result is None:
             raise HTTPException(status_code=404, detail="person not found")
+        return result
+
+
+@router.patch("/people/{user_id}/marketing-consent", response_model=AdminPersonDetail)
+async def update_marketing_consent(
+    user_id: uuid.UUID, payload: AdminConsentUpdate, request: Request
+) -> AdminPersonDetail:
+    actor = await current_actor(request)
+    factory = get_session_factory(request)
+    async with session_scope(factory) as session:
+        try:
+            changed = await AdminActionService(session).set_marketing_consent(
+                actor_id=actor.user_id, user_id=user_id, status=payload.status
+            )
+        except ValueError:
+            raise HTTPException(status_code=422, detail="invalid marketing consent") from None
+        if changed is None:
+            raise HTTPException(status_code=404, detail="person not found")
+        result = await AdminLeadReadService(session).person(user_id)
+        assert result is not None
         return result
 
 

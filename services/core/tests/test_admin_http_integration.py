@@ -65,6 +65,11 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             assert people.status_code == 200
             person_id = people.json()["items"][0]["user_id"]
             assert client.get(f"/admin/people/{person_id}").status_code == 200
+            revoked = client.patch(f"/admin/people/{person_id}/marketing-consent", json={"status": "revoked"})
+            assert revoked.status_code == 200
+            assert revoked.json()["person"]["marketing_consent_status"] == "revoked"
+            confirmed = client.patch(f"/admin/people/{person_id}/marketing-consent", json={"status": "confirmed"})
+            assert confirmed.json()["person"]["marketing_consent_status"] == "confirmed"
             trace = client.get(f"/admin/logs/people/{person_id}")
             assert trace.status_code == 200
             assert trace.json()["user_id"] == person_id

@@ -7,10 +7,11 @@ from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import AdminAuditEvent, AttentionItem, ConsultationRequest
+from app.models import AdminAuditEvent, AttentionItem, ConsultationRequest, User
 
 _CONSULTATION_STATUSES = {"new", "in_progress", "completed", "cancelled"}
 _ATTENTION_STATUSES = {"new", "in_progress", "resolved"}
+_MARKETING_CONSENT_STATUSES = {"unknown", "confirmed", "revoked"}
 
 
 class AdminActionService:
@@ -61,3 +62,25 @@ class AdminActionService:
                 )
             )
         return item
+
+    async def set_marketing_consent(
+        self, *, actor_id: uuid.UUID, user_id: uuid.UUID, status: str
+    ) -> User | None:
+        if status not in _MARKETING_CONSENT_STATUSES:
+            raise ValueError("unsupported marketing consent status")
+        user = await self._session.get(User, user_id)
+        if user is None:
+            return None
+        before = user.marketing_consent_status
+        if before != status:
+            user.marketing_consent_status = status
+            self._session.add(
+                AdminAuditEvent(
+                    actor_id=actor_id,
+                    action="person.marketing_consent_changed",
+                    object_type="person",
+                    object_id=user.id,
+                    delta_json={"marketing_consent_status": {"before": before, "after": status}},
+                )
+            )
+        return user

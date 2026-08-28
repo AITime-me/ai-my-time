@@ -193,6 +193,7 @@ class AdminLeadReadService:
             diagnostic_summary=summary,
             consultation_status=consultation.status if consultation else None,
             communication_status=user.communication_status,
+            marketing_consent_status=user.marketing_consent_status,
             telegram_reachability=user.telegram_reachability,
             attention_count=attention_count,
             created_at=user.created_at,

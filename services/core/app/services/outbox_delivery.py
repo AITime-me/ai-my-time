@@ -14,7 +14,7 @@ from typing import Protocol
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.models import OutboundMessage, UserIdentity
+from app.models import OutboundMessage, User, UserIdentity
 from app.db.session import session_scope
 
 MAX_DELIVERY_ATTEMPTS = 5
@@ -110,6 +110,9 @@ class OutboundDeliveryService:
         )
         if result.rowcount != 1:
             raise ValueError("outbound delivery lease is no longer active")
+        await self._session.execute(
+            update(User).where(User.id == delivery.user_id).values(telegram_reachability="allowed")
+        )
 
     async def mark_retry(self, delivery: OutboundDelivery, *, error_code: str) -> None:
         attempt_count = await self._session.scalar(
@@ -147,6 +150,10 @@ class OutboundDeliveryService:
         )
         if result.rowcount != 1:
             raise ValueError("outbound delivery lease is no longer active")
+        if attempt_count >= MAX_DELIVERY_ATTEMPTS:
+            await self._session.execute(
+                update(User).where(User.id == delivery.user_id).values(telegram_reachability="blocked")
+            )
 
 
 class OutboundWorker:

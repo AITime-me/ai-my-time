@@ -17,6 +17,7 @@ class AdminLeadView(BaseModel):
     diagnostic_summary: str | None
     consultation_status: str | None
     communication_status: str
+    marketing_consent_status: str
     telegram_reachability: str
     attention_count: int = Field(ge=0)
     created_at: datetime
@@ -84,6 +85,10 @@ class AdminAttentionList(BaseModel):
 
 
 class AdminStatusUpdate(BaseModel):
+    status: str = Field(min_length=2, max_length=24)
+
+
+class AdminConsentUpdate(BaseModel):
     status: str = Field(min_length=2, max_length=24)
 
 
