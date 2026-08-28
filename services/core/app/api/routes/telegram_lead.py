@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hmac
+import logging
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from sqlalchemy import select
@@ -25,9 +26,11 @@ from app.services.lead_profile_flow import LeadProfileFlow
 from app.services.diagnostic_acceptance import DiagnosticAcceptanceService, is_acceptance_start
 from app.services.diagnostic_dialogue import DiagnosticDialogueService
 from app.adapters.yandex_diagnostic import build_diagnostic_provider
+from app.adapters.telegram_delivery import TelegramCallbackAcknowledger, TelegramDeliveryError
 
 router = APIRouter(tags=["telegram-lead"])
 _SECRET_HEADER = "X-Telegram-Bot-Api-Secret-Token"
+_LOG = logging.getLogger(__name__)
 
 
 @router.post("/webhooks/telegram/lead", status_code=204)
@@ -42,6 +45,12 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
     update = adapt_telegram_lead_payload(payload)
     if update is None:
         return Response(status_code=204)
+
+    if isinstance(update, (ProfileAnswer, ConsultationRequest)):
+        # Acknowledge the button before any database/provider work so Telegram
+        # closes its spinner immediately.  This is UX-only: a transient Bot API
+        # failure must never discard a durable profile answer or CTA request.
+        await _acknowledge_callback(request, update.callback_query_id)
 
     factory = get_session_factory(request)
     async with session_scope(factory) as session:
@@ -116,3 +125,16 @@ def _diagnostic_provider(request: Request):
         return build_diagnostic_provider(request.app.state.settings)
     except RuntimeError:
         return None
+
+
+async def _acknowledge_callback(request: Request, callback_query_id: str) -> None:
+    factory = getattr(request.app.state, "telegram_callback_acknowledger_factory", None)
+    token = request.app.state.settings.telegram_bot_token
+    if factory is None and not token:
+        _LOG.warning("Telegram callback acknowledgement is unavailable")
+        return
+    try:
+        acknowledger = factory() if factory is not None else TelegramCallbackAcknowledger(token=token)
+        await acknowledger.acknowledge(callback_query_id)
+    except (TelegramDeliveryError, ValueError, OSError):
+        _LOG.warning("Telegram callback acknowledgement failed")

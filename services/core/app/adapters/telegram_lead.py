@@ -22,6 +22,7 @@ class _Message(BaseModel):
 
 
 class _CallbackQuery(BaseModel):
+    id: str
     from_: _Sender = Field(alias="from")
     message: _Message | None = None
     data: str | None = None
@@ -41,6 +42,7 @@ class StartProfile:
 @dataclass(frozen=True)
 class ProfileAnswer:
     telegram_user_id: str
+    callback_query_id: str
     question_code: str
     value: str | None = None
     flow_version: int | None = None
@@ -56,6 +58,7 @@ class DiagnosticText:
 @dataclass(frozen=True)
 class ConsultationRequest:
     telegram_user_id: str
+    callback_query_id: str
     diagnostic_session_id: str
 
 
@@ -101,6 +104,7 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
     if parsed is not None:
         return ProfileAnswer(
             telegram_user_id=str(callback.from_.id),
+            callback_query_id=callback.id,
             question_code=parsed[0],
             value=parsed[1],
             flow_version=parsed[2],
@@ -109,7 +113,11 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
     if callback.data.startswith("diagnostic:consult:"):
         session_id = callback.data.removeprefix("diagnostic:consult:")
         if session_id:
-            return ConsultationRequest(telegram_user_id=str(callback.from_.id), diagnostic_session_id=session_id)
+            return ConsultationRequest(
+                telegram_user_id=str(callback.from_.id),
+                callback_query_id=callback.id,
+                diagnostic_session_id=session_id,
+            )
     return None
 
 

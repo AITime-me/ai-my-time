@@ -5,7 +5,12 @@ import uuid
 import pytest
 
 from app.adapters import telegram_delivery
-from app.adapters.telegram_delivery import TelegramBotTransport, TelegramDeliveryError, telegram_send_payload
+from app.adapters.telegram_delivery import (
+    TelegramBotTransport,
+    TelegramCallbackAcknowledger,
+    TelegramDeliveryError,
+    telegram_send_payload,
+)
 from app.services.outbox_delivery import OutboundDelivery
 
 
@@ -48,6 +53,22 @@ def test_transport_sends_only_serialized_message_payload() -> None:
     assert len(calls) == 1
     assert calls[0][0].endswith("/sendMessage")
     assert calls[0][1]["chat_id"] == "900001"
+
+
+def test_callback_acknowledger_sends_immediate_non_business_feedback() -> None:
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def sender(url: str, body: bytes) -> dict[str, object]:
+        calls.append((url, json.loads(body)))
+        return {"ok": True, "result": True}
+
+    asyncio.run(TelegramCallbackAcknowledger(token="test-token", sender=sender).acknowledge("callback-1"))
+    assert calls == [
+        (
+            "https://api.telegram.org/bottest-token/answerCallbackQuery",
+            {"callback_query_id": "callback-1", "text": "Нажатие получено"},
+        )
+    ]
 
 
 def test_telegram_network_connector_resolves_only_ipv6(monkeypatch: pytest.MonkeyPatch) -> None:

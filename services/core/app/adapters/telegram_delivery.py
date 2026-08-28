@@ -112,3 +112,24 @@ class TelegramBotTransport:
         response = await asyncio.to_thread(self._sender, self._url, body)
         if response.get("ok") is not True:
             raise TelegramDeliveryError("Telegram API rejected message")
+
+
+class TelegramCallbackAcknowledger:
+    """Closes a Telegram callback spinner without changing business state."""
+
+    def __init__(self, *, token: str, sender: HttpSender = _send_json) -> None:
+        if not token.strip():
+            raise ValueError("Telegram bot token is required")
+        self._url = f"https://api.telegram.org/bot{token}/answerCallbackQuery"
+        self._sender = sender
+
+    async def acknowledge(self, callback_query_id: str) -> None:
+        if not callback_query_id or len(callback_query_id) > 128:
+            raise TelegramDeliveryError("invalid Telegram callback query")
+        body = json.dumps(
+            {"callback_query_id": callback_query_id, "text": "Нажатие получено"},
+            ensure_ascii=False,
+        ).encode("utf-8")
+        response = await asyncio.to_thread(self._sender, self._url, body)
+        if response.get("ok") is not True:
+            raise TelegramDeliveryError("Telegram API rejected callback acknowledgement")

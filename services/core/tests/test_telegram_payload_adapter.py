@@ -26,6 +26,7 @@ def test_adapter_extracts_private_profile_answer_and_ignores_other_updates() -> 
     action = adapt_telegram_lead_payload(
         {
             "callback_query": {
+                "id": "callback-profile-v2",
                 "from": {"id": 900001},
                 "message": {"chat": {"type": "private"}},
                 "data": "profile:v2:3:team_size:1",
@@ -34,12 +35,12 @@ def test_adapter_extracts_private_profile_answer_and_ignores_other_updates() -> 
     )
 
     assert action == ProfileAnswer(
-        telegram_user_id="900001", question_code="team_size", flow_version=3, option_index=1
+        telegram_user_id="900001", callback_query_id="callback-profile-v2", question_code="team_size", flow_version=3, option_index=1
     )
     legacy = adapt_telegram_lead_payload(
-        {"callback_query": {"from": {"id": 900001}, "message": {"chat": {"type": "private"}}, "data": "profile:team_size:4–10"}}
+        {"callback_query": {"id": "callback-legacy", "from": {"id": 900001}, "message": {"chat": {"type": "private"}}, "data": "profile:team_size:4–10"}}
     )
-    assert legacy == ProfileAnswer(telegram_user_id="900001", question_code="team_size", value="4–10")
+    assert legacy == ProfileAnswer(telegram_user_id="900001", callback_query_id="callback-legacy", question_code="team_size", value="4–10")
     assert adapt_telegram_lead_payload({"message": {"chat": {}}}) is None
     assert adapt_telegram_lead_payload({"edited_message": {}}) is None
 
@@ -50,6 +51,6 @@ def test_adapter_accepts_only_private_diagnostic_text_and_consultation_callback(
     )
     assert text == DiagnosticText(telegram_user_id="900001", text="Теряем заявки на смене")
     callback = adapt_telegram_lead_payload(
-        {"callback_query": {"from": {"id": 900001}, "message": {"chat": {"type": "private"}}, "data": "diagnostic:consult:123"}}
+        {"callback_query": {"id": "callback-consult", "from": {"id": 900001}, "message": {"chat": {"type": "private"}}, "data": "diagnostic:consult:123"}}
     )
-    assert callback == ConsultationRequest(telegram_user_id="900001", diagnostic_session_id="123")
+    assert callback == ConsultationRequest(telegram_user_id="900001", callback_query_id="callback-consult", diagnostic_session_id="123")
