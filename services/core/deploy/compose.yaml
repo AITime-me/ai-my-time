@@ -49,7 +49,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-    networks: [private, edge]
+    # API needs IPv6 egress only for the short, best-effort
+    # answerCallbackQuery UX acknowledgement. It publishes no ports on this
+    # network; inbound traffic remains limited to the loopback edge binding.
+    networks: [private, edge, egress]
 
   worker:
     image: ai-my-time-core:${AI_MY_TIME_RELEASE_SHA:?AI_MY_TIME_RELEASE_SHA is required}

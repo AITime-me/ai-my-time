@@ -115,14 +115,28 @@ class DiagnosticDialogueService:
         return True
 
     async def consultation_requested(self, *, user_id: uuid.UUID, diagnostic_session_id: uuid.UUID) -> bool:
-        diagnostic = await self._session.get(DiagnosticSession, diagnostic_session_id)
+        # Serialize repeated deliveries for one result.  A row lock keeps the
+        # idempotency decision local to this diagnostic session without making
+        # consultation requests globally unique for a user.
+        diagnostic = await self._session.scalar(
+            select(DiagnosticSession)
+            .where(DiagnosticSession.id == diagnostic_session_id)
+            .with_for_update()
+        )
         if diagnostic is None or diagnostic.user_id != user_id or diagnostic.status != "diagnostic_completed":
             return False
         user = await self._session.get(User, user_id)
         assert user is not None
-        if user.lifecycle_stage != "consultation_requested":
-            user.lifecycle_stage = "consultation_requested"
+        existing = await self._session.scalar(
+            select(Event.id).where(
+                Event.user_id == user_id,
+                Event.kind == "consultation_requested",
+                Event.payload_json.contains({"diagnostic_session_id": str(diagnostic.id)}),
+            )
+        )
+        if existing is None:
             self._session.add(Event(user_id=user_id, kind="consultation_requested", payload_json={"diagnostic_session_id": str(diagnostic.id)}))
+        user.lifecycle_stage = "consultation_requested"
         await self._message(diagnostic, CONSULTATION_CONFIRMATION, "consultation:confirmation", [])
         return True
 
