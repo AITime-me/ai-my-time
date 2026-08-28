@@ -1,62 +1,236 @@
-"""Read-only Admin projection; authentication and HTTP exposure come later."""
+"""Explicit, bounded Admin projections over the application source of truth."""
 
 from __future__ import annotations
 
-from sqlalchemy import desc, select
+import uuid
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import ConferenceEntry, DiagnosticReport, DiagnosticSession, User
-from app.schemas.admin import AdminLeadList, AdminLeadView
+from app.models import (
+    AttentionItem,
+    ConferenceEntry,
+    ConsultationRequest,
+    DiagnosticReport,
+    DiagnosticSession,
+    ProfileAnswer,
+    Touchpoint,
+    User,
+)
+from app.schemas.admin import (
+    AdminAttentionList,
+    AdminAttentionView,
+    AdminConsultationList,
+    AdminConsultationView,
+    AdminDashboard,
+    AdminDiagnosticView,
+    AdminLeadList,
+    AdminLeadView,
+    AdminPersonDetail,
+)
 
 
 class AdminLeadReadService:
-    """Small explicit projection for the existing Admin UI, with no PII fields."""
+    """Read-only Admin views; all joins remain server-side and bounded."""
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def list_recent(self, *, limit: int = 50) -> AdminLeadList:
+    async def list_recent(
+        self,
+        *,
+        limit: int = 50,
+        source: str | None = None,
+        lifecycle_stage: str | None = None,
+        diagnostic_completed: bool | None = None,
+        consultation_status: str | None = None,
+        communication_status: str | None = None,
+        attention_only: bool = False,
+        search: str | None = None,
+    ) -> AdminLeadList:
         if not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100")
-
-        users = (
-            await self._session.scalars(
-                select(User).order_by(desc(User.created_at)).limit(limit)
-            )
-        ).all()
+        users = (await self._session.scalars(select(User).order_by(desc(User.created_at)))).all()
         items: list[AdminLeadView] = []
         for user in users:
-            conference_entry = await self._session.scalar(
-                select(ConferenceEntry)
-                .where(ConferenceEntry.user_id == user.id)
-                .order_by(desc(ConferenceEntry.created_at))
-                .limit(1)
-            )
-            diagnostic = await self._session.scalar(
-                select(DiagnosticSession)
-                .where(DiagnosticSession.user_id == user.id)
-                .order_by(desc(DiagnosticSession.created_at))
-                .limit(1)
-            )
-            report_summary: str | None = None
-            if diagnostic is not None:
-                report = await self._session.scalar(
-                    select(DiagnosticReport).where(
-                        DiagnosticReport.diagnostic_session_id == diagnostic.id
-                    )
-                )
-                if report is not None:
-                    report_summary = report.summary
-            items.append(
-                AdminLeadView(
-                    user_id=user.id,
-                    lifecycle_stage=user.lifecycle_stage,
-                    conference_code=(
-                        conference_entry.conference_code if conference_entry else None
-                    ),
-                    diagnostic_status=diagnostic.status if diagnostic else None,
-                    diagnostic_summary=report_summary,
-                    created_at=user.created_at,
-                )
-            )
+            view = await self._lead_view(user)
+            if source and view.source != source:
+                continue
+            if lifecycle_stage and view.lifecycle_stage != lifecycle_stage:
+                continue
+            if diagnostic_completed is not None and (view.diagnostic_status == "diagnostic_completed") != diagnostic_completed:
+                continue
+            if consultation_status and view.consultation_status != consultation_status:
+                continue
+            if communication_status and view.communication_status != communication_status:
+                continue
+            if attention_only and view.attention_count == 0:
+                continue
+            if search and not _matches_search(view, search):
+                continue
+            items.append(view)
+            if len(items) == limit:
+                break
         return AdminLeadList(items=items, limit=limit)
+
+    async def person(self, user_id: uuid.UUID) -> AdminPersonDetail | None:
+        user = await self._session.get(User, user_id)
+        if user is None:
+            return None
+        diagnostics = (await self._session.scalars(
+            select(DiagnosticSession).where(DiagnosticSession.user_id == user_id).order_by(desc(DiagnosticSession.created_at))
+        )).all()
+        profile_rows = (await self._session.scalars(
+            select(ProfileAnswer).where(ProfileAnswer.user_id == user_id).order_by(ProfileAnswer.question_code, desc(ProfileAnswer.revision))
+        )).all()
+        answers: dict[str, object] = {}
+        for row in profile_rows:
+            answers.setdefault(row.question_code, row.answer_json)
+        consultations = (await self._session.scalars(
+            select(ConsultationRequest).where(ConsultationRequest.user_id == user_id).order_by(desc(ConsultationRequest.created_at))
+        )).all()
+        attention = (await self._session.scalars(
+            select(AttentionItem).where(AttentionItem.user_id == user_id).order_by(desc(AttentionItem.created_at))
+        )).all()
+        return AdminPersonDetail(
+            person=await self._lead_view(user),
+            profile_answers=answers,
+            diagnostics=[await self._diagnostic_view(row) for row in diagnostics],
+            consultations=[await self._consultation_view(row) for row in consultations],
+            attention_items=[_attention_view(row) for row in attention],
+        )
+
+    async def dashboard(self, *, days: int = 7) -> AdminDashboard:
+        if days not in {1, 7, 30}:
+            raise ValueError("dashboard days must be 1, 7, or 30")
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+        new_people = await self._count(User, User.created_at >= since)
+        started = await self._count(DiagnosticSession, DiagnosticSession.created_at >= since)
+        completed = await self._count(
+            DiagnosticSession,
+            DiagnosticSession.completed_at.is_not(None),
+            DiagnosticSession.completed_at >= since,
+        )
+        consultations = await self._count(ConsultationRequest, ConsultationRequest.created_at >= since)
+        attention = await self._count(
+            AttentionItem, AttentionItem.status.in_(("new", "in_progress"))
+        )
+        return AdminDashboard(
+            new_people=new_people,
+            started_diagnostics=started,
+            completed_diagnostics=completed,
+            consultation_requests=consultations,
+            attention_items=attention,
+            funnel={
+                "people": new_people,
+                "diagnostic_started": started,
+                "diagnostic_completed": completed,
+                "consultation_requested": consultations,
+            },
+        )
+
+    async def consultations(self, *, status: str | None = None, limit: int = 100) -> AdminConsultationList:
+        statement = select(ConsultationRequest).order_by(desc(ConsultationRequest.created_at)).limit(limit)
+        if status:
+            statement = select(ConsultationRequest).where(ConsultationRequest.status == status).order_by(desc(ConsultationRequest.created_at)).limit(limit)
+        rows = (await self._session.scalars(statement)).all()
+        return AdminConsultationList(items=[await self._consultation_view(row) for row in rows])
+
+    async def attention(self, *, status: str | None = None, limit: int = 100) -> AdminAttentionList:
+        statement = select(AttentionItem).order_by(AttentionItem.priority, desc(AttentionItem.created_at)).limit(limit)
+        if status:
+            statement = select(AttentionItem).where(AttentionItem.status == status).order_by(AttentionItem.priority, desc(AttentionItem.created_at)).limit(limit)
+        rows = (await self._session.scalars(statement)).all()
+        return AdminAttentionList(items=[_attention_view(row) for row in rows])
+
+    async def _lead_view(self, user: User) -> AdminLeadView:
+        touchpoint = await self._session.scalar(
+            select(Touchpoint).where(Touchpoint.user_id == user.id).order_by(desc(Touchpoint.observed_at)).limit(1)
+        )
+        conference = await self._session.scalar(
+            select(ConferenceEntry).where(ConferenceEntry.user_id == user.id).order_by(desc(ConferenceEntry.created_at)).limit(1)
+        )
+        diagnostic = await self._session.scalar(
+            select(DiagnosticSession).where(DiagnosticSession.user_id == user.id).order_by(desc(DiagnosticSession.created_at)).limit(1)
+        )
+        summary: str | None = None
+        if diagnostic is not None:
+            report = await self._session.scalar(select(DiagnosticReport).where(DiagnosticReport.diagnostic_session_id == diagnostic.id))
+            summary = report.summary if report else None
+        consultation = await self._session.scalar(
+            select(ConsultationRequest).where(ConsultationRequest.user_id == user.id).order_by(desc(ConsultationRequest.created_at)).limit(1)
+        )
+        attention_count = await self._count(
+            AttentionItem,
+            AttentionItem.user_id == user.id,
+            AttentionItem.status.in_(("new", "in_progress")),
+        )
+        return AdminLeadView(
+            user_id=user.id,
+            display_name=user.display_name,
+            telegram_username=user.telegram_username,
+            lifecycle_stage=user.lifecycle_stage,
+            source=touchpoint.source_code if touchpoint else None,
+            conference_code=conference.conference_code if conference else None,
+            diagnostic_status=diagnostic.status if diagnostic else None,
+            diagnostic_summary=summary,
+            consultation_status=consultation.status if consultation else None,
+            communication_status=user.communication_status,
+            telegram_reachability=user.telegram_reachability,
+            attention_count=attention_count,
+            created_at=user.created_at,
+            last_activity_at=user.last_activity_at,
+        )
+
+    async def _diagnostic_view(self, diagnostic: DiagnosticSession) -> AdminDiagnosticView:
+        report = await self._session.scalar(select(DiagnosticReport).where(DiagnosticReport.diagnostic_session_id == diagnostic.id))
+        return AdminDiagnosticView(
+            diagnostic_session_id=diagnostic.id,
+            status=diagnostic.status,
+            created_at=diagnostic.created_at,
+            completed_at=diagnostic.completed_at,
+            summary=report.summary if report else None,
+            result_version=report.result_version if report else None,
+            result=report.result_json if report else None,
+        )
+
+    async def _consultation_view(self, request: ConsultationRequest) -> AdminConsultationView:
+        diagnostic = await self._session.get(DiagnosticSession, request.diagnostic_session_id)
+        report = await self._session.scalar(select(DiagnosticReport).where(DiagnosticReport.diagnostic_session_id == request.diagnostic_session_id))
+        touchpoint = await self._session.scalar(
+            select(Touchpoint).where(Touchpoint.user_id == request.user_id).order_by(desc(Touchpoint.observed_at)).limit(1)
+        )
+        return AdminConsultationView(
+            consultation_request_id=request.id,
+            diagnostic_session_id=request.diagnostic_session_id,
+            status=request.status,
+            created_at=request.created_at,
+            diagnostic_summary=report.summary if report else None,
+            source=touchpoint.source_code if touchpoint else None,
+        )
+
+    async def _count(self, model, *conditions) -> int:
+        value = await self._session.scalar(select(func.count()).select_from(model).where(*conditions))
+        return int(value or 0)
+
+
+def _matches_search(view: AdminLeadView, needle: str) -> bool:
+    normalized = needle.strip().casefold()
+    if not normalized:
+        return True
+    values = (str(view.user_id), view.display_name or "", view.telegram_username or "")
+    return any(normalized in value.casefold() for value in values)
+
+
+def _attention_view(item: AttentionItem) -> AdminAttentionView:
+    return AdminAttentionView(
+        attention_item_id=item.id,
+        kind=item.kind,
+        reason=item.reason,
+        priority=item.priority,
+        status=item.status,
+        created_at=item.created_at,
+        linked_diagnostic_session_id=item.diagnostic_session_id,
+        consultation_request_id=item.consultation_request_id,
+    )

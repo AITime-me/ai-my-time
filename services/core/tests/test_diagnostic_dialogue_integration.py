@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import func, select, text
 
 from app.db.session import create_session_factory, session_scope
-from app.models import DiagnosticReport, DiagnosticSession, DiagnosticTurn, Event, OutboundMessage, User
+from app.models import AttentionItem, ConsultationRequest, DiagnosticReport, DiagnosticSession, DiagnosticTurn, Event, OutboundMessage, User
 from app.schemas.conference import ConferenceStartCommand
 from app.schemas.diagnostic import PrepareDiagnosticCommand
 from app.schemas.profile import SaveProfileAnswersCommand
@@ -93,6 +93,15 @@ async def _run(url: str) -> None:
             user = await session.get(User, entry.user_id)
             assert user is not None and user.lifecycle_stage == "consultation_requested"
             assert await session.scalar(select(func.count()).select_from(Event).where(Event.kind == "consultation_requested")) == 1
+            request = await session.scalar(select(ConsultationRequest).where(
+                ConsultationRequest.diagnostic_session_id == diagnostic.id
+            ))
+            assert request is not None and request.status == "new"
+            attention = await session.scalar(select(AttentionItem).where(
+                AttentionItem.consultation_request_id == request.id
+            ))
+            assert attention is not None
+            assert attention.kind == "consultation_requested" and attention.status == "new"
     finally:
         async with session_scope(factory) as session:
             await session.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))

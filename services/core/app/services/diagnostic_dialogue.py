@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.diagnostic_assets import load_diagnostic_prompt_bundle
-from app.models import DiagnosticReport, DiagnosticSession, DiagnosticTurn, Event, User
+from app.models import AttentionItem, ConsultationRequest, DiagnosticReport, DiagnosticSession, DiagnosticTurn, Event, User
 from app.schemas.diagnostic_report import RecordDiagnosticReportV2Command
 from app.schemas.diagnostic_result_v2 import DiagnosticResultV2
 from app.services.diagnostic_generation import DiagnosticConversationInput, DiagnosticConversationProvider
@@ -128,14 +128,30 @@ class DiagnosticDialogueService:
         user = await self._session.get(User, user_id)
         assert user is not None
         existing = await self._session.scalar(
-            select(Event.id).where(
-                Event.user_id == user_id,
-                Event.kind == "consultation_requested",
-                Event.payload_json.contains({"diagnostic_session_id": str(diagnostic.id)}),
+            select(ConsultationRequest).where(
+                ConsultationRequest.diagnostic_session_id == diagnostic.id
             )
         )
         if existing is None:
+            request = ConsultationRequest(
+                user_id=user_id,
+                diagnostic_session_id=diagnostic.id,
+                status="new",
+            )
+            self._session.add(request)
+            await self._session.flush()
             self._session.add(Event(user_id=user_id, kind="consultation_requested", payload_json={"diagnostic_session_id": str(diagnostic.id)}))
+            self._session.add(
+                AttentionItem(
+                    user_id=user_id,
+                    consultation_request_id=request.id,
+                    diagnostic_session_id=diagnostic.id,
+                    kind="consultation_requested",
+                    reason="Пользователь запросил онлайн-консультацию",
+                    priority="normal",
+                    status="new",
+                )
+            )
         user.lifecycle_stage = "consultation_requested"
         await self._message(diagnostic, CONSULTATION_CONFIRMATION, "consultation:confirmation", [])
         return True

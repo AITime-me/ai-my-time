@@ -1,8 +1,11 @@
 from app.models.core import (
+    AdminAuditEvent,
     AdminSession,
     AdminUser,
+    AttentionItem,
     BusinessProfile,
     ConferenceEntry,
+    ConsultationRequest,
     DiagnosticAcceptanceGrant,
     DiagnosticAcceptanceFlow,
     DiagnosticReport,
@@ -15,13 +18,17 @@ from app.models.core import (
     UserIdentity,
     LeadBotSession,
     OutboundMessage,
+    OperationalLogEvent,
 )
 
 __all__ = [
+    "AdminAuditEvent",
     "AdminSession",
     "AdminUser",
+    "AttentionItem",
     "BusinessProfile",
     "ConferenceEntry",
+    "ConsultationRequest",
     "DiagnosticAcceptanceGrant",
     "DiagnosticAcceptanceFlow",
     "DiagnosticReport",
@@ -34,4 +41,5 @@ __all__ = [
     "UserIdentity",
     "LeadBotSession",
     "OutboundMessage",
+    "OperationalLogEvent",
 ]

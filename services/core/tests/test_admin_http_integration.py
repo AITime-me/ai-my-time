@@ -51,6 +51,15 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             assert payload["items"][0]["conference_code"] == "conference_2026"
             assert "telegram_user_id" not in str(payload)
             assert "900011" not in str(payload)
+            people = client.get("/admin/people?limit=1")
+            assert people.status_code == 200
+            person_id = people.json()["items"][0]["user_id"]
+            assert client.get(f"/admin/people/{person_id}").status_code == 200
+            dashboard = client.get("/admin/dashboard?days=7")
+            assert dashboard.status_code == 200
+            assert dashboard.json()["new_people"] == 1
+            assert client.get("/admin/consultations").json()["items"] == []
+            assert client.get("/admin/attention").json()["items"] == []
             assert client.post("/admin/auth/logout").status_code == 403
             assert client.post(
                 "/admin/auth/logout", headers={"Origin": "http://testserver"}

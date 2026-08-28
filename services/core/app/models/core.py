@@ -31,12 +31,25 @@ class Timestamped:
 
 class User(Timestamped, Base):
     __tablename__ = "users"
+    __table_args__ = (
+        Index("ix_users_last_activity", "last_activity_at"),
+        Index("ix_users_communication_reachability", "communication_status", "telegram_reachability"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     lifecycle_stage: Mapped[str] = mapped_column(
         String(40), nullable=False, server_default="new"
+    )
+    display_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    telegram_username: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    last_activity_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    communication_status: Mapped[str] = mapped_column(
+        String(24), nullable=False, server_default="subscribed"
+    )
+    telegram_reachability: Mapped[str] = mapped_column(
+        String(24), nullable=False, server_default="unknown"
     )
 
 
@@ -352,6 +365,112 @@ class Event(Base):
     )
     payload_json: Mapped[dict[str, object]] = mapped_column(
         JSONB, nullable=False, server_default="{}"
+    )
+
+
+class ConsultationRequest(Timestamped, Base):
+    """Human follow-up request, idempotent for one completed diagnostic result."""
+
+    __tablename__ = "consultation_requests"
+    __table_args__ = (
+        UniqueConstraint("diagnostic_session_id", name="uq_consultation_requests_diagnostic_session"),
+        Index("ix_consultation_requests_status_created", "status", "created_at"),
+        Index("ix_consultation_requests_user_created", "user_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    diagnostic_session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("diagnostic_sessions.id", ondelete="RESTRICT"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="new")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class AttentionItem(Timestamped, Base):
+    """A bounded owner work queue; not a generic tag or sales pipeline."""
+
+    __tablename__ = "attention_items"
+    __table_args__ = (
+        Index("ix_attention_items_status_priority_created", "status", "priority", "created_at"),
+        Index("ix_attention_items_user_status", "user_id", "status"),
+        UniqueConstraint("consultation_request_id", name="uq_attention_items_consultation_request"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    consultation_request_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("consultation_requests.id", ondelete="RESTRICT"), nullable=True
+    )
+    diagnostic_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("diagnostic_sessions.id", ondelete="RESTRICT"), nullable=True
+    )
+    kind: Mapped[str] = mapped_column(String(80), nullable=False)
+    reason: Mapped[str] = mapped_column(String(320), nullable=False)
+    priority: Mapped[str] = mapped_column(String(24), nullable=False, server_default="normal")
+    status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="new")
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AdminAuditEvent(Base):
+    """Durable operator audit without storing credentials or raw payloads."""
+
+    __tablename__ = "admin_audit_events"
+    __table_args__ = (
+        Index("ix_admin_audit_events_actor_created", "actor_id", "created_at"),
+        Index("ix_admin_audit_events_object_created", "object_type", "object_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    actor_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("admin_users.id", ondelete="RESTRICT"), nullable=False
+    )
+    action: Mapped[str] = mapped_column(String(120), nullable=False)
+    object_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    object_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    delta_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class OperationalLogEvent(Base):
+    """Minimal structured trace metadata, deliberately excluding raw payloads and secrets."""
+
+    __tablename__ = "operational_log_events"
+    __table_args__ = (
+        Index("ix_operational_log_events_created", "created_at"),
+        Index("ix_operational_log_events_trace", "trace_id", "created_at"),
+        Index("ix_operational_log_events_user_created", "user_id", "created_at"),
+        Index("ix_operational_log_events_component_status", "component", "status", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    trace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    diagnostic_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("diagnostic_sessions.id", ondelete="RESTRICT"), nullable=True
+    )
+    outbox_message_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("outbound_messages.id", ondelete="RESTRICT"), nullable=True
+    )
+    component: Mapped[str] = mapped_column(String(80), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
 
