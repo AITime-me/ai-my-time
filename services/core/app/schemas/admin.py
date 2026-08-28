@@ -85,3 +85,34 @@ class AdminAttentionList(BaseModel):
 
 class AdminStatusUpdate(BaseModel):
     status: str = Field(min_length=2, max_length=24)
+
+
+class AdminKnowledgeDraftCreate(BaseModel):
+    namespace: str = Field(min_length=2, max_length=80)
+    key: str = Field(min_length=2, max_length=120)
+    title: str = Field(min_length=2, max_length=256)
+    content_json: dict[str, object]
+    comment: str | None = Field(default=None, max_length=512)
+
+
+class AdminKnowledgeVersionView(BaseModel):
+    knowledge_version_id: uuid.UUID
+    version: int
+    status: str
+    content_json: dict[str, object]
+    comment: str | None = None
+    published_at: datetime | None = None
+    created_at: datetime
+
+
+class AdminKnowledgeAssetView(BaseModel):
+    knowledge_asset_id: uuid.UUID
+    namespace: str
+    key: str
+    title: str
+    published_version_id: uuid.UUID | None = None
+    versions: list[AdminKnowledgeVersionView]
+
+
+class AdminKnowledgeList(BaseModel):
+    items: list[AdminKnowledgeAssetView]

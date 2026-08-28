@@ -474,6 +474,43 @@ class OperationalLogEvent(Base):
     )
 
 
+class KnowledgeAsset(Timestamped, Base):
+    """A named business-knowledge collection; active content always comes from a version."""
+
+    __tablename__ = "knowledge_assets"
+    __table_args__ = (UniqueConstraint("namespace", "key", name="uq_knowledge_assets_namespace_key"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    namespace: Mapped[str] = mapped_column(String(80), nullable=False)
+    key: Mapped[str] = mapped_column(String(120), nullable=False)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    published_version_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+
+class KnowledgeVersion(Base):
+    """Draft/published business knowledge, intentionally not prompt or policy source."""
+
+    __tablename__ = "knowledge_versions"
+    __table_args__ = (
+        UniqueConstraint("asset_id", "version", name="uq_knowledge_versions_asset_version"),
+        Index("ix_knowledge_versions_asset_status", "asset_id", "status", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    asset_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("knowledge_assets.id", ondelete="RESTRICT"), nullable=False
+    )
+    version: Mapped[int] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="draft")
+    content_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    comment: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    created_by_actor_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("admin_users.id", ondelete="RESTRICT"), nullable=False
+    )
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
 class ConferenceEntry(Timestamped, Base):
     __tablename__ = "conference_entries"
     __table_args__ = (

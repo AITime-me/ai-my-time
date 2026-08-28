@@ -17,6 +17,8 @@ from app.models.core import (
     User,
     UserIdentity,
     LeadBotSession,
+    KnowledgeAsset,
+    KnowledgeVersion,
     OutboundMessage,
     OperationalLogEvent,
 )
@@ -40,6 +42,8 @@ __all__ = [
     "User",
     "UserIdentity",
     "LeadBotSession",
+    "KnowledgeAsset",
+    "KnowledgeVersion",
     "OutboundMessage",
     "OperationalLogEvent",
 ]
