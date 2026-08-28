@@ -26,6 +26,10 @@ PRICE_REPLY = load_diagnostic_prompt_bundle().price_reply
 CONSULTATION_CONFIRMATION = (
     "Запрос на онлайн-консультацию зафиксирован. Эксперт AI My Time увидит его в рабочем списке для связи."
 )
+DIAGNOSTIC_UNAVAILABLE_TEXT = (
+    "Ответы сохранены. Сейчас первичный разбор временно недоступен, "
+    "поэтому мы не будем выдавать непроверенный результат. Вернёмся к этому шагу после восстановления сервиса."
+)
 _PRICE_RE = re.compile(r"(?:цен|стоим|бюджет|прайс|тариф|сколько\s+стоит|\bот\s+\d)", re.I)
 def _cta_button(session_id: uuid.UUID) -> list[dict[str, str]]:
     return [{"text": "Записаться на онлайн-консультацию", "callback_data": f"diagnostic:consult:{session_id}"}]
@@ -34,22 +38,37 @@ def _cta_button(session_id: uuid.UUID) -> list[dict[str, str]]:
 class DiagnosticDialogueService:
     """Stores no more than four user clarifications and closes the session deterministically."""
 
-    def __init__(self, session: AsyncSession, provider: DiagnosticConversationProvider) -> None:
+    def __init__(self, session: AsyncSession, provider: DiagnosticConversationProvider | None) -> None:
         self._session = session
         self._provider = provider
         self._outbox = OutboundQueue(session)
 
-    async def open(self, *, diagnostic_session_id: uuid.UUID) -> None:
+    async def open(self, *, diagnostic_session_id: uuid.UUID) -> bool:
         diagnostic = await self._session.get(DiagnosticSession, diagnostic_session_id)
-        if diagnostic is None or diagnostic.status != "diagnostic_active":
-            return
-        response = await self._provider.advance(self._input(diagnostic, []))
+        if diagnostic is None or diagnostic.status not in {"prepared", "diagnostic_active"}:
+            return False
+        if self._provider is None:
+            await self._pause(diagnostic)
+            return False
+        turns = await self._turns(diagnostic.id)
+        if diagnostic.status == "diagnostic_active" and turns:
+            return True
+        try:
+            response = await self._provider.advance(self._input(diagnostic, turns))
+        except Exception:  # provider failure must not roll back already accepted lead data
+            await self._pause(diagnostic)
+            return False
+        if response.diagnostic is not None:
+            await self._complete(diagnostic, response.diagnostic)
+            return True
         question = self._question(response)
+        diagnostic.status = "diagnostic_active"
         await self._append(diagnostic.id, "assistant", question)
         await self._message(diagnostic, question, "opening", [])
+        return True
 
     async def receive(self, *, user_id: uuid.UUID, text: str) -> bool:
-        diagnostic = await self._active(user_id)
+        diagnostic = await self._active_or_prepared(user_id)
         if diagnostic is None:
             completed = await self._session.scalar(
                 select(DiagnosticSession).where(
@@ -67,13 +86,23 @@ class DiagnosticDialogueService:
         if _PRICE_RE.search(cleaned):
             await self._message(diagnostic, PRICE_REPLY, "price", _cta_button(diagnostic.id))
             return True
+        if diagnostic.status == "prepared":
+            await self._pause(diagnostic)
+            return True
         user_turns = await self._count(diagnostic.id, "user")
         if user_turns >= 4:
             return True
         await self._append(diagnostic.id, "user", cleaned[:2000])
         user_turns += 1
         turns = await self._turns(diagnostic.id)
-        response = await self._provider.advance(self._input(diagnostic, turns))
+        if self._provider is None:
+            await self._pause(diagnostic)
+            return True
+        try:
+            response = await self._provider.advance(self._input(diagnostic, turns))
+        except Exception:  # preserve the just-recorded answer and leave the session resumable
+            await self._pause(diagnostic)
+            return True
         if response.diagnostic is not None:
             await self._complete(diagnostic, response.diagnostic)
             return True
@@ -96,10 +125,11 @@ class DiagnosticDialogueService:
         await self._message(diagnostic, CONSULTATION_CONFIRMATION, "consultation:confirmation", [])
         return True
 
-    async def _active(self, user_id: uuid.UUID) -> DiagnosticSession | None:
+    async def _active_or_prepared(self, user_id: uuid.UUID) -> DiagnosticSession | None:
         return await self._session.scalar(
             select(DiagnosticSession).where(
-                DiagnosticSession.user_id == user_id, DiagnosticSession.status == "diagnostic_active"
+                DiagnosticSession.user_id == user_id,
+                DiagnosticSession.status.in_(("diagnostic_active", "prepared")),
             ).order_by(DiagnosticSession.created_at.desc())
         )
 
@@ -138,6 +168,11 @@ class DiagnosticDialogueService:
 
     async def _message(self, diagnostic: DiagnosticSession, text: str, suffix: str, buttons: list[dict[str, str]]) -> None:
         await self._outbox.enqueue(user_id=diagnostic.user_id, channel="telegram_lead", payload={"kind": "message", "text": text, "buttons": buttons}, dedupe_key=f"diagnostic:{diagnostic.id}:{suffix}")
+
+    async def _pause(self, diagnostic: DiagnosticSession) -> None:
+        """Keep all answers and turns intact while waiting for a later approved provider recovery."""
+        diagnostic.status = "prepared"
+        await self._message(diagnostic, DIAGNOSTIC_UNAVAILABLE_TEXT, "provider-unavailable", [])
 
     async def _complete(self, diagnostic: DiagnosticSession, generated: DiagnosticResultV2) -> None:
         command = RecordDiagnosticReportV2Command(diagnostic_session_id=diagnostic.id, result=generated)

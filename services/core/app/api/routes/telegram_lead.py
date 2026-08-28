@@ -65,8 +65,7 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
         if user_id is None:
             return Response(status_code=204)
         if isinstance(update, DiagnosticText):
-            diagnostic_provider = _diagnostic_provider(request)
-            await DiagnosticDialogueService(session, diagnostic_provider).receive(user_id=user_id, text=update.text)
+            await DiagnosticDialogueService(session, _diagnostic_provider(request)).receive(user_id=user_id, text=update.text)
             return Response(status_code=204)
         if isinstance(update, ConsultationRequest):
             try:
@@ -79,7 +78,7 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
             return Response(status_code=204)
         assert isinstance(update, ProfileAnswer)
         try:
-            await LeadProfileFlow(session, _diagnostic_provider(request)).answer(
+            await LeadProfileFlow(session, diagnostic_provider_factory=lambda: _diagnostic_provider(request)).answer(
                 user_id=user_id,
                 question_code=update.question_code,
                 value=update.value,
@@ -95,5 +94,5 @@ def _diagnostic_provider(request: Request):
         return factory()
     try:
         return build_diagnostic_provider(request.app.state.settings)
-    except RuntimeError as error:
-        raise HTTPException(status_code=503, detail="diagnostic provider is not configured") from error
+    except RuntimeError:
+        return None

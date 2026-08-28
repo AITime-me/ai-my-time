@@ -39,14 +39,14 @@ class DiagnosticPreparationService:
 
         diagnostic = DiagnosticSession(
             user_id=user.id,
-            status="diagnostic_active",
+            status="prepared",
             input_snapshot_json={"profile_answers": latest_answers},
         )
         self._session.add(diagnostic)
         self._session.add(
             Event(
                 user_id=user.id,
-                kind="diagnostic_active",
+                kind="diagnostic_prepared",
                 payload_json={"profile_answer_count": len(latest_answers)},
             )
         )

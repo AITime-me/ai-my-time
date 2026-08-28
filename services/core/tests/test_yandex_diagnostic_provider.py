@@ -61,6 +61,22 @@ def test_provider_is_fail_closed_in_production(tmp_path) -> None:
         ))
 
 
+def test_production_provider_requires_separate_production_configuration(tmp_path) -> None:
+    key_path = tmp_path / "production-api-key"
+    key_path.write_text("production-secret", encoding="utf-8")
+    provider = YandexDiagnosticProvider(Settings(
+        app_env="production", diagnostic_provider="yandex_production",
+        yandex_production_folder_id="production-folder", yandex_production_api_key_path=str(key_path),
+    ), sender=lambda _url, _body, _key: {"result": {"alternatives": [{"message": {"text": '{"question":"Кто отвечает?","report":null}'}}]}})
+    assert asyncio.run(provider.advance(_input())).question == "Кто отвечает?"
+    with pytest.raises(YandexDiagnosticProviderError, match="must not use non-production"):
+        YandexDiagnosticProvider(Settings(
+            app_env="production", diagnostic_provider="yandex_production",
+            yandex_production_folder_id="production-folder", yandex_production_api_key_path=str(key_path),
+            yandex_nonprod_api_key_path="/nonprod/key",
+        ))
+
+
 def test_provider_accepts_json_fence(tmp_path) -> None:
     key_path = tmp_path / "api-key"
     key_path.write_text("secret", encoding="utf-8")

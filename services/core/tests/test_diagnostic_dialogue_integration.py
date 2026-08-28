@@ -31,6 +31,10 @@ def test_dialogue_is_bounded_price_safe_and_cta_idempotent() -> None:
     asyncio.run(_run(_url()))
 
 
+def test_legacy_prepared_session_is_not_converted_or_lost_without_provider() -> None:
+    asyncio.run(_run_legacy_prepared(_url()))
+
+
 async def _run(url: str) -> None:
     factory = create_session_factory(url)
     try:
@@ -85,6 +89,37 @@ async def _run(url: str) -> None:
             user = await session.get(User, entry.user_id)
             assert user is not None and user.lifecycle_stage == "consultation_requested"
             assert await session.scalar(select(func.count()).select_from(Event).where(Event.kind == "consultation_requested")) == 1
+    finally:
+        async with session_scope(factory) as session:
+            await session.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
+        await factory.kw["bind"].dispose()
+
+
+async def _run_legacy_prepared(url: str) -> None:
+    factory = create_session_factory(url)
+    try:
+        async with session_scope(factory) as session:
+            await session.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
+            entry = await ConferenceIntakeService(session).start(ConferenceStartCommand(telegram_user_id="901005", qr_code="qr"))
+            await ProfileService(session).save(SaveProfileAnswersCommand(user_id=entry.user_id, complete=True, answers=[
+                {"question_code": "business_type", "value": "Услуги"},
+                {"question_code": "team_size", "value": "4–10"},
+                {"question_code": "client_flow", "value": "Мессенджеры"},
+                {"question_code": "current_tools", "value": "В чатах"},
+                {"question_code": "primary_pain", "value": "Заявки"},
+                {"question_code": "automation_goal", "value": "Не терять информацию"},
+            ]))
+            legacy = await DiagnosticPreparationService(session).prepare(PrepareDiagnosticCommand(user_id=entry.user_id))
+            service = DiagnosticDialogueService(session, None)
+            assert await service.receive(user_id=entry.user_id, text="Продолжим?")
+            assert await service.receive(user_id=entry.user_id, text="Продолжим?")
+        async with session_scope(factory) as session:
+            diagnostic = await session.get(DiagnosticSession, legacy.diagnostic_session_id)
+            assert diagnostic is not None and diagnostic.status == "prepared"
+            assert await session.scalar(select(func.count()).select_from(DiagnosticTurn)) == 0
+            assert await session.scalar(select(func.count()).select_from(OutboundMessage).where(
+                OutboundMessage.dedupe_key == f"diagnostic:{legacy.diagnostic_session_id}:provider-unavailable"
+            )) == 1
     finally:
         async with session_scope(factory) as session:
             await session.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))

@@ -43,18 +43,32 @@ def _post_json(url: str, body: bytes, api_key: str) -> dict[str, Any]:
 
 
 class YandexDiagnosticProvider:
-    """Uses only the configured non-production folder and versioned text bundle."""
+    """Uses a deliberately separated non-production or production credential."""
 
     def __init__(self, settings: Settings, sender: HttpSender = _post_json) -> None:
-        if settings.app_env == "production" or settings.diagnostic_provider != "yandex_nonprod":
-            raise YandexDiagnosticProviderError("YandexGPT non-production provider is disabled")
-        if not settings.yandex_nonprod_folder_id or not settings.yandex_nonprod_api_key_path:
-            raise YandexDiagnosticProviderError("YandexGPT non-production configuration is incomplete")
-        if settings.yandex_nonprod_model != "yandexgpt/latest":
-            raise YandexDiagnosticProviderError("unsupported YandexGPT non-production model")
-        self._folder_id = settings.yandex_nonprod_folder_id
-        self._model = settings.yandex_nonprod_model
-        self._key_path = Path(settings.yandex_nonprod_api_key_path)
+        if settings.diagnostic_provider == "yandex_nonprod":
+            if settings.app_env == "production":
+                raise YandexDiagnosticProviderError("YandexGPT non-production provider is disabled")
+            folder_id = settings.yandex_nonprod_folder_id
+            key_path = settings.yandex_nonprod_api_key_path
+            model = settings.yandex_nonprod_model
+        elif settings.diagnostic_provider == "yandex_production":
+            if settings.app_env != "production":
+                raise YandexDiagnosticProviderError("YandexGPT production provider is disabled")
+            if settings.yandex_nonprod_folder_id or settings.yandex_nonprod_api_key_path:
+                raise YandexDiagnosticProviderError("YandexGPT production must not use non-production configuration")
+            folder_id = settings.yandex_production_folder_id
+            key_path = settings.yandex_production_api_key_path
+            model = settings.yandex_production_model
+        else:
+            raise YandexDiagnosticProviderError("YandexGPT provider is disabled")
+        if not folder_id or not key_path:
+            raise YandexDiagnosticProviderError("YandexGPT configuration is incomplete")
+        if model != "yandexgpt/latest":
+            raise YandexDiagnosticProviderError("unsupported YandexGPT model")
+        self._folder_id = folder_id
+        self._model = model
+        self._key_path = Path(key_path)
         self._bundle = load_diagnostic_prompt_bundle(settings.diagnostic_prompt_version)
         self._sender = sender
 
@@ -134,5 +148,5 @@ def _json_text(value: object) -> str:
 
 
 def build_diagnostic_provider(settings: Settings) -> YandexDiagnosticProvider:
-    """The only runtime provider factory: disabled unless nonprod is explicit."""
+    """Build only an explicitly configured provider with environment-separated credentials."""
     return YandexDiagnosticProvider(settings)

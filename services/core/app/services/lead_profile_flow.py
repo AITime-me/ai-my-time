@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -90,10 +91,14 @@ def _step_payload(step: ProfileStep) -> dict[str, object]:
 class LeadProfileFlow:
     """Stores state before queuing the next prompt; no provider call is made."""
 
-    def __init__(self, session: AsyncSession, diagnostic_provider: DiagnosticConversationProvider | None = None) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        diagnostic_provider_factory: Callable[[], DiagnosticConversationProvider | None] | DiagnosticConversationProvider | None = None,
+    ) -> None:
         self._session = session
         self._outbox = OutboundQueue(session)
-        self._diagnostic_provider = diagnostic_provider
+        self._diagnostic_provider_factory = diagnostic_provider_factory
 
     async def start(self, *, user_id: uuid.UUID) -> LeadBotSession:
         user = await self._session.get(User, user_id)
@@ -142,9 +147,12 @@ class LeadProfileFlow:
             prepared = await DiagnosticPreparationService(self._session).prepare(
                 PrepareDiagnosticCommand(user_id=user_id)
             )
-            if self._diagnostic_provider is None:
-                raise ValueError("diagnostic provider is not configured")
-            await DiagnosticDialogueService(self._session, self._diagnostic_provider).open(
+            provider = (
+                self._diagnostic_provider_factory()
+                if callable(self._diagnostic_provider_factory)
+                else self._diagnostic_provider_factory
+            )
+            await DiagnosticDialogueService(self._session, provider).open(
                 diagnostic_session_id=prepared.diagnostic_session_id
             )
             return flow

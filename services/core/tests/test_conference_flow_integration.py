@@ -99,7 +99,7 @@ async def _run_flow(database_url: str) -> None:
             )
             diagnostic = await session.get(DiagnosticSession, diagnostic_result.diagnostic_session_id)
             assert diagnostic is not None
-            assert diagnostic.status == "diagnostic_active"
+            assert diagnostic.status == "prepared"
             assert len(diagnostic.input_snapshot_json["profile_answers"]) == 6
 
         report_command = RecordDiagnosticReportCommand(

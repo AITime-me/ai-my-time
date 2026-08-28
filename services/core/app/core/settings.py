@@ -21,11 +21,14 @@ class Settings(BaseSettings):
     database_url: str | None = None
     telegram_bot_token: str | None = None
     telegram_lead_webhook_secret: str | None = None
-    diagnostic_provider: Literal["disabled", "yandex_nonprod"] = "disabled"
+    diagnostic_provider: Literal["disabled", "yandex_nonprod", "yandex_production"] = "disabled"
     diagnostic_prompt_version: str = "v1"
     yandex_nonprod_folder_id: str | None = None
     yandex_nonprod_api_key_path: str | None = None
     yandex_nonprod_model: str = "yandexgpt/latest"
+    yandex_production_folder_id: str | None = None
+    yandex_production_api_key_path: str | None = None
+    yandex_production_model: str = "yandexgpt/latest"
 
 
 @lru_cache
