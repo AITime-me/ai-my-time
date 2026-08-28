@@ -52,7 +52,12 @@ class AdminBroadcastService:
         queue = OutboundQueue(self._session)
         for user in recipients:
             # Gating is re-evaluated above at the moment of confirmation.
-            await queue.enqueue(user_id=user.id, channel="telegram", payload={"kind": "broadcast", "broadcast_id": str(row.id), "text": row.body}, dedupe_key=f"broadcast:{row.id}:{user.id}")
+            await queue.enqueue(
+                user_id=user.id,
+                channel="telegram_lead",
+                payload={"kind": "message", "broadcast_id": str(row.id), "text": row.body, "buttons": []},
+                dedupe_key=f"broadcast:{row.id}:{user.id}",
+            )
         row.status = "queued"
         row.approved_at = row.approved_at or datetime.now(timezone.utc)
         self._session.add(AdminAuditEvent(actor_id=actor_id, action="broadcast.send_confirmed", object_type="broadcast_campaign", object_id=row.id, delta_json={"eligible_count": len(recipients), "delivery": "outbox"}))

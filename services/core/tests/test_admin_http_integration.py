@@ -16,6 +16,7 @@ from app.services.admin_auth import AdminAuthService
 from app.schemas.conference import ConferenceStartCommand
 from app.services.conference_intake import ConferenceIntakeService
 from app.services.outbox_delivery import OutboundDelivery, OutboundWorker
+from app.adapters.telegram_delivery import telegram_send_payload
 
 
 class _RecordingTransport:
@@ -23,6 +24,7 @@ class _RecordingTransport:
         self.deliveries: list[OutboundDelivery] = []
 
     async def deliver(self, delivery: OutboundDelivery) -> None:
+        assert telegram_send_payload(delivery)["text"] == "Только черновик"
         self.deliveries.append(delivery)
 
 
