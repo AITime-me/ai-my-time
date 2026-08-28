@@ -42,8 +42,9 @@ class StartProfile:
 class ProfileAnswer:
     telegram_user_id: str
     question_code: str
-    value: str
+    value: str | None = None
     flow_version: int | None = None
+    option_index: int | None = None
 
 
 @dataclass(frozen=True)
@@ -103,6 +104,7 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
             question_code=parsed[0],
             value=parsed[1],
             flow_version=parsed[2],
+            option_index=parsed[3],
         )
     if callback.data.startswith("diagnostic:consult:"):
         session_id = callback.data.removeprefix("diagnostic:consult:")
@@ -118,7 +120,7 @@ def _start_parameter(text: str) -> str | None:
     return parts[1].strip() if len(parts) == 2 else "telegram_direct"
 
 
-def _profile_callback(data: str) -> tuple[str, str, int | None] | None:
+def _profile_callback(data: str) -> tuple[str, str | None, int | None, int | None] | None:
     prefix, separator, remainder = data.partition(":")
     if prefix != "profile" or not separator:
         return None
@@ -128,12 +130,12 @@ def _profile_callback(data: str) -> tuple[str, str, int | None] | None:
         if not separator or not version_text.isdecimal() or int(version_text) < 1:
             return None
         question_code, separator, value = remainder.partition(":")
-        if not question_code or not separator or not value:
+        if not question_code or not separator or not value.isdecimal():
             return None
-        return question_code, value, int(version_text)
+        return question_code, None, int(version_text), int(value)
     question_code, separator, value = remainder.partition(":")
     if not question_code or not separator or not value:
         return None
     # Legacy callback payloads intentionally carry no flow version. They stay
     # parseable only so the state machine can reject them safely for v2.
-    return question_code, value, None
+    return question_code, value, None, None

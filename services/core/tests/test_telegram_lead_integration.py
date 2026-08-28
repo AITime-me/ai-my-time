@@ -112,7 +112,7 @@ def test_profile_callbacks_advance_only_the_expected_question(
                 payload = _callback_payload(
                     update_id=index,
                     telegram_user_id=telegram_user_id,
-                    data=f"profile:v2:{version}:{step.code}:{step.options[0]}",
+                    data=f"profile:v2:{version}:{step.code}:0",
                 )
                 assert client.post("/webhooks/telegram/lead", json=payload, headers=headers).status_code == 204
         assert asyncio.run(_flow_counts(database_url)) == ("completed", 7, 1)
@@ -142,7 +142,7 @@ def test_cards_persist_and_fallback_stays_recoverable_without_a_provider(
             }, headers=headers).status_code == 204
             for version, (index, step) in enumerate(enumerate(PROFILE_STEPS, start=1101), start=1):
                 assert client.post("/webhooks/telegram/lead", json=_callback_payload(
-                    update_id=index, telegram_user_id=telegram_user_id, data=f"profile:v2:{version}:{step.code}:{step.options[0]}"
+                    update_id=index, telegram_user_id=telegram_user_id, data=f"profile:v2:{version}:{step.code}:0"
                 ), headers=headers).status_code == 204
             assert client.post("/webhooks/telegram/lead", json={
                 "update_id": 1199, "message": {"chat": {"type": "private"}, "from": {"id": telegram_user_id}, "text": "/start qr_conf_main"},

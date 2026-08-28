@@ -82,8 +82,8 @@ def _step_payload(step: ProfileStep, flow_version: int) -> dict[str, object]:
         "kind": "message",
         "text": step.text,
         "buttons": [
-            {"text": option, "callback_data": f"profile:v2:{flow_version}:{step.code}:{option}"}
-            for option in step.options
+            {"text": option, "callback_data": f"profile:v2:{flow_version}:{step.code}:{index}"}
+            for index, option in enumerate(step.options)
         ],
     }
 
@@ -128,24 +128,29 @@ class LeadProfileFlow:
         *,
         user_id: uuid.UUID,
         question_code: str,
-        value: str,
+        value: str | None = None,
         flow_version: int | None = None,
+        option_index: int | None = None,
     ) -> LeadBotSession:
         flow = await self._session.scalar(
             select(LeadBotSession).where(LeadBotSession.user_id == user_id)
         )
+        step_index = _STEP_INDEX.get(question_code)
         if (
             flow is None
             or flow.status != "open"
             or flow.state != question_code
             or flow.flow_version != "v2"
             or flow_version != flow.version
+            or step_index is None
         ):
             raise ValueError("unexpected profile answer")
-        step_index = _STEP_INDEX.get(question_code)
-        if step_index is None:
-            raise ValueError("unsupported profile question")
-        if value not in PROFILE_STEPS[step_index].options:
+        step = PROFILE_STEPS[step_index]
+        if option_index is not None:
+            if option_index < 0 or option_index >= len(step.options):
+                raise ValueError("unsupported profile answer")
+            value = step.options[option_index]
+        if value not in step.options:
             raise ValueError("unsupported profile answer")
         is_last = step_index == len(PROFILE_STEPS) - 1
         await ProfileService(self._session).save(

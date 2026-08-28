@@ -78,6 +78,11 @@ def test_profile_steps_match_approved_product_copy() -> None:
             ),
         ),
     ]
+    assert all(
+        len(f"profile:v2:999:{step.code}:{index}".encode("utf-8")) <= 64
+        for step in PROFILE_STEPS
+        for index, _option in enumerate(step.options)
+    )
 
 
 def test_legacy_prepared_explicit_restart_opens_one_v2_flow_and_preserves_snapshot() -> None:
@@ -112,8 +117,8 @@ async def _run_flow(database_url: str) -> None:
                 result = await flow.answer(
                     user_id=entry.user_id,
                     question_code=step.code,
-                    value=step.options[0],
                     flow_version=flow_row.version,
+                    option_index=0,
                 )
                 flow_row = result
             assert result.status == "completed"
@@ -195,7 +200,6 @@ async def _run_legacy_restart(database_url: str) -> None:
                 await flow.answer(
                     user_id=entry.user_id,
                     question_code="business_type",
-                    value="Услуги",
                     flow_version=None,
                 )
             assert v2.state == "business_type" and v2.version == 8
@@ -205,8 +209,8 @@ async def _run_legacy_restart(database_url: str) -> None:
                 current = await flow.answer(
                     user_id=entry.user_id,
                     question_code=step.code,
-                    value=step.options[0],
                     flow_version=current.version,
+                    option_index=0,
                 )
             assert current.status == "completed"
             diagnostics = (

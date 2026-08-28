@@ -28,13 +28,13 @@ def test_adapter_extracts_private_profile_answer_and_ignores_other_updates() -> 
             "callback_query": {
                 "from": {"id": 900001},
                 "message": {"chat": {"type": "private"}},
-                "data": "profile:v2:3:team_size:4–10",
+                "data": "profile:v2:3:team_size:1",
             }
         }
     )
 
     assert action == ProfileAnswer(
-        telegram_user_id="900001", question_code="team_size", value="4–10", flow_version=3
+        telegram_user_id="900001", question_code="team_size", flow_version=3, option_index=1
     )
     legacy = adapt_telegram_lead_payload(
         {"callback_query": {"from": {"id": 900001}, "message": {"chat": {"type": "private"}}, "data": "profile:team_size:4–10"}}

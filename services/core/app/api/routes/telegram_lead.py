@@ -83,6 +83,7 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                 question_code=update.question_code,
                 value=update.value,
                 flow_version=update.flow_version,
+                option_index=update.option_index,
             )
         except ValueError:
             return Response(status_code=204)
