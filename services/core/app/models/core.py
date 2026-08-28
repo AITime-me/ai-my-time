@@ -51,6 +51,9 @@ class User(Timestamped, Base):
     telegram_reachability: Mapped[str] = mapped_column(
         String(24), nullable=False, server_default="unknown"
     )
+    marketing_consent_status: Mapped[str] = mapped_column(
+        String(24), nullable=False, server_default="unknown"
+    )
 
 
 class UserIdentity(Timestamped, Base):
@@ -509,6 +512,32 @@ class KnowledgeVersion(Base):
     )
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class AdminSegment(Timestamped, Base):
+    """Named, bounded audience definition; never executable user-supplied SQL."""
+
+    __tablename__ = "admin_segments"
+    __table_args__ = (UniqueConstraint("key", name="uq_admin_segments_key"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    key: Mapped[str] = mapped_column(String(80), nullable=False)
+    title: Mapped[str] = mapped_column(String(160), nullable=False)
+    definition_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    is_active: Mapped[bool] = mapped_column(nullable=False, server_default="true")
+
+
+class BroadcastCampaign(Timestamped, Base):
+    """A reviewable broadcast draft. MVP has no send executor by design."""
+
+    __tablename__ = "broadcast_campaigns"
+    __table_args__ = (Index("ix_broadcast_campaigns_status_created", "status", "created_at"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    segment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("admin_segments.id", ondelete="RESTRICT"), nullable=False)
+    title: Mapped[str] = mapped_column(String(160), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="draft")
+    created_by_actor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("admin_users.id", ondelete="RESTRICT"), nullable=False)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class ConferenceEntry(Timestamped, Base):

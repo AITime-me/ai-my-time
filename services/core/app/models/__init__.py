@@ -19,6 +19,8 @@ from app.models.core import (
     LeadBotSession,
     KnowledgeAsset,
     KnowledgeVersion,
+    AdminSegment,
+    BroadcastCampaign,
     OutboundMessage,
     OperationalLogEvent,
 )
@@ -44,6 +46,8 @@ __all__ = [
     "LeadBotSession",
     "KnowledgeAsset",
     "KnowledgeVersion",
+    "AdminSegment",
+    "BroadcastCampaign",
     "OutboundMessage",
     "OperationalLogEvent",
 ]

@@ -63,6 +63,14 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             assert dashboard.json()["new_people"] == 1
             assert client.get("/admin/consultations").json()["items"] == []
             assert client.get("/admin/attention").json()["items"] == []
+            segments = client.get("/admin/segments")
+            assert segments.status_code == 200
+            eligible = next(item for item in segments.json()["items"] if item["key"] == "eligible_telegram_broadcast")
+            assert eligible["eligible_count"] == 0
+            draft = client.post("/admin/broadcasts/drafts", json={"segment_id": eligible["segment_id"], "title": "Черновик", "body": "Только черновик"})
+            assert draft.status_code == 201
+            assert draft.json()["status"] == "draft"
+            assert client.get("/admin/broadcasts").json()["items"][0]["title"] == "Черновик"
             assert client.post("/admin/auth/logout").status_code == 403
             assert client.post(
                 "/admin/auth/logout", headers={"Origin": "http://testserver"}

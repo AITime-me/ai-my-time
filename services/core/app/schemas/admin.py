@@ -130,3 +130,34 @@ class AdminOperationalTraceEvent(BaseModel):
 class AdminOperationalTrace(BaseModel):
     user_id: uuid.UUID
     items: list[AdminOperationalTraceEvent]
+
+
+class AdminSegmentView(BaseModel):
+    segment_id: uuid.UUID
+    key: str
+    title: str
+    eligible_count: int = Field(ge=0)
+
+
+class AdminSegmentList(BaseModel):
+    items: list[AdminSegmentView]
+
+
+class AdminBroadcastDraftCreate(BaseModel):
+    segment_id: uuid.UUID
+    title: str = Field(min_length=2, max_length=160)
+    body: str = Field(min_length=2, max_length=4000)
+
+
+class AdminBroadcastView(BaseModel):
+    broadcast_id: uuid.UUID
+    segment_id: uuid.UUID
+    title: str
+    body: str
+    status: str
+    eligible_count: int = Field(ge=0)
+    created_at: datetime
+
+
+class AdminBroadcastList(BaseModel):
+    items: list[AdminBroadcastView]
