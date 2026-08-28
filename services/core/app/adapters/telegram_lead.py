@@ -43,6 +43,7 @@ class ProfileAnswer:
     telegram_user_id: str
     question_code: str
     value: str
+    flow_version: int | None = None
 
 
 @dataclass(frozen=True)
@@ -97,7 +98,12 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
         return None
     parsed = _profile_callback(callback.data)
     if parsed is not None:
-        return ProfileAnswer(telegram_user_id=str(callback.from_.id), question_code=parsed[0], value=parsed[1])
+        return ProfileAnswer(
+            telegram_user_id=str(callback.from_.id),
+            question_code=parsed[0],
+            value=parsed[1],
+            flow_version=parsed[2],
+        )
     if callback.data.startswith("diagnostic:consult:"):
         session_id = callback.data.removeprefix("diagnostic:consult:")
         if session_id:
@@ -112,11 +118,22 @@ def _start_parameter(text: str) -> str | None:
     return parts[1].strip() if len(parts) == 2 else "telegram_direct"
 
 
-def _profile_callback(data: str) -> tuple[str, str] | None:
+def _profile_callback(data: str) -> tuple[str, str, int | None] | None:
     prefix, separator, remainder = data.partition(":")
     if prefix != "profile" or not separator:
         return None
+    if remainder.startswith("v2:"):
+        _, _, remainder = remainder.partition(":")
+        version_text, separator, remainder = remainder.partition(":")
+        if not separator or not version_text.isdecimal() or int(version_text) < 1:
+            return None
+        question_code, separator, value = remainder.partition(":")
+        if not question_code or not separator or not value:
+            return None
+        return question_code, value, int(version_text)
     question_code, separator, value = remainder.partition(":")
     if not question_code or not separator or not value:
         return None
-    return question_code, value
+    # Legacy callback payloads intentionally carry no flow version. They stay
+    # parseable only so the state machine can reject them safely for v2.
+    return question_code, value, None

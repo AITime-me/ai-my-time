@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import LeadBotSession, User
+from app.models import BusinessProfile, DiagnosticSession, LeadBotSession, User
 from app.schemas.diagnostic import PrepareDiagnosticCommand
 from app.schemas.profile import SaveProfileAnswersCommand
 from app.services.diagnostic import DiagnosticPreparationService
@@ -77,12 +77,12 @@ PROFILE_STEPS: tuple[ProfileStep, ...] = (
 _STEP_INDEX = {step.code: index for index, step in enumerate(PROFILE_STEPS)}
 
 
-def _step_payload(step: ProfileStep) -> dict[str, object]:
+def _step_payload(step: ProfileStep, flow_version: int) -> dict[str, object]:
     return {
         "kind": "message",
         "text": step.text,
         "buttons": [
-            {"text": option, "callback_data": f"profile:{step.code}:{option}"}
+            {"text": option, "callback_data": f"profile:v2:{flow_version}:{step.code}:{option}"}
             for option in step.options
         ],
     }
@@ -111,21 +111,36 @@ class LeadProfileFlow:
             flow = LeadBotSession(user_id=user_id, state=PROFILE_STEPS[0].code, status="open")
             self._session.add(flow)
             await self._session.flush()
+        elif await self._restart_legacy_if_needed(flow):
+            await self._session.flush()
         if flow.status == "open":
             step = PROFILE_STEPS[_STEP_INDEX[flow.state]]
             await self._outbox.enqueue(
                 user_id=user_id,
                 channel="telegram_lead",
-                payload=_step_payload(step),
-                dedupe_key=f"profile:{user_id}:{step.code}:prompt",
+                payload=_step_payload(step, flow.version),
+                dedupe_key=f"profile:{user_id}:v2:{flow.version}:{step.code}:prompt",
             )
         return flow
 
-    async def answer(self, *, user_id: uuid.UUID, question_code: str, value: str) -> LeadBotSession:
+    async def answer(
+        self,
+        *,
+        user_id: uuid.UUID,
+        question_code: str,
+        value: str,
+        flow_version: int | None = None,
+    ) -> LeadBotSession:
         flow = await self._session.scalar(
             select(LeadBotSession).where(LeadBotSession.user_id == user_id)
         )
-        if flow is None or flow.status != "open" or flow.state != question_code:
+        if (
+            flow is None
+            or flow.status != "open"
+            or flow.state != question_code
+            or flow.flow_version != "v2"
+            or flow_version != flow.version
+        ):
             raise ValueError("unexpected profile answer")
         step_index = _STEP_INDEX.get(question_code)
         if step_index is None:
@@ -162,7 +177,29 @@ class LeadProfileFlow:
         await self._outbox.enqueue(
             user_id=user_id,
             channel="telegram_lead",
-            payload=_step_payload(next_step),
-            dedupe_key=f"profile:{user_id}:{next_step.code}:prompt",
+            payload=_step_payload(next_step, flow.version),
+            dedupe_key=f"profile:{user_id}:v2:{flow.version}:{next_step.code}:prompt",
         )
         return flow
+
+    async def _restart_legacy_if_needed(self, flow: LeadBotSession) -> bool:
+        """Open exactly one fresh v2 run without touching a legacy snapshot."""
+        if flow.flow_version != "legacy" or flow.status != "completed":
+            return False
+        legacy = await self._session.scalar(
+            select(DiagnosticSession.id).where(
+                DiagnosticSession.user_id == flow.user_id,
+                DiagnosticSession.status == "prepared",
+            ).limit(1)
+        )
+        if legacy is None:
+            return False
+        flow.flow_version = "v2"
+        flow.status = "open"
+        flow.state = PROFILE_STEPS[0].code
+        flow.version += 1
+        profile = await self._session.scalar(select(BusinessProfile).where(BusinessProfile.user_id == flow.user_id))
+        if profile is not None:
+            profile.status = "in_progress"
+            profile.completed_at = None
+        return True

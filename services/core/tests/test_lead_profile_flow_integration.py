@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import os
 
 import pytest
@@ -11,8 +12,12 @@ from sqlalchemy import func, select, text
 from app.db.session import create_session_factory, session_scope
 from app.models import DiagnosticSession, LeadBotSession, OutboundMessage
 from app.schemas.conference import ConferenceStartCommand
+from app.schemas.diagnostic import PrepareDiagnosticCommand
+from app.schemas.profile import SaveProfileAnswersCommand
 from app.services.conference_intake import ConferenceIntakeService
+from app.services.diagnostic import DiagnosticPreparationService
 from app.services.lead_profile_flow import LeadProfileFlow, PROFILE_STEPS
+from app.services.profile import ProfileService
 from tests.doubles import ScriptedDiagnosticProvider
 
 
@@ -75,6 +80,10 @@ def test_profile_steps_match_approved_product_copy() -> None:
     ]
 
 
+def test_legacy_prepared_explicit_restart_opens_one_v2_flow_and_preserves_snapshot() -> None:
+    asyncio.run(_run_legacy_restart(_test_database_url()))
+
+
 async def _run_flow(database_url: str) -> None:
     factory = create_session_factory(database_url)
     try:
@@ -91,15 +100,22 @@ async def _run_flow(database_url: str) -> None:
                 ConferenceStartCommand(telegram_user_id="900002", qr_code="qr_conf_main")
             )
             flow = LeadProfileFlow(session, ScriptedDiagnosticProvider())
-            await flow.start(user_id=entry.user_id)
-            await flow.start(user_id=entry.user_id)
+            active = await flow.start(user_id=entry.user_id)
+            repeated = await flow.start(user_id=entry.user_id)
+            assert repeated.id == active.id and repeated.version == active.version
 
         async with session_scope(factory) as session:
             flow = LeadProfileFlow(session, ScriptedDiagnosticProvider())
+            flow_row = await session.scalar(select(LeadBotSession).where(LeadBotSession.user_id == entry.user_id))
+            assert flow_row is not None
             for step in PROFILE_STEPS:
                 result = await flow.answer(
-                    user_id=entry.user_id, question_code=step.code, value=step.options[0]
+                    user_id=entry.user_id,
+                    question_code=step.code,
+                    value=step.options[0],
+                    flow_version=flow_row.version,
                 )
+                flow_row = result
             assert result.status == "completed"
             assert result.state == "complete"
             flow_row = await session.scalar(
@@ -113,6 +129,101 @@ async def _run_flow(database_url: str) -> None:
             assert await session.scalar(
                 select(func.count()).select_from(DiagnosticSession)
             ) == 1
+    finally:
+        try:
+            async with session_scope(factory) as session:
+                await session.execute(
+                    text(
+                        "TRUNCATE TABLE outbound_messages, lead_bot_sessions, diagnostic_reports, "
+                        "diagnostic_sessions, profile_answers, business_profiles, conference_entries, "
+                        "events, touchpoints, user_identities, users RESTART IDENTITY CASCADE"
+                    )
+                )
+        finally:
+            await factory.kw["bind"].dispose()
+
+
+async def _run_legacy_restart(database_url: str) -> None:
+    factory = create_session_factory(database_url)
+    try:
+        async with session_scope(factory) as session:
+            await session.execute(
+                text(
+                    "TRUNCATE TABLE outbound_messages, lead_bot_sessions, diagnostic_reports, "
+                    "diagnostic_sessions, profile_answers, business_profiles, conference_entries, "
+                    "events, touchpoints, user_identities, users RESTART IDENTITY CASCADE"
+                )
+            )
+            entry = await ConferenceIntakeService(session).start(
+                ConferenceStartCommand(telegram_user_id="900003", qr_code="qr_conf_main")
+            )
+            await ProfileService(session).save(
+                SaveProfileAnswersCommand(
+                    user_id=entry.user_id,
+                    complete=True,
+                    answers=[{"question_code": step.code, "value": step.options[0]} for step in PROFILE_STEPS],
+                )
+            )
+            legacy = await DiagnosticPreparationService(session).prepare(
+                PrepareDiagnosticCommand(user_id=entry.user_id)
+            )
+            legacy_session = await session.get(DiagnosticSession, legacy.diagnostic_session_id)
+            assert legacy_session is not None
+            legacy_snapshot = copy.deepcopy(legacy_session.input_snapshot_json)
+            session.add(
+                LeadBotSession(
+                    user_id=entry.user_id,
+                    state="complete",
+                    status="completed",
+                    version=7,
+                    flow_version="legacy",
+                )
+            )
+            await session.flush()
+
+            flow = LeadProfileFlow(session, ScriptedDiagnosticProvider())
+            v2 = await flow.start(user_id=entry.user_id)
+            assert (v2.flow_version, v2.status, v2.state, v2.version) == ("v2", "open", "business_type", 8)
+            repeated = await flow.start(user_id=entry.user_id)
+            assert repeated.id == v2.id and repeated.version == 8
+            assert await session.scalar(select(func.count()).select_from(OutboundMessage)) == 1
+            assert legacy_session.input_snapshot_json == legacy_snapshot
+
+            # A callback issued by the old unversioned legacy keyboard cannot
+            # advance the fresh v2 state.
+            with pytest.raises(ValueError, match="unexpected"):
+                await flow.answer(
+                    user_id=entry.user_id,
+                    question_code="business_type",
+                    value="Услуги",
+                    flow_version=None,
+                )
+            assert v2.state == "business_type" and v2.version == 8
+
+            current = v2
+            for step in PROFILE_STEPS:
+                current = await flow.answer(
+                    user_id=entry.user_id,
+                    question_code=step.code,
+                    value=step.options[0],
+                    flow_version=current.version,
+                )
+            assert current.status == "completed"
+            diagnostics = (
+                await session.scalars(
+                    select(DiagnosticSession)
+                    .where(DiagnosticSession.user_id == entry.user_id)
+                    .order_by(DiagnosticSession.created_at)
+                )
+            ).all()
+            assert len(diagnostics) == 2
+            assert diagnostics[0].id == legacy.diagnostic_session_id
+            assert diagnostics[0].status == "prepared"
+            assert diagnostics[0].input_snapshot_json == legacy_snapshot
+            assert diagnostics[1].id != diagnostics[0].id
+            messages = (await session.scalars(select(OutboundMessage))).all()
+            assert len({message.dedupe_key for message in messages}) == len(messages)
+            assert await session.scalar(select(func.count()).select_from(OutboundMessage)) == 7
     finally:
         try:
             async with session_scope(factory) as session:

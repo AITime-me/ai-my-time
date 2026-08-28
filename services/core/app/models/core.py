@@ -114,6 +114,10 @@ class LeadBotSession(Timestamped, Base):
     state: Mapped[str] = mapped_column(String(80), nullable=False, server_default="business_type")
     status: Mapped[str] = mapped_column(String(32), nullable=False, server_default="open")
     version: Mapped[int] = mapped_column(nullable=False, server_default="1")
+    # Rows present before Diagnostic AI v2 are explicitly marked by the
+    # migration as legacy. A new v2 profile flow is allowed to replace only
+    # that lead-flow projection; its historical diagnostic snapshot remains.
+    flow_version: Mapped[str] = mapped_column(String(20), nullable=False, server_default="v2")
 
 
 class OutboundMessage(Base):
