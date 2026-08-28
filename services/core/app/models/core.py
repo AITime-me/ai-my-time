@@ -120,6 +120,35 @@ class LeadBotSession(Timestamped, Base):
     flow_version: Mapped[str] = mapped_column(String(20), nullable=False, server_default="v2")
 
 
+class DiagnosticAcceptanceGrant(Base):
+    """Closed, one-use authorization for an owner-scoped acceptance restart.
+
+    This is intentionally not a customer-facing product capability.  The raw
+    deep-link token is never persisted; a consumed grant also keeps a snapshot
+    of the former lead-flow projection for auditability.
+    """
+
+    __tablename__ = "diagnostic_acceptance_grants"
+    __table_args__ = (
+        UniqueConstraint("token_hash", name="uq_diagnostic_acceptance_grants_token_hash"),
+        Index("ix_diagnostic_acceptance_grants_user_expires", "user_id", "expires_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    prior_flow_snapshot_json: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class OutboundMessage(Base):
     """Provider-neutral outbox with a short delivery lease for each worker."""
 

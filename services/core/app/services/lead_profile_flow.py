@@ -208,3 +208,26 @@ class LeadProfileFlow:
             profile.status = "in_progress"
             profile.completed_at = None
         return True
+
+    async def restart_completed_v2_for_acceptance(self, flow: LeadBotSession) -> None:
+        """Reopen the one current v2 projection after an internal grant.
+
+        The caller must already have atomically consumed an acceptance grant.
+        Diagnostic artefacts are deliberately outside this transition and stay
+        immutable history.
+        """
+        if flow.flow_version != "v2" or flow.status != "completed":
+            raise ValueError("completed v2 flow required for acceptance restart")
+        flow.status = "open"
+        flow.state = PROFILE_STEPS[0].code
+        flow.version += 1
+        profile = await self._session.scalar(select(BusinessProfile).where(BusinessProfile.user_id == flow.user_id))
+        if profile is not None:
+            profile.status = "in_progress"
+            profile.completed_at = None
+        await self._outbox.enqueue(
+            user_id=flow.user_id,
+            channel="telegram_lead",
+            payload=_step_payload(PROFILE_STEPS[0], flow.version),
+            dedupe_key=f"profile:{flow.user_id}:v2:{flow.version}:business_type:prompt",
+        )

@@ -22,6 +22,7 @@ from app.models import UserIdentity
 from app.schemas.conference import ConferenceStartCommand
 from app.services.conference_intake import ConferenceIntakeService
 from app.services.lead_profile_flow import LeadProfileFlow
+from app.services.diagnostic_acceptance import DiagnosticAcceptanceService, is_acceptance_start
 from app.services.diagnostic_dialogue import DiagnosticDialogueService
 from app.adapters.yandex_diagnostic import build_diagnostic_provider
 
@@ -45,6 +46,23 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
     factory = get_session_factory(request)
     async with session_scope(factory) as session:
         if isinstance(update, StartProfile):
+            # An acceptance link is a closed internal path. Validate it against
+            # an existing identity before normal /start handling, so a leaked,
+            # expired or foreign link cannot create any lead-side records.
+            if is_acceptance_start(update.entry_code):
+                user_id = await session.scalar(
+                    select(UserIdentity.user_id).where(
+                        UserIdentity.provider == "telegram",
+                        UserIdentity.connection_scope == "ai_my_time_lead_bot",
+                        UserIdentity.external_id == update.telegram_user_id,
+                    )
+                )
+                if user_id is not None:
+                    await DiagnosticAcceptanceService(session).consume_and_restart(
+                        user_id=user_id,
+                        entry_code=update.entry_code,
+                    )
+                return Response(status_code=204)
             entry = await ConferenceIntakeService(session).start(
                 ConferenceStartCommand(
                     telegram_user_id=update.telegram_user_id,

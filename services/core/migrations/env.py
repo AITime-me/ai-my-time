@@ -17,6 +17,7 @@ from app.models import (  # noqa: F401
     OutboundMessage,
     BusinessProfile,
     ConferenceEntry,
+    DiagnosticAcceptanceGrant,
     DiagnosticReport,
     DiagnosticSession,
     Event,
