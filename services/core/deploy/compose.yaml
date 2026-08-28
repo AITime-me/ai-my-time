@@ -30,9 +30,16 @@ services:
       APP_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
       TELEGRAM_LEAD_WEBHOOK_SECRET_FILE: /run/secrets/telegram_webhook_secret
+      # Diagnostic AI is isolated to the API process. Its folder ID is supplied
+      # only by the deploy environment; the credential is a read-only file.
+      DIAGNOSTIC_PROVIDER: yandex_production
+      YANDEX_PRODUCTION_FOLDER_ID: ${YANDEX_PRODUCTION_FOLDER_ID:?YANDEX_PRODUCTION_FOLDER_ID is required}
+      YANDEX_PRODUCTION_API_KEY_PATH: /run/secrets/yandex_production_api_key
+      YANDEX_PRODUCTION_MODEL: yandexgpt/latest
     volumes:
       - /srv/ai-my-time/secrets/database_url:/run/secrets/database_url:ro
       - /srv/ai-my-time/secrets/telegram_webhook_secret:/run/secrets/telegram_webhook_secret:ro
+      - /srv/ai-my-time/secrets/yandex_production_api_key:/run/secrets/yandex_production_api_key:ro
     ports:
       - "127.0.0.1:18181:8000"
     healthcheck:
