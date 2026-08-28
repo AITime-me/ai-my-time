@@ -17,6 +17,7 @@ from app.db.session import create_session_factory, session_scope
 from app.main import create_app
 from app.models import (
     DiagnosticAcceptanceGrant,
+    DiagnosticAcceptanceFlow,
     DiagnosticReport,
     DiagnosticSession,
     DiagnosticTurn,
@@ -88,6 +89,7 @@ async def _issue_and_capture(database_url: str, telegram_user_id: int) -> tuple[
     try:
         async with session_scope(factory) as session:
             flow = await session.scalar(select(LeadBotSession))
+            acceptance = await session.scalar(select(DiagnosticAcceptanceFlow))
             diagnostic = await session.scalar(select(DiagnosticSession))
             report = await session.scalar(select(DiagnosticReport))
             assert flow is not None and diagnostic is not None and report is not None
@@ -124,11 +126,13 @@ async def _assert_consumed_restart(database_url: str, before: dict[str, object])
     try:
         async with session_scope(factory) as session:
             flow = await session.scalar(select(LeadBotSession))
+            acceptance = await session.scalar(select(DiagnosticAcceptanceFlow))
             diagnostic = await session.scalar(select(DiagnosticSession))
             report = await session.scalar(select(DiagnosticReport))
             grant = await session.scalar(select(DiagnosticAcceptanceGrant))
-            assert flow is not None and diagnostic is not None and report is not None and grant is not None
-            assert (flow.flow_version, flow.status, flow.state, flow.version) == ("v2", "open", "business_type", 8)
+            assert flow is not None and acceptance is not None and diagnostic is not None and report is not None and grant is not None
+            assert (flow.flow_version, flow.status, flow.state, flow.version) == ("v2", "completed", "complete", 7)
+            assert (acceptance.flow_version, acceptance.status, acceptance.state, acceptance.version) == ("v2", "open", "business_type", 8)
             assert diagnostic.id == uuid.UUID(before["diagnostic_id"])
             assert diagnostic.input_snapshot_json == before["diagnostic_snapshot"]
             assert str(report.id) == before["report_id"]
@@ -163,6 +167,6 @@ async def _clear(database_url: str) -> None:
     factory = create_session_factory(database_url)
     try:
         async with session_scope(factory) as session:
-            await session.execute(text("TRUNCATE TABLE diagnostic_acceptance_grants, diagnostic_reports, diagnostic_sessions, profile_answers, business_profiles, conference_entries, events, touchpoints, outbound_messages, lead_bot_sessions, user_identities, users RESTART IDENTITY CASCADE"))
+            await session.execute(text("TRUNCATE TABLE diagnostic_acceptance_flows, diagnostic_acceptance_grants, diagnostic_reports, diagnostic_sessions, profile_answers, business_profiles, conference_entries, events, touchpoints, outbound_messages, lead_bot_sessions, user_identities, users RESTART IDENTITY CASCADE"))
     finally:
         await factory.kw["bind"].dispose()

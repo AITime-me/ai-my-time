@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import DiagnosticAcceptanceGrant, LeadBotSession, User
+from app.models import DiagnosticAcceptanceFlow, DiagnosticAcceptanceGrant, LeadBotSession, User
 from app.services.lead_profile_flow import LeadProfileFlow
 
 _PREFIX = "acceptance_"
@@ -87,8 +87,8 @@ class DiagnosticAcceptanceService:
         """Atomically consume a user-bound grant and reopen the current v2 flow.
 
         A failed or repeated link is a strict no-op.  The successful transition
-        updates only the current lead-flow projection; DiagnosticSession,
-        reports, turns and their snapshots are not touched.
+        creates a separate acceptance flow; the existing lead-flow projection,
+        DiagnosticSession, reports, turns and snapshots are not touched.
         """
         if not is_acceptance_start(entry_code):
             return False
@@ -112,7 +112,19 @@ class DiagnosticAcceptanceService:
             .values(consumed_at=now, prior_flow_snapshot_json=_flow_snapshot(flow))
             .returning(DiagnosticAcceptanceGrant.id)
         )
-        if result.scalar_one_or_none() is None:
+        grant_id = result.scalar_one_or_none()
+        if grant_id is None:
             return False
-        await LeadProfileFlow(self._session).restart_completed_v2_for_acceptance(flow)
+        latest_acceptance_version = await self._session.scalar(
+            select(DiagnosticAcceptanceFlow.version)
+            .where(DiagnosticAcceptanceFlow.user_id == user_id)
+            .order_by(DiagnosticAcceptanceFlow.version.desc())
+            .limit(1)
+        )
+        next_version = max(flow.version, int(latest_acceptance_version or 0)) + 1
+        await LeadProfileFlow(self._session).start_acceptance_flow(
+            user_id=user_id,
+            grant_id=grant_id,
+            next_version=next_version,
+        )
         return True

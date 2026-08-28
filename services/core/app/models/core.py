@@ -149,6 +149,28 @@ class DiagnosticAcceptanceGrant(Base):
     )
 
 
+class DiagnosticAcceptanceFlow(Timestamped, Base):
+    """A separate, closed-only profile run; normal LeadBotSession is untouched."""
+
+    __tablename__ = "diagnostic_acceptance_flows"
+    __table_args__ = (
+        UniqueConstraint("grant_id", name="uq_diagnostic_acceptance_flows_grant_id"),
+        Index("ix_diagnostic_acceptance_flows_user_status", "user_id", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    grant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("diagnostic_acceptance_grants.id", ondelete="RESTRICT"), nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    state: Mapped[str] = mapped_column(String(80), nullable=False, server_default="business_type")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, server_default="open")
+    version: Mapped[int] = mapped_column(nullable=False)
+    flow_version: Mapped[str] = mapped_column(String(20), nullable=False, server_default="v2")
+
+
 class OutboundMessage(Base):
     """Provider-neutral outbox with a short delivery lease for each worker."""
 
