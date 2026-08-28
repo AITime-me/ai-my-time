@@ -15,6 +15,15 @@ from app.main import create_app
 from app.services.admin_auth import AdminAuthService
 from app.schemas.conference import ConferenceStartCommand
 from app.services.conference_intake import ConferenceIntakeService
+from app.services.outbox_delivery import OutboundDelivery, OutboundWorker
+
+
+class _RecordingTransport:
+    def __init__(self) -> None:
+        self.deliveries: list[OutboundDelivery] = []
+
+    async def deliver(self, delivery: OutboundDelivery) -> None:
+        self.deliveries.append(delivery)
 
 
 def _test_database_url() -> str:
@@ -81,7 +90,7 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             assert queued.status_code == 200
             assert queued.json()["queued_count"] == 1
             assert client.post(f"/admin/broadcasts/{broadcast_id}/confirm-send").json()["queued_count"] == 1
-            asyncio.run(_set_broadcast_delivery(database_url, broadcast_id, "sent"))
+            assert asyncio.run(_deliver_broadcast(database_url)) == 1
             assert client.get(f"/admin/broadcasts/{broadcast_id}/preview").json()["sent_count"] == 1
             assert client.get("/admin/broadcasts").json()["items"][0]["title"] == "Черновик"
             assert client.post("/admin/auth/logout").status_code == 403
@@ -144,11 +153,13 @@ async def _enable_broadcast_recipient(database_url: str) -> None:
         await factory.kw["bind"].dispose()
 
 
-async def _set_broadcast_delivery(database_url: str, broadcast_id: str, status: str) -> None:
+async def _deliver_broadcast(database_url: str) -> int:
     factory = create_session_factory(database_url)
     try:
-        async with session_scope(factory) as session:
-            await session.execute(text("UPDATE outbound_messages SET status = :status WHERE dedupe_key LIKE :prefix"), {"status": status, "prefix": f"broadcast:{broadcast_id}:%"})
+        transport = _RecordingTransport()
+        delivered = await OutboundWorker(factory, transport).run_once()
+        assert len(transport.deliveries) == delivered
+        return delivered
     finally:
         await factory.kw["bind"].dispose()
 
