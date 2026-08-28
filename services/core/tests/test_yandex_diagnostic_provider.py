@@ -44,6 +44,11 @@ def test_provider_uses_bundle_and_parses_question(tmp_path) -> None:
     assert payload["responseFormat"] == {"jsonObject": {}}
     assert "System guardrails" in payload["messages"][0]["text"]
     assert "Diagnostic methodology knowledge base" in payload["messages"][0]["text"]
+    assert "never choose `crm_automation` when the facts say CRM is absent" in payload["messages"][0]["text"]
+    assert "choose `integrations_data_exchange`" in payload["messages"][0]["text"]
+    assert "choose `lead_intake_contour`" in payload["messages"][0]["text"]
+    assert "1–6 direct facts" in payload["messages"][0]["text"]
+    assert '"id":"crm_implementation"' in payload["messages"][0]["text"]
 
 
 def test_provider_is_fail_closed_in_production(tmp_path) -> None:
