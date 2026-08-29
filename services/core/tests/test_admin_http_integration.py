@@ -14,8 +14,10 @@ from app.db.session import create_session_factory, session_scope
 from app.main import create_app
 from app.services.admin_auth import AdminAuthService
 from app.schemas.conference import ConferenceStartCommand
+from app.schemas.profile import SaveProfileAnswersCommand
 from app.services.conference_intake import ConferenceIntakeService
 from app.services.outbox_delivery import OutboundDelivery, OutboundWorker
+from app.services.profile import ProfileService
 from app.adapters.telegram_delivery import telegram_send_payload
 from app.models import AttentionItem, ConsultationRequest, DiagnosticSession, User
 
@@ -225,11 +227,17 @@ async def _create_test_lead(database_url: str) -> None:
                     "events, touchpoints, user_identities, users RESTART IDENTITY CASCADE"
                 )
             )
-            await ConferenceIntakeService(session).start(
+            lead = await ConferenceIntakeService(session).start(
                 ConferenceStartCommand(
                     telegram_user_id="900011", qr_code="admin-http-proof",
                     telegram_first_name="Тестовый", telegram_last_name="Пользователь",
                     telegram_username="test_owner",
+                )
+            )
+            await ProfileService(session).save(
+                SaveProfileAnswersCommand(
+                    user_id=lead.user_id,
+                    answers=[{"question_code": "business_type", "value": "Услуги"}],
                 )
             )
     finally:
