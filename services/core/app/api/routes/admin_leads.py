@@ -125,19 +125,19 @@ async def queue_telegram_message(
 
 
 @router.get("/consultations", response_model=AdminConsultationList)
-async def consultations(request: Request, status: str | None = None, limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0)) -> AdminConsultationList:
+async def consultations(request: Request, status: str | None = None, history: bool = False, limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0)) -> AdminConsultationList:
     await current_actor(request)
     factory = get_session_factory(request)
     async with session_scope(factory) as session:
-        return await AdminLeadReadService(session).consultations(status=status, limit=limit, offset=offset)
+        return await AdminLeadReadService(session).consultations(status=status, history=history, limit=limit, offset=offset)
 
 
 @router.get("/attention", response_model=AdminAttentionList)
-async def attention(request: Request, status: str | None = None, limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0)) -> AdminAttentionList:
+async def attention(request: Request, status: str | None = None, history: bool = False, limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0)) -> AdminAttentionList:
     await current_actor(request)
     factory = get_session_factory(request)
     async with session_scope(factory) as session:
-        return await AdminLeadReadService(session).attention(status=status, limit=limit, offset=offset)
+        return await AdminLeadReadService(session).attention(status=status, history=history, limit=limit, offset=offset)
 
 
 @router.patch("/consultations/{request_id}", response_model=AdminConsultationList)

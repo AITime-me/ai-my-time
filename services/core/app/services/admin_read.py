@@ -153,17 +153,31 @@ class AdminLeadReadService:
             consultation_rate=round(requests / completed, 4) if completed else None,
         )
 
-    async def consultations(self, *, status: str | None = None, limit: int = 100, offset: int = 0) -> AdminConsultationList:
-        statement = select(ConsultationRequest).order_by(desc(ConsultationRequest.created_at)).offset(offset).limit(limit)
+    async def consultations(
+        self, *, status: str | None = None, history: bool = False, limit: int = 100, offset: int = 0
+    ) -> AdminConsultationList:
+        statement = select(ConsultationRequest)
         if status:
-            statement = select(ConsultationRequest).where(ConsultationRequest.status == status).order_by(desc(ConsultationRequest.created_at)).offset(offset).limit(limit)
+            statement = statement.where(ConsultationRequest.status == status)
+        elif history:
+            statement = statement.where(ConsultationRequest.status.in_(("completed", "cancelled")))
+        else:
+            statement = statement.where(ConsultationRequest.status.in_(("new", "in_progress")))
+        statement = statement.order_by(desc(ConsultationRequest.created_at)).offset(offset).limit(limit)
         rows = (await self._session.scalars(statement)).all()
         return AdminConsultationList(items=[await self._consultation_view(row) for row in rows], limit=limit, offset=offset)
 
-    async def attention(self, *, status: str | None = None, limit: int = 100, offset: int = 0) -> AdminAttentionList:
-        statement = select(AttentionItem).order_by(AttentionItem.priority, desc(AttentionItem.created_at)).offset(offset).limit(limit)
+    async def attention(
+        self, *, status: str | None = None, history: bool = False, limit: int = 100, offset: int = 0
+    ) -> AdminAttentionList:
+        statement = select(AttentionItem)
         if status:
-            statement = select(AttentionItem).where(AttentionItem.status == status).order_by(AttentionItem.priority, desc(AttentionItem.created_at)).offset(offset).limit(limit)
+            statement = statement.where(AttentionItem.status == status)
+        elif history:
+            statement = statement.where(AttentionItem.status == "resolved")
+        else:
+            statement = statement.where(AttentionItem.status.in_(("new", "in_progress")))
+        statement = statement.order_by(AttentionItem.priority, desc(AttentionItem.created_at)).offset(offset).limit(limit)
         rows = (await self._session.scalars(statement)).all()
         return AdminAttentionList(items=[await self._attention_view(row) for row in rows], limit=limit, offset=offset)
 

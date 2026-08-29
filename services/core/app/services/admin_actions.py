@@ -40,6 +40,34 @@ class AdminActionService:
                     delta_json={"status": {"before": before, "after": status}},
                 )
             )
+            attention = await self._session.scalar(
+                select(AttentionItem).where(AttentionItem.consultation_request_id == request.id)
+            )
+            if attention is not None:
+                attention_before = attention.status
+                attention_after = {
+                    "new": "new",
+                    "in_progress": "in_progress",
+                    "completed": "resolved",
+                    "cancelled": "resolved",
+                }[status]
+                if attention_before != attention_after:
+                    attention.status = attention_after
+                    attention.resolved_at = (
+                        datetime.now(timezone.utc) if attention_after == "resolved" else None
+                    )
+                    self._session.add(
+                        AdminAuditEvent(
+                            actor_id=actor_id,
+                            action="attention.status_synchronized",
+                            object_type="attention_item",
+                            object_id=attention.id,
+                            delta_json={
+                                "status": {"before": attention_before, "after": attention_after},
+                                "source": "consultation",
+                            },
+                        )
+                    )
         return request
 
     async def set_attention_status(
@@ -50,6 +78,8 @@ class AdminActionService:
         item = await self._session.get(AttentionItem, item_id)
         if item is None:
             return None
+        if item.consultation_request_id is not None:
+            raise ValueError("consultation-linked attention is driven by consultation status")
         before = item.status
         if before != status:
             item.status = status
