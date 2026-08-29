@@ -69,6 +69,8 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             assert admin_page.status_code == 200
             assert "Сегменты бизнеса" in admin_page.text
             assert "Аудитории" in admin_page.text
+            assert "Не удалось войти:" in admin_page.text
+            assert "Сессия не установлена" in admin_page.text
             leads = client.get("/admin/leads?limit=1")
             assert leads.status_code == 200
             payload = leads.json()
