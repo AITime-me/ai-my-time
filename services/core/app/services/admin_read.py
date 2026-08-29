@@ -121,15 +121,28 @@ class AdminLeadReadService:
             DiagnosticSession.completed_at >= since,
         )
         consultations = await self._count(ConsultationRequest, ConsultationRequest.created_at >= since)
-        attention = await self._count(
-            AttentionItem, AttentionItem.status.in_(("new", "in_progress"))
+        new_consultations = await self._count(ConsultationRequest, ConsultationRequest.status == "new")
+        consultations_in_progress = await self._count(ConsultationRequest, ConsultationRequest.status == "in_progress")
+        new_attention = await self._count(
+            AttentionItem,
+            AttentionItem.consultation_request_id.is_(None),
+            AttentionItem.status == "new",
+        )
+        attention_in_progress = await self._count(
+            AttentionItem,
+            AttentionItem.consultation_request_id.is_(None),
+            AttentionItem.status == "in_progress",
         )
         return AdminDashboard(
             new_people=new_people,
             started_diagnostics=started,
             completed_diagnostics=completed,
             consultation_requests=consultations,
-            attention_items=attention,
+            attention_items=new_attention + attention_in_progress,
+            new_consultations=new_consultations,
+            consultations_in_progress=consultations_in_progress,
+            new_attention_items=new_attention,
+            attention_in_progress=attention_in_progress,
             funnel={
                 "people": new_people,
                 "diagnostic_started": started,
@@ -154,7 +167,12 @@ class AdminLeadReadService:
         )
 
     async def consultations(
-        self, *, status: str | None = None, history: bool = False, limit: int = 100, offset: int = 0
+        self,
+        *,
+        status: str | None = None,
+        history: bool = False,
+        limit: int = 100,
+        offset: int = 0,
     ) -> AdminConsultationList:
         statement = select(ConsultationRequest)
         if status:
@@ -168,7 +186,13 @@ class AdminLeadReadService:
         return AdminConsultationList(items=[await self._consultation_view(row) for row in rows], limit=limit, offset=offset)
 
     async def attention(
-        self, *, status: str | None = None, history: bool = False, limit: int = 100, offset: int = 0
+        self,
+        *,
+        status: str | None = None,
+        history: bool = False,
+        standalone: bool = False,
+        limit: int = 100,
+        offset: int = 0,
     ) -> AdminAttentionList:
         statement = select(AttentionItem)
         if status:
@@ -177,6 +201,8 @@ class AdminLeadReadService:
             statement = statement.where(AttentionItem.status == "resolved")
         else:
             statement = statement.where(AttentionItem.status.in_(("new", "in_progress")))
+        if standalone:
+            statement = statement.where(AttentionItem.consultation_request_id.is_(None))
         statement = statement.order_by(AttentionItem.priority, desc(AttentionItem.created_at)).offset(offset).limit(limit)
         rows = (await self._session.scalars(statement)).all()
         return AdminAttentionList(items=[await self._attention_view(row) for row in rows], limit=limit, offset=offset)
@@ -198,6 +224,12 @@ class AdminLeadReadService:
         consultation = await self._session.scalar(
             select(ConsultationRequest).where(ConsultationRequest.user_id == user.id).order_by(desc(ConsultationRequest.created_at)).limit(1)
         )
+        business_type = await self._session.scalar(
+            select(ProfileAnswer.answer_json)
+            .where(ProfileAnswer.user_id == user.id, ProfileAnswer.question_code == "business_type")
+            .order_by(desc(ProfileAnswer.revision))
+            .limit(1)
+        )
         attention_count = await self._count(
             AttentionItem,
             AttentionItem.user_id == user.id,
@@ -213,6 +245,7 @@ class AdminLeadReadService:
             diagnostic_status=diagnostic.status if diagnostic else None,
             diagnostic_summary=summary,
             consultation_status=consultation.status if consultation else None,
+            business_segment=_answer_value(business_type),
             communication_status=user.communication_status,
             marketing_consent_status=user.marketing_consent_status,
             telegram_reachability=user.telegram_reachability,
@@ -283,6 +316,12 @@ class AdminLeadReadService:
         value = await self._session.scalar(select(func.count()).select_from(model).where(*conditions))
         return int(value or 0)
 
+
+def _answer_value(value: object) -> str | None:
+    if isinstance(value, dict):
+        candidate = value.get("value")
+        return str(candidate) if candidate is not None else None
+    return str(value) if value is not None else None
 
 def _matches_search(view: AdminLeadView, needle: str) -> bool:
     normalized = needle.strip().casefold()

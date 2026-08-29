@@ -80,6 +80,7 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             assert payload["items"][0]["conference_code"] == "conference_2026"
             assert payload["items"][0]["display_name"] == "Тестовый Пользователь"
             assert payload["items"][0]["telegram_username"] == "test_owner"
+            assert payload["items"][0]["business_segment"] == "Услуги"
             assert "telegram_user_id" not in str(payload)
             assert "900011" not in str(payload)
             people = client.get("/admin/people?limit=1")
@@ -97,6 +98,8 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             dashboard = client.get("/admin/dashboard?days=7")
             assert dashboard.status_code == 200
             assert dashboard.json()["new_people"] == 1
+            assert dashboard.json()["new_consultations"] == 0
+            assert dashboard.json()["new_attention_items"] == 0
             analytics = client.get("/admin/analytics?days=7")
             assert analytics.status_code == 200
             assert analytics.json()["people"] == 1
@@ -144,11 +147,15 @@ def test_admin_work_queue_transitions_and_history(monkeypatch: pytest.MonkeyPatc
             ).status_code == 200
             assert "В работу" in client.get("/admin/").text
             assert "Синхронизируется с консультацией" in client.get("/admin/").text
+            assert "Рабочий кабинет OWNER" in client.get("/admin/").text
+            assert "Новые консультации" in client.get("/admin/").text
 
             active_consultations = client.get("/admin/consultations").json()["items"]
             assert [item["status"] for item in active_consultations] == ["new"]
             active_attention = client.get("/admin/attention").json()["items"]
             assert {item["status"] for item in active_attention} == {"new"}
+            standalone_attention = client.get("/admin/attention?standalone=true").json()["items"]
+            assert [item["attention_item_id"] for item in standalone_attention] == [ids["standalone_attention"]]
 
             assert client.patch(
                 f"/admin/consultations/{ids['consultation']}", json={"status": "in_progress"}

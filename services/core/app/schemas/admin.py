@@ -16,6 +16,7 @@ class AdminLeadView(BaseModel):
     diagnostic_status: str | None
     diagnostic_summary: str | None
     consultation_status: str | None
+    business_segment: str | None = None
     communication_status: str
     marketing_consent_status: str
     telegram_reachability: str
@@ -87,6 +88,10 @@ class AdminDashboard(BaseModel):
     completed_diagnostics: int = Field(ge=0)
     consultation_requests: int = Field(ge=0)
     attention_items: int = Field(ge=0)
+    new_consultations: int = Field(ge=0)
+    consultations_in_progress: int = Field(ge=0)
+    new_attention_items: int = Field(ge=0)
+    attention_in_progress: int = Field(ge=0)
     funnel: dict[str, int]
 
 
