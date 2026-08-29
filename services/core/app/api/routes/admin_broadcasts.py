@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from app.api.routes.admin_auth import current_actor
 from app.db.dependencies import get_session_factory
 from app.db.session import session_scope
@@ -10,14 +10,14 @@ from app.services.admin_broadcasts import AdminBroadcastService
 router = APIRouter(prefix="/admin", tags=["admin-broadcasts"])
 
 @router.get("/segments", response_model=AdminSegmentList)
-async def segments(request: Request) -> AdminSegmentList:
+async def segments(request: Request, limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0)) -> AdminSegmentList:
     await current_actor(request)
-    async with session_scope(get_session_factory(request)) as session: return await AdminBroadcastService(session).segments()
+    async with session_scope(get_session_factory(request)) as session: return await AdminBroadcastService(session).segments(limit=limit, offset=offset)
 
 @router.get("/broadcasts", response_model=AdminBroadcastList)
-async def broadcasts(request: Request) -> AdminBroadcastList:
+async def broadcasts(request: Request, limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0)) -> AdminBroadcastList:
     await current_actor(request)
-    async with session_scope(get_session_factory(request)) as session: return await AdminBroadcastService(session).broadcasts()
+    async with session_scope(get_session_factory(request)) as session: return await AdminBroadcastService(session).broadcasts(limit=limit, offset=offset)
 
 @router.post("/broadcasts/drafts", response_model=AdminBroadcastView, status_code=201)
 async def draft(payload: AdminBroadcastDraftCreate, request: Request) -> AdminBroadcastView:

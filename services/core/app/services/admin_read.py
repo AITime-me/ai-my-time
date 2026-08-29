@@ -42,6 +42,7 @@ class AdminLeadReadService:
         self,
         *,
         limit: int = 50,
+        offset: int = 0,
         source: str | None = None,
         lifecycle_stage: str | None = None,
         diagnostic_completed: bool | None = None,
@@ -50,8 +51,9 @@ class AdminLeadReadService:
         attention_only: bool = False,
         search: str | None = None,
     ) -> AdminLeadList:
-        if not 1 <= limit <= 100:
+        if not 1 <= limit <= 100 or offset < 0:
             raise ValueError("limit must be between 1 and 100")
+        requested_offset = offset
         users = (await self._session.scalars(select(User).order_by(desc(User.created_at)))).all()
         items: list[AdminLeadView] = []
         for user in users:
@@ -70,10 +72,13 @@ class AdminLeadReadService:
                 continue
             if search and not _matches_search(view, search):
                 continue
+            if offset:
+                offset -= 1
+                continue
             items.append(view)
             if len(items) == limit:
                 break
-        return AdminLeadList(items=items, limit=limit)
+        return AdminLeadList(items=items, limit=limit, offset=requested_offset)
 
     async def person(self, user_id: uuid.UUID) -> AdminPersonDetail | None:
         user = await self._session.get(User, user_id)
@@ -146,19 +151,19 @@ class AdminLeadReadService:
             consultation_rate=round(requests / completed, 4) if completed else None,
         )
 
-    async def consultations(self, *, status: str | None = None, limit: int = 100) -> AdminConsultationList:
-        statement = select(ConsultationRequest).order_by(desc(ConsultationRequest.created_at)).limit(limit)
+    async def consultations(self, *, status: str | None = None, limit: int = 100, offset: int = 0) -> AdminConsultationList:
+        statement = select(ConsultationRequest).order_by(desc(ConsultationRequest.created_at)).offset(offset).limit(limit)
         if status:
-            statement = select(ConsultationRequest).where(ConsultationRequest.status == status).order_by(desc(ConsultationRequest.created_at)).limit(limit)
+            statement = select(ConsultationRequest).where(ConsultationRequest.status == status).order_by(desc(ConsultationRequest.created_at)).offset(offset).limit(limit)
         rows = (await self._session.scalars(statement)).all()
-        return AdminConsultationList(items=[await self._consultation_view(row) for row in rows])
+        return AdminConsultationList(items=[await self._consultation_view(row) for row in rows], limit=limit, offset=offset)
 
-    async def attention(self, *, status: str | None = None, limit: int = 100) -> AdminAttentionList:
-        statement = select(AttentionItem).order_by(AttentionItem.priority, desc(AttentionItem.created_at)).limit(limit)
+    async def attention(self, *, status: str | None = None, limit: int = 100, offset: int = 0) -> AdminAttentionList:
+        statement = select(AttentionItem).order_by(AttentionItem.priority, desc(AttentionItem.created_at)).offset(offset).limit(limit)
         if status:
-            statement = select(AttentionItem).where(AttentionItem.status == status).order_by(AttentionItem.priority, desc(AttentionItem.created_at)).limit(limit)
+            statement = select(AttentionItem).where(AttentionItem.status == status).order_by(AttentionItem.priority, desc(AttentionItem.created_at)).offset(offset).limit(limit)
         rows = (await self._session.scalars(statement)).all()
-        return AdminAttentionList(items=[_attention_view(row) for row in rows])
+        return AdminAttentionList(items=[_attention_view(row) for row in rows], limit=limit, offset=offset)
 
     async def _lead_view(self, user: User) -> AdminLeadView:
         touchpoint = await self._session.scalar(

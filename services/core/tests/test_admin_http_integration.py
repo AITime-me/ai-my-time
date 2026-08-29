@@ -55,6 +55,20 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             assert "session_token" not in login.text
             assert "HttpOnly" in login.headers["set-cookie"]
             assert client.get("/admin/auth/me").json()["role"] == "owner"
+            updated_email = client.patch(
+                "/admin/auth/me/email",
+                json={"email": "owner.real@example.test", "password": "StrongPassword2026"},
+            )
+            assert updated_email.status_code == 200
+            assert updated_email.json()["email"] == "owner.real@example.test"
+            assert client.post(
+                "/admin/auth/login",
+                json={"email": "owner.real@example.test", "password": "StrongPassword2026"},
+            ).status_code == 200
+            admin_page = client.get("/admin/")
+            assert admin_page.status_code == 200
+            assert "Сегменты бизнеса" in admin_page.text
+            assert "Аудитории" in admin_page.text
             leads = client.get("/admin/leads?limit=1")
             assert leads.status_code == 200
             payload = leads.json()

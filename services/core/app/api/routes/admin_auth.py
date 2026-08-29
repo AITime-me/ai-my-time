@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 from app.db.dependencies import get_session_factory
 from app.db.session import session_scope
-from app.schemas.admin_auth import AdminActor
+from app.schemas.admin_auth import AdminActor, AdminEmailUpdate
 from app.services.admin_auth import AdminAuthService
 
 router = APIRouter(prefix="/admin/auth", tags=["admin-auth"])
@@ -53,6 +53,19 @@ async def current_actor(request: Request) -> AdminActor:
             return await AdminAuthService(session).authenticate(session_token=token)
         except ValueError:
             raise HTTPException(status_code=401, detail="unauthorized") from None
+
+
+@router.patch("/me/email", response_model=AdminActor)
+async def update_email(payload: AdminEmailUpdate, request: Request) -> AdminActor:
+    actor = await current_actor(request)
+    factory = get_session_factory(request)
+    async with session_scope(factory) as session:
+        try:
+            return await AdminAuthService(session).update_email(
+                actor_id=actor.user_id, email=payload.email, password=payload.password
+            )
+        except ValueError:
+            raise HTTPException(status_code=401, detail="invalid credentials") from None
 
 
 @router.post("/logout", status_code=204)

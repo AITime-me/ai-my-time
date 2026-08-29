@@ -17,13 +17,13 @@ class AdminBroadcastService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def segments(self) -> AdminSegmentList:
-        rows = (await self._session.scalars(select(AdminSegment).where(AdminSegment.is_active.is_(True)).order_by(AdminSegment.key))).all()
-        return AdminSegmentList(items=[AdminSegmentView(segment_id=row.id, key=row.key, title=row.title, eligible_count=await self._count(row)) for row in rows])
+    async def segments(self, *, limit: int = 100, offset: int = 0) -> AdminSegmentList:
+        rows = (await self._session.scalars(select(AdminSegment).where(AdminSegment.is_active.is_(True)).order_by(AdminSegment.key).offset(offset).limit(limit))).all()
+        return AdminSegmentList(items=[AdminSegmentView(segment_id=row.id, key=row.key, title=row.title, eligible_count=await self._count(row)) for row in rows], limit=limit, offset=offset)
 
-    async def broadcasts(self) -> AdminBroadcastList:
-        rows = (await self._session.scalars(select(BroadcastCampaign).order_by(BroadcastCampaign.created_at.desc()).limit(100))).all()
-        return AdminBroadcastList(items=[await self._view(row) for row in rows])
+    async def broadcasts(self, *, limit: int = 100, offset: int = 0) -> AdminBroadcastList:
+        rows = (await self._session.scalars(select(BroadcastCampaign).order_by(BroadcastCampaign.created_at.desc()).offset(offset).limit(limit))).all()
+        return AdminBroadcastList(items=[await self._view(row) for row in rows], limit=limit, offset=offset)
 
     async def create_draft(self, *, actor_id: uuid.UUID, segment_id: uuid.UUID, title: str, body: str) -> BroadcastCampaign | None:
         segment = await self._session.get(AdminSegment, segment_id)

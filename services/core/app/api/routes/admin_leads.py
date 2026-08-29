@@ -28,6 +28,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 async def list_recent_leads(
     request: Request,
     limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     source: str | None = None,
     lifecycle_stage: str | None = None,
     diagnostic_completed: bool | None = None,
@@ -43,6 +44,7 @@ async def list_recent_leads(
         try:
             return await AdminLeadReadService(session).list_recent(
                 limit=limit,
+                offset=offset,
                 source=source,
                 lifecycle_stage=lifecycle_stage,
                 diagnostic_completed=diagnostic_completed,
@@ -109,19 +111,19 @@ async def update_marketing_consent(
 
 
 @router.get("/consultations", response_model=AdminConsultationList)
-async def consultations(request: Request, status: str | None = None) -> AdminConsultationList:
+async def consultations(request: Request, status: str | None = None, limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0)) -> AdminConsultationList:
     await current_actor(request)
     factory = get_session_factory(request)
     async with session_scope(factory) as session:
-        return await AdminLeadReadService(session).consultations(status=status)
+        return await AdminLeadReadService(session).consultations(status=status, limit=limit, offset=offset)
 
 
 @router.get("/attention", response_model=AdminAttentionList)
-async def attention(request: Request, status: str | None = None) -> AdminAttentionList:
+async def attention(request: Request, status: str | None = None, limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0)) -> AdminAttentionList:
     await current_actor(request)
     factory = get_session_factory(request)
     async with session_scope(factory) as session:
-        return await AdminLeadReadService(session).attention(status=status)
+        return await AdminLeadReadService(session).attention(status=status, limit=limit, offset=offset)
 
 
 @router.patch("/consultations/{request_id}", response_model=AdminConsultationList)

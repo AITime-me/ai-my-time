@@ -27,6 +27,7 @@ class AdminLeadView(BaseModel):
 class AdminLeadList(BaseModel):
     items: list[AdminLeadView]
     limit: int = Field(ge=1, le=100)
+    offset: int = Field(default=0, ge=0)
 
 
 class AdminDiagnosticView(BaseModel):
@@ -78,10 +79,14 @@ class AdminDashboard(BaseModel):
 
 class AdminConsultationList(BaseModel):
     items: list[AdminConsultationView]
+    limit: int = Field(ge=1, le=100)
+    offset: int = Field(default=0, ge=0)
 
 
 class AdminAttentionList(BaseModel):
     items: list[AdminAttentionView]
+    limit: int = Field(ge=1, le=100)
+    offset: int = Field(default=0, ge=0)
 
 
 class AdminStatusUpdate(BaseModel):
@@ -146,6 +151,8 @@ class AdminSegmentView(BaseModel):
 
 class AdminSegmentList(BaseModel):
     items: list[AdminSegmentView]
+    limit: int = Field(ge=1, le=100)
+    offset: int = Field(default=0, ge=0)
 
 
 class AdminBroadcastDraftCreate(BaseModel):
@@ -169,6 +176,8 @@ class AdminBroadcastView(BaseModel):
 
 class AdminBroadcastList(BaseModel):
     items: list[AdminBroadcastView]
+    limit: int = Field(ge=1, le=100)
+    offset: int = Field(default=0, ge=0)
 
 
 class AdminAnalytics(BaseModel):

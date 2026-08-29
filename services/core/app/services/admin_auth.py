@@ -109,3 +109,17 @@ class AdminAuthService:
         if session is not None and session.revoked_at is None:
             session.revoked_at = datetime.now(timezone.utc)
             await self._session.flush()
+
+    async def update_email(self, *, actor_id, email: str, password: str) -> AdminActor:
+        user = await self._session.get(AdminUser, actor_id, with_for_update=True)
+        if user is None or not user.is_active or not _verify_password(password, user.password_hash):
+            raise ValueError("invalid credentials")
+        normalized_email = _normalize_email(email)
+        existing = await self._session.scalar(
+            select(AdminUser.id).where(AdminUser.email == normalized_email)
+        )
+        if existing is not None and existing != user.id:
+            raise ValueError("email already in use")
+        user.email = normalized_email
+        await self._session.flush()
+        return AdminActor(user_id=user.id, email=user.email, role=user.role)
