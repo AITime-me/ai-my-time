@@ -51,6 +51,8 @@ class ConferenceIntakeService:
             if user.lifecycle_stage == "new":
                 user.lifecycle_stage = "profiling"
 
+        _apply_telegram_profile(user, command)
+
         entry = await self._session.scalar(
             select(ConferenceEntry).where(
                 ConferenceEntry.user_id == user.id,
@@ -90,3 +92,15 @@ class ConferenceIntakeService:
             created_entry=created_entry,
             next_stage=user.lifecycle_stage,
         )
+
+
+def _apply_telegram_profile(user: User, command: ConferenceStartCommand) -> None:
+    """Keep mutable Telegram profile fields current; stable ID stays in UserIdentity."""
+    user.telegram_first_name = command.telegram_first_name
+    user.telegram_last_name = command.telegram_last_name
+    user.telegram_username = command.telegram_username
+    display_name = " ".join(
+        part.strip() for part in (command.telegram_first_name or "", command.telegram_last_name or "") if part.strip()
+    )
+    if display_name:
+        user.display_name = display_name

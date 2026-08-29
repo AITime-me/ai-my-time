@@ -24,6 +24,13 @@ class AdminLeadView(BaseModel):
     last_activity_at: datetime | None = None
 
 
+class AdminPersonContact(BaseModel):
+    user_id: uuid.UUID
+    display_name: str | None = None
+    telegram_username: str | None = None
+    telegram_user_id: str | None = None
+
+
 class AdminLeadList(BaseModel):
     items: list[AdminLeadView]
     limit: int = Field(ge=1, le=100)
@@ -47,6 +54,7 @@ class AdminConsultationView(BaseModel):
     created_at: datetime
     diagnostic_summary: str | None = None
     source: str | None = None
+    person: AdminPersonContact
 
 
 class AdminAttentionView(BaseModel):
@@ -58,6 +66,11 @@ class AdminAttentionView(BaseModel):
     created_at: datetime
     linked_diagnostic_session_id: uuid.UUID | None = None
     consultation_request_id: uuid.UUID | None = None
+    person: AdminPersonContact
+
+
+class AdminTelegramMessage(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
 
 
 class AdminPersonDetail(BaseModel):

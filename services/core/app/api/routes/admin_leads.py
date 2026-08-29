@@ -9,6 +9,7 @@ from app.db.dependencies import get_session_factory
 from app.db.session import session_scope
 from app.schemas.admin import (
     AdminAttentionList,
+    AdminTelegramMessage,
     AdminAnalytics,
     AdminConsentUpdate,
     AdminConsultationList,
@@ -108,6 +109,19 @@ async def update_marketing_consent(
         result = await AdminLeadReadService(session).person(user_id)
         assert result is not None
         return result
+
+
+@router.post("/people/{user_id}/telegram-message", status_code=202)
+async def queue_telegram_message(
+    user_id: uuid.UUID, payload: AdminTelegramMessage, request: Request
+) -> None:
+    actor = await current_actor(request)
+    async with session_scope(get_session_factory(request)) as session:
+        queued = await AdminActionService(session).queue_telegram_message(
+            actor_id=actor.user_id, user_id=user_id, text=payload.text
+        )
+        if not queued:
+            raise HTTPException(status_code=409, detail="Telegram contact is unavailable")
 
 
 @router.get("/consultations", response_model=AdminConsultationList)

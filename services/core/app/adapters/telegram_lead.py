@@ -13,6 +13,9 @@ class _Chat(BaseModel):
 
 class _Sender(BaseModel):
     id: int
+    first_name: str | None = None
+    last_name: str | None = None
+    username: str | None = None
 
 
 class _Message(BaseModel):
@@ -37,6 +40,9 @@ class _Update(BaseModel):
 class StartProfile:
     telegram_user_id: str
     entry_code: str
+    telegram_first_name: str | None = None
+    telegram_last_name: str | None = None
+    telegram_username: str | None = None
 
 
 @dataclass(frozen=True)
@@ -47,18 +53,27 @@ class ProfileAnswer:
     value: str | None = None
     flow_version: int | None = None
     option_index: int | None = None
+    telegram_first_name: str | None = None
+    telegram_last_name: str | None = None
+    telegram_username: str | None = None
 
 
 @dataclass(frozen=True)
 class DiagnosticText:
     telegram_user_id: str
     text: str
+    telegram_first_name: str | None = None
+    telegram_last_name: str | None = None
+    telegram_username: str | None = None
 
 
 @dataclass(frozen=True)
 class CommunicationCommand:
     telegram_user_id: str
     action: str
+    telegram_first_name: str | None = None
+    telegram_last_name: str | None = None
+    telegram_username: str | None = None
 
 
 @dataclass(frozen=True)
@@ -66,6 +81,9 @@ class ConsultationRequest:
     telegram_user_id: str
     callback_query_id: str
     diagnostic_session_id: str
+    telegram_first_name: str | None = None
+    telegram_last_name: str | None = None
+    telegram_username: str | None = None
 
 
 TelegramLeadInput = StartProfile | ProfileAnswer | DiagnosticText | CommunicationCommand | ConsultationRequest
@@ -93,13 +111,13 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
         entry_code = _start_parameter(message.text)
         if entry_code is not None:
             return StartProfile(
-                telegram_user_id=str(message.from_.id), entry_code=entry_code
+                telegram_user_id=str(message.from_.id), entry_code=entry_code, **_profile(message.from_)
             )
         action = _communication_action(message.text)
         if action is not None:
-            return CommunicationCommand(telegram_user_id=str(message.from_.id), action=action)
+            return CommunicationCommand(telegram_user_id=str(message.from_.id), action=action, **_profile(message.from_))
         if not message.text.strip().startswith("/"):
-            return DiagnosticText(telegram_user_id=str(message.from_.id), text=message.text)
+            return DiagnosticText(telegram_user_id=str(message.from_.id), text=message.text, **_profile(message.from_))
 
     callback = update.callback_query
     if (
@@ -118,6 +136,7 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
             value=parsed[1],
             flow_version=parsed[2],
             option_index=parsed[3],
+            **_profile(callback.from_),
         )
     if callback.data.startswith("diagnostic:consult:"):
         session_id = callback.data.removeprefix("diagnostic:consult:")
@@ -126,8 +145,17 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
                 telegram_user_id=str(callback.from_.id),
                 callback_query_id=callback.id,
                 diagnostic_session_id=session_id,
+                **_profile(callback.from_),
             )
     return None
+
+
+def _profile(sender: _Sender) -> dict[str, str | None]:
+    return {
+        "telegram_first_name": sender.first_name,
+        "telegram_last_name": sender.last_name,
+        "telegram_username": sender.username,
+    }
 
 
 def _start_parameter(text: str) -> str | None:

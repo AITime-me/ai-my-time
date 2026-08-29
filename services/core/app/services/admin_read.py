@@ -17,6 +17,7 @@ from app.models import (
     ProfileAnswer,
     Touchpoint,
     User,
+    UserIdentity,
 )
 from app.schemas.admin import (
     AdminAttentionList,
@@ -28,6 +29,7 @@ from app.schemas.admin import (
     AdminLeadList,
     AdminLeadView,
     AdminPersonDetail,
+    AdminPersonContact,
     AdminAnalytics,
 )
 
@@ -104,7 +106,7 @@ class AdminLeadReadService:
             profile_answers=answers,
             diagnostics=[await self._diagnostic_view(row) for row in diagnostics],
             consultations=[await self._consultation_view(row) for row in consultations],
-            attention_items=[_attention_view(row) for row in attention],
+            attention_items=[await self._attention_view(row) for row in attention],
         )
 
     async def dashboard(self, *, days: int = 7) -> AdminDashboard:
@@ -163,7 +165,7 @@ class AdminLeadReadService:
         if status:
             statement = select(AttentionItem).where(AttentionItem.status == status).order_by(AttentionItem.priority, desc(AttentionItem.created_at)).offset(offset).limit(limit)
         rows = (await self._session.scalars(statement)).all()
-        return AdminAttentionList(items=[_attention_view(row) for row in rows], limit=limit, offset=offset)
+        return AdminAttentionList(items=[await self._attention_view(row) for row in rows], limit=limit, offset=offset)
 
     async def _lead_view(self, user: User) -> AdminLeadView:
         touchpoint = await self._session.scalar(
@@ -230,6 +232,37 @@ class AdminLeadReadService:
             created_at=request.created_at,
             diagnostic_summary=report.summary if report else None,
             source=touchpoint.source_code if touchpoint else None,
+            person=await self._person_contact(request.user_id),
+        )
+
+    async def _person_contact(self, user_id: uuid.UUID) -> AdminPersonContact:
+        user = await self._session.get(User, user_id)
+        assert user is not None
+        telegram_user_id = await self._session.scalar(
+            select(UserIdentity.external_id).where(
+                UserIdentity.user_id == user_id,
+                UserIdentity.provider == "telegram",
+                UserIdentity.connection_scope == "ai_my_time_lead_bot",
+            )
+        )
+        return AdminPersonContact(
+            user_id=user.id,
+            display_name=user.display_name,
+            telegram_username=user.telegram_username,
+            telegram_user_id=telegram_user_id,
+        )
+
+    async def _attention_view(self, item: AttentionItem) -> AdminAttentionView:
+        return AdminAttentionView(
+            attention_item_id=item.id,
+            kind=item.kind,
+            reason=item.reason,
+            priority=item.priority,
+            status=item.status,
+            created_at=item.created_at,
+            linked_diagnostic_session_id=item.diagnostic_session_id,
+            consultation_request_id=item.consultation_request_id,
+            person=await self._person_contact(item.user_id),
         )
 
     async def _count(self, model, *conditions) -> int:
@@ -243,16 +276,3 @@ def _matches_search(view: AdminLeadView, needle: str) -> bool:
         return True
     values = (str(view.user_id), view.display_name or "", view.telegram_username or "")
     return any(normalized in value.casefold() for value in values)
-
-
-def _attention_view(item: AttentionItem) -> AdminAttentionView:
-    return AdminAttentionView(
-        attention_item_id=item.id,
-        kind=item.kind,
-        reason=item.reason,
-        priority=item.priority,
-        status=item.status,
-        created_at=item.created_at,
-        linked_diagnostic_session_id=item.diagnostic_session_id,
-        consultation_request_id=item.consultation_request_id,
-    )

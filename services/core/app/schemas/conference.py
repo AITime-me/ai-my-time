@@ -17,6 +17,9 @@ class ConferenceStartCommand(BaseModel):
     conference_code: str = Field(default="conference_2026", min_length=1, max_length=80)
     qr_code: str | None = Field(default=None, max_length=160)
     entry_code: str | None = Field(default=None, max_length=160)
+    telegram_first_name: str | None = Field(default=None, max_length=128)
+    telegram_last_name: str | None = Field(default=None, max_length=128)
+    telegram_username: str | None = Field(default=None, max_length=64)
 
     @field_validator("telegram_user_id")
     @classmethod

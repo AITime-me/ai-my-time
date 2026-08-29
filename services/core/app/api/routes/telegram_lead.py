@@ -20,7 +20,7 @@ from app.adapters.telegram_lead import (
 )
 from app.db.dependencies import get_session_factory
 from app.db.session import session_scope
-from app.models import UserIdentity
+from app.models import User, UserIdentity
 from app.schemas.conference import ConferenceStartCommand
 from app.services.conference_intake import ConferenceIntakeService
 from app.services.lead_profile_flow import LeadProfileFlow
@@ -79,6 +79,9 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                     telegram_user_id=update.telegram_user_id,
                     qr_code=update.entry_code,
                     entry_code=update.entry_code,
+                    telegram_first_name=update.telegram_first_name,
+                    telegram_last_name=update.telegram_last_name,
+                    telegram_username=update.telegram_username,
                 )
             )
             await LeadProfileFlow(session).start(user_id=entry.user_id)
@@ -93,6 +96,10 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
         )
         if user_id is None:
             return Response(status_code=204)
+        user = await session.get(User, user_id)
+        if user is None:
+            return Response(status_code=204)
+        _apply_telegram_profile(user, update)
         if isinstance(update, DiagnosticText):
             await DiagnosticDialogueService(session, _diagnostic_provider(request)).receive(user_id=user_id, text=update.text)
             return Response(status_code=204)
@@ -123,6 +130,20 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
         except ValueError:
             return Response(status_code=204)
     return Response(status_code=204)
+
+
+def _apply_telegram_profile(user: User, update: object) -> None:
+    """Telegram sends mutable profile fields with every normal private interaction."""
+    user.telegram_first_name = getattr(update, "telegram_first_name", None)
+    user.telegram_last_name = getattr(update, "telegram_last_name", None)
+    user.telegram_username = getattr(update, "telegram_username", None)
+    display_name = " ".join(
+        part.strip()
+        for part in (user.telegram_first_name or "", user.telegram_last_name or "")
+        if part.strip()
+    )
+    if display_name:
+        user.display_name = display_name
 
 
 def _diagnostic_provider(request: Request):

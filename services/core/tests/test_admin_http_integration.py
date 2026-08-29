@@ -77,6 +77,8 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             assert payload["limit"] == 1
             assert len(payload["items"]) == 1
             assert payload["items"][0]["conference_code"] == "conference_2026"
+            assert payload["items"][0]["display_name"] == "Тестовый Пользователь"
+            assert payload["items"][0]["telegram_username"] == "test_owner"
             assert "telegram_user_id" not in str(payload)
             assert "900011" not in str(payload)
             people = client.get("/admin/people?limit=1")
@@ -160,7 +162,9 @@ async def _create_test_lead(database_url: str) -> None:
             )
             await ConferenceIntakeService(session).start(
                 ConferenceStartCommand(
-                    telegram_user_id="900011", qr_code="admin-http-proof"
+                    telegram_user_id="900011", qr_code="admin-http-proof",
+                    telegram_first_name="Тестовый", telegram_last_name="Пользователь",
+                    telegram_username="test_owner",
                 )
             )
     finally:

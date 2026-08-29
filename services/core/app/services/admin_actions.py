@@ -5,9 +5,11 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import AdminAuditEvent, AttentionItem, ConsultationRequest, User
+from app.models import AdminAuditEvent, AttentionItem, ConsultationRequest, User, UserIdentity
+from app.services.outbox import OutboundQueue
 
 _CONSULTATION_STATUSES = {"new", "in_progress", "completed", "cancelled"}
 _ATTENTION_STATUSES = {"new", "in_progress", "resolved"}
@@ -84,3 +86,33 @@ class AdminActionService:
                 )
             )
         return user
+
+    async def queue_telegram_message(
+        self, *, actor_id: uuid.UUID, user_id: uuid.UUID, text: str
+    ) -> bool:
+        user = await self._session.get(User, user_id)
+        telegram_user_id = await self._session.scalar(
+            select(UserIdentity.external_id).where(
+                UserIdentity.user_id == user_id,
+                UserIdentity.provider == "telegram",
+                UserIdentity.connection_scope == "ai_my_time_lead_bot",
+            )
+        )
+        if user is None or telegram_user_id is None:
+            return False
+        message = await OutboundQueue(self._session).enqueue(
+            user_id=user_id,
+            channel="telegram_lead",
+            payload={"kind": "message", "text": text.strip(), "buttons": []},
+            dedupe_key=f"admin-direct:{uuid.uuid4()}",
+        )
+        self._session.add(
+            AdminAuditEvent(
+                actor_id=actor_id,
+                action="person.telegram_message_queued",
+                object_type="person",
+                object_id=user.id,
+                delta_json={"outbox_message_id": str(message.id)},
+            )
+        )
+        return True

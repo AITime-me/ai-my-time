@@ -43,6 +43,8 @@ class User(Timestamped, Base):
         String(40), nullable=False, server_default="new"
     )
     display_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    telegram_first_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    telegram_last_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     telegram_username: Mapped[str | None] = mapped_column(String(64), nullable=True)
     last_activity_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     communication_status: Mapped[str] = mapped_column(
