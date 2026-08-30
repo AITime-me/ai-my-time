@@ -5,10 +5,8 @@ from urllib.parse import urlsplit
 from app.core.settings import get_settings
 
 
-def channel_url() -> str | None:
+def channel_url() -> str:
     value = get_settings().telegram_channel_url
-    if not value:
-        return None
     parsed = urlsplit(value)
     if parsed.scheme != "https" or parsed.hostname not in {"t.me", "www.t.me"} or not parsed.path.strip("/"):
         raise ValueError("Telegram channel URL must be a public https://t.me/<handle> URL")
@@ -16,6 +14,4 @@ def channel_url() -> str | None:
 
 
 def channel_callback_button(diagnostic_id: object) -> dict[str, str] | None:
-    if channel_url() is None:
-        return None
     return {"text": "Перейти в Telegram-канал", "callback_data": f"diagnostic:channel:{diagnostic_id}"}
