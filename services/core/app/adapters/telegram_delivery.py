@@ -98,6 +98,24 @@ def _send_json(url: str, body: bytes) -> Mapping[str, Any]:
     return decoded
 
 
+def _send_edge_json(endpoint: str, secret: str, operation: str, body: bytes) -> Mapping[str, Any]:
+    parsed = urlsplit(endpoint)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.path.rstrip("/"):
+        raise TelegramDeliveryError("invalid Telegram Edge URL")
+    connection = http.client.HTTPSConnection(parsed.hostname, parsed.port or 443, timeout=10, context=ssl.create_default_context())
+    try:
+        connection.request("POST", f"/v1/telegram/{operation}", body=body, headers={"Content-Type": "application/json", "X-Aimytime-Edge-Auth": secret})
+        response = connection.getresponse()
+        decoded = json.loads(response.read().decode("utf-8"))
+    except (http.client.HTTPException, OSError, ssl.SSLError, TimeoutError, json.JSONDecodeError) as error:
+        raise TelegramDeliveryError("Telegram Edge request failed") from error
+    finally:
+        connection.close()
+    if not isinstance(decoded, dict):
+        raise TelegramDeliveryError("invalid Telegram Edge response")
+    return decoded
+
+
 class TelegramBotTransport:
     """Converts provider-neutral queue payloads into one safe sendMessage call."""
 
@@ -133,3 +151,27 @@ class TelegramCallbackAcknowledger:
         response = await asyncio.to_thread(self._sender, self._url, body)
         if response.get("ok") is not True:
             raise TelegramDeliveryError("Telegram API rejected callback acknowledgement")
+
+
+class TelegramEdgeTransport:
+    """Core-side adapter: durable outbox remains authoritative; Edge has no queue."""
+    def __init__(self, *, edge_url: str, secret: str, sender: Callable[[str, str, str, bytes], Mapping[str, Any]] = _send_edge_json) -> None:
+        if not edge_url.strip() or not secret.strip(): raise ValueError("Telegram Edge configuration is required")
+        self._edge_url, self._secret, self._sender = edge_url, secret, sender
+
+    async def deliver(self, message: OutboundDelivery) -> None:
+        body = json.dumps(telegram_send_payload(message), ensure_ascii=False).encode("utf-8")
+        response = await asyncio.to_thread(self._sender, self._edge_url, self._secret, "sendMessage", body)
+        if response.get("ok") is not True: raise TelegramDeliveryError("Telegram Edge rejected message")
+
+
+class TelegramEdgeCallbackAcknowledger:
+    def __init__(self, *, edge_url: str, secret: str, sender: Callable[[str, str, str, bytes], Mapping[str, Any]] = _send_edge_json) -> None:
+        if not edge_url.strip() or not secret.strip(): raise ValueError("Telegram Edge configuration is required")
+        self._edge_url, self._secret, self._sender = edge_url, secret, sender
+
+    async def acknowledge(self, callback_query_id: str) -> None:
+        if not callback_query_id or len(callback_query_id) > 128: raise TelegramDeliveryError("invalid Telegram callback query")
+        body = json.dumps({"callback_query_id": callback_query_id, "text": "Нажатие получено"}, ensure_ascii=False).encode("utf-8")
+        response = await asyncio.to_thread(self._sender, self._edge_url, self._secret, "answerCallbackQuery", body)
+        if response.get("ok") is not True: raise TelegramDeliveryError("Telegram Edge rejected callback acknowledgement")

@@ -31,7 +31,7 @@ from app.services.communication import CommunicationConsentService
 from app.services.consultation_lifecycle import ConsultationLifecycleService
 from app.services.outbox import OutboundQueue
 from app.adapters.yandex_diagnostic import build_diagnostic_provider
-from app.adapters.telegram_delivery import TelegramCallbackAcknowledger, TelegramDeliveryError
+from app.adapters.telegram_delivery import TelegramCallbackAcknowledger, TelegramDeliveryError, TelegramEdgeCallbackAcknowledger
 
 router = APIRouter(tags=["telegram-lead"])
 _SECRET_HEADER = "X-Telegram-Bot-Api-Secret-Token"
@@ -42,10 +42,12 @@ _LOG = logging.getLogger(__name__)
 async def receive_lead_update(payload: dict[str, object], request: Request) -> Response:
     expected_secret = request.app.state.settings.telegram_lead_webhook_secret
     supplied_secret = request.headers.get(_SECRET_HEADER)
-    if not expected_secret:
-        raise HTTPException(status_code=503, detail="lead webhook is not configured")
-    if not supplied_secret or not hmac.compare_digest(supplied_secret, expected_secret):
-        raise HTTPException(status_code=401, detail="unauthorized")
+    if request.app.state.settings.telegram_transport_mode == "edge":
+        edge_secret = request.app.state.settings.telegram_edge_inbound_secret
+        if not edge_secret or not hmac.compare_digest(request.headers.get("X-Aimytime-Edge-Auth", ""), edge_secret): raise HTTPException(status_code=401, detail="unauthorized")
+    else:
+        if not expected_secret: raise HTTPException(status_code=503, detail="lead webhook is not configured")
+        if not supplied_secret or not hmac.compare_digest(supplied_secret, expected_secret): raise HTTPException(status_code=401, detail="unauthorized")
 
     update = adapt_telegram_lead_payload(payload)
     if update is None:
@@ -196,12 +198,16 @@ def _diagnostic_provider(request: Request):
 
 async def _acknowledge_callback(request: Request, callback_query_id: str) -> None:
     factory = getattr(request.app.state, "telegram_callback_acknowledger_factory", None)
-    token = request.app.state.settings.telegram_bot_token
-    if factory is None and not token:
+    settings = request.app.state.settings
+    token = settings.telegram_bot_token
+    if factory is None and settings.telegram_transport_mode == "edge" and not (settings.telegram_edge_url and settings.telegram_edge_core_secret):
+        _LOG.warning("Telegram callback acknowledgement is unavailable")
+        return
+    if factory is None and settings.telegram_transport_mode != "edge" and not token:
         _LOG.warning("Telegram callback acknowledgement is unavailable")
         return
     try:
-        acknowledger = factory() if factory is not None else TelegramCallbackAcknowledger(token=token)
+        acknowledger = factory() if factory is not None else (TelegramEdgeCallbackAcknowledger(edge_url=settings.telegram_edge_url or "", secret=settings.telegram_edge_core_secret or "") if settings.telegram_transport_mode == "edge" else TelegramCallbackAcknowledger(token=token or ""))
         await acknowledger.acknowledge(callback_query_id)
     except (TelegramDeliveryError, ValueError, OSError):
         _LOG.warning("Telegram callback acknowledgement failed")

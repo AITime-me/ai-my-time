@@ -29,8 +29,10 @@ services:
     environment:
       APP_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
-      TELEGRAM_BOT_TOKEN_FILE: /run/secrets/telegram_bot_token
-      TELEGRAM_LEAD_WEBHOOK_SECRET_FILE: /run/secrets/telegram_webhook_secret
+      TELEGRAM_TRANSPORT_MODE: edge
+      TELEGRAM_EDGE_URL: https://edge.aimytimebot.ru
+      TELEGRAM_EDGE_CORE_SECRET_FILE: /run/secrets/telegram_edge_core_secret
+      TELEGRAM_EDGE_INBOUND_SECRET_FILE: /run/secrets/telegram_edge_inbound_secret
       # Diagnostic AI is isolated to the API process. Its folder ID is supplied
       # only by the deploy environment; the credential is a read-only file.
       DIAGNOSTIC_PROVIDER: yandex_production
@@ -39,8 +41,8 @@ services:
       YANDEX_PRODUCTION_MODEL: yandexgpt/latest
     volumes:
       - /srv/ai-my-time/secrets/database_url:/run/secrets/database_url:ro
-      - /srv/ai-my-time/secrets/telegram_bot_token:/run/secrets/telegram_bot_token:ro
-      - /srv/ai-my-time/secrets/telegram_webhook_secret:/run/secrets/telegram_webhook_secret:ro
+      - /srv/ai-my-time/secrets/telegram_edge_core_secret:/run/secrets/telegram_edge_core_secret:ro
+      - /srv/ai-my-time/secrets/telegram_edge_inbound_secret:/run/secrets/telegram_edge_inbound_secret:ro
       - /srv/ai-my-time/secrets/yandex_production_api_key:/run/secrets/yandex_production_api_key:ro
     ports:
       - "127.0.0.1:18181:8000"
@@ -49,9 +51,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-    # API needs IPv6 egress only for the short, best-effort
-    # answerCallbackQuery UX acknowledgement. It publishes no ports on this
-    # network; inbound traffic remains limited to the loopback edge binding.
+    # API reaches only the foreign Telegram Edge; it no longer holds the bot
+    # token or contacts Telegram directly.
     networks: [private, edge, egress]
 
   worker:
@@ -63,10 +64,12 @@ services:
     environment:
       APP_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
-      TELEGRAM_BOT_TOKEN_FILE: /run/secrets/telegram_bot_token
+      TELEGRAM_TRANSPORT_MODE: edge
+      TELEGRAM_EDGE_URL: https://edge.aimytimebot.ru
+      TELEGRAM_EDGE_CORE_SECRET_FILE: /run/secrets/telegram_edge_core_secret
     volumes:
       - /srv/ai-my-time/secrets/database_url:/run/secrets/database_url:ro
-      - /srv/ai-my-time/secrets/telegram_bot_token:/run/secrets/telegram_bot_token:ro
+      - /srv/ai-my-time/secrets/telegram_edge_core_secret:/run/secrets/telegram_edge_core_secret:ro
     command: ["python", "-m", "scripts.run_outbound_worker"]
     networks: [private, egress]
 

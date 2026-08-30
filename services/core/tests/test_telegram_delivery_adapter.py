@@ -8,6 +8,8 @@ from app.adapters import telegram_delivery
 from app.adapters.telegram_delivery import (
     TelegramBotTransport,
     TelegramCallbackAcknowledger,
+    TelegramEdgeCallbackAcknowledger,
+    TelegramEdgeTransport,
     TelegramDeliveryError,
     telegram_send_payload,
 )
@@ -68,6 +70,19 @@ def test_callback_acknowledger_sends_immediate_non_business_feedback() -> None:
             "https://api.telegram.org/bottest-token/answerCallbackQuery",
             {"callback_query_id": "callback-1", "text": "Нажатие получено"},
         )
+    ]
+
+
+def test_edge_transport_uses_only_allowlisted_edge_operation() -> None:
+    calls: list[tuple[str, str, str, dict[str, object]]] = []
+    def sender(url: str, secret: str, operation: str, body: bytes) -> dict[str, object]:
+        calls.append((url, secret, operation, json.loads(body)))
+        return {"ok": True}
+    asyncio.run(TelegramEdgeTransport(edge_url="https://edge.example", secret="edge-secret", sender=sender).deliver(_delivery()))
+    asyncio.run(TelegramEdgeCallbackAcknowledger(edge_url="https://edge.example", secret="edge-secret", sender=sender).acknowledge("callback-1"))
+    assert [(row[2], row[3]) for row in calls] == [
+        ("sendMessage", telegram_send_payload(_delivery())),
+        ("answerCallbackQuery", {"callback_query_id": "callback-1", "text": "Нажатие получено"}),
     ]
 
 

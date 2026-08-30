@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     database_url: str | None = None
     telegram_bot_token: str | None = None
     telegram_lead_webhook_secret: str | None = None
+    telegram_transport_mode: Literal["direct", "edge"] = "direct"
+    telegram_edge_url: str | None = None
+    telegram_edge_core_secret: str | None = None
+    telegram_edge_inbound_secret: str | None = None
     telegram_ops_bot_token_path: str | None = None
     telegram_ops_chat_id: str | None = None
     diagnostic_provider: Literal["disabled", "yandex_nonprod", "yandex_production"] = "disabled"
