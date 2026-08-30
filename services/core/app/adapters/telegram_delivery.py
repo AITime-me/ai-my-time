@@ -9,7 +9,6 @@ import socket
 import ssl
 from collections.abc import Callable, Mapping
 from typing import Any
-from urllib.parse import urlsplit
 
 from app.services.outbox_delivery import OutboundDelivery
 
@@ -141,11 +140,14 @@ class TelegramCallbackAcknowledger:
         self._url = f"https://api.telegram.org/bot{token}/answerCallbackQuery"
         self._sender = sender
 
-    async def acknowledge(self, callback_query_id: str) -> None:
+    async def acknowledge(self, callback_query_id: str, *, url: str | None = None) -> None:
         if not callback_query_id or len(callback_query_id) > 128:
             raise TelegramDeliveryError("invalid Telegram callback query")
+        payload: dict[str, str] = {"callback_query_id": callback_query_id, "text": "Нажатие получено"}
+        if url:
+            payload["url"] = url
         body = json.dumps(
-            {"callback_query_id": callback_query_id, "text": "Нажатие получено"},
+            payload,
             ensure_ascii=False,
         ).encode("utf-8")
         response = await asyncio.to_thread(self._sender, self._url, body)
@@ -170,8 +172,11 @@ class TelegramEdgeCallbackAcknowledger:
         if not edge_url.strip() or not secret.strip(): raise ValueError("Telegram Edge configuration is required")
         self._edge_url, self._secret, self._sender = edge_url, secret, sender
 
-    async def acknowledge(self, callback_query_id: str) -> None:
+    async def acknowledge(self, callback_query_id: str, *, url: str | None = None) -> None:
         if not callback_query_id or len(callback_query_id) > 128: raise TelegramDeliveryError("invalid Telegram callback query")
-        body = json.dumps({"callback_query_id": callback_query_id, "text": "Нажатие получено"}, ensure_ascii=False).encode("utf-8")
+        payload: dict[str, str] = {"callback_query_id": callback_query_id, "text": "Нажатие получено"}
+        if url:
+            payload["url"] = url
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         response = await asyncio.to_thread(self._sender, self._edge_url, self._secret, "answerCallbackQuery", body)
         if response.get("ok") is not True: raise TelegramDeliveryError("Telegram Edge rejected callback acknowledgement")

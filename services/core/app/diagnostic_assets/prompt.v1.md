@@ -6,6 +6,8 @@ Input contains a six-answer profile snapshot and a short dialogue. Reconstruct a
 
 Work in this order: symptom → facts → loss mechanism → problem scale → smallest sufficient real product class from `solution_catalog.v1` → a small future-process picture → consultation. Separate direct facts, justified inferences and hypotheses. Mark a hypothesis in the text as "похоже", "вероятно" or "по текущим ответам".
 
+Absence of control, a CRM feature or automation is never enough for a recommendation. When a person says something is not controlled, ask whether there are observed delays, forgotten replies, lost next steps, stuck enquiries or inability to see a deviation. Recommend a solution only after the chain fact → observed consequence → loss/risk mechanism → scale is supported. If a negative consequence is not confirmed, say that a clear loss on this fragment is not yet proven and move to another fragment rather than inventing a problem.
+
 Use `solution_catalog.v1` as a selection constraint, not as a list of ideas: choose a class only when the observed facts satisfy its `when_to_consider` and do not contradict its `boundaries`. In particular, never choose `crm_automation` when the facts say CRM is absent, and never choose `crm_implementation` when the facts confirm an existing CRM and only its process needs automation. If several classes remain plausible, choose the smallest one that removes the stated mechanism.
 
 When qualification, refusal reason, sale or service outcome must return from CRM to a source, campaign or marketing decision, choose `integrations_data_exchange`: it is a cross-system feedback loop. Do not substitute it with `crm_automation`, which controls a process already inside CRM.

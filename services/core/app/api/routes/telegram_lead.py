@@ -32,6 +32,8 @@ from app.services.consultation_lifecycle import ConsultationLifecycleService
 from app.services.outbox import OutboundQueue
 from app.adapters.yandex_diagnostic import build_diagnostic_provider
 from app.adapters.telegram_delivery import TelegramCallbackAcknowledger, TelegramDeliveryError, TelegramEdgeCallbackAcknowledger
+from app.core.telegram_channel import channel_url
+from app.core.timezones import format_moscow
 
 router = APIRouter(tags=["telegram-lead"])
 _SECRET_HEADER = "X-Telegram-Bot-Api-Secret-Token"
@@ -57,7 +59,8 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
         # Acknowledge the button before any database/provider work so Telegram
         # closes its spinner immediately.  This is UX-only: a transient Bot API
         # failure must never discard a durable profile answer or CTA request.
-        await _acknowledge_callback(request, update.callback_query_id)
+        url = channel_url() if isinstance(update, LifecycleCallback) and update.action == "diagnostic:channel" else None
+        await _acknowledge_callback(request, update.callback_query_id, url=url)
 
     factory = get_session_factory(request)
     async with session_scope(factory) as session:
@@ -116,7 +119,9 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
             try: entity_id = uuid.UUID(update.entity_id)
             except ValueError: return Response(status_code=204)
             lifecycle = ConsultationLifecycleService(session)
-            if update.action == "diagnostic:resume":
+            if update.action == "menu:show":
+                await _show_available_actions(session, user_id=user_id, lifecycle=lifecycle)
+            elif update.action == "diagnostic:resume":
                 await DiagnosticDialogueService(session, _diagnostic_provider(request)).open(diagnostic_session_id=entity_id)
             elif update.action == "diagnostic:result":
                 await lifecycle.replay_result(user_id=user_id, diagnostic_id=entity_id)
@@ -172,6 +177,43 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
     return Response(status_code=204)
 
 
+async def _show_available_actions(session, *, user_id: uuid.UUID, lifecycle: ConsultationLifecycleService) -> None:
+    """Return the next useful action without restarting the user journey."""
+    active_diagnostic = await session.scalar(
+        select(DiagnosticSession).where(
+            DiagnosticSession.user_id == user_id,
+            DiagnosticSession.status.in_(("prepared", "diagnostic_active")),
+        ).order_by(DiagnosticSession.created_at.desc()).limit(1)
+    )
+    if active_diagnostic is not None:
+        await OutboundQueue(session).enqueue(
+            user_id=user_id,
+            channel="telegram_lead",
+            payload={"kind": "message", "text": "У вас есть незавершённая диагностика. Можно продолжить с сохранённого места.", "buttons": [{"text": "Продолжить диагностику", "callback_data": f"diagnostic:resume:{active_diagnostic.id}"}]},
+            dedupe_key=f"diagnostic:{active_diagnostic.id}:menu",
+        )
+        return
+    active_consultation = await lifecycle.active(user_id)
+    if active_consultation is not None:
+        if active_consultation.status == "scheduled" and active_consultation.appointment_at is not None:
+            text = f"У вас назначена консультация: {format_moscow(active_consultation.appointment_at)}."
+            from app.services.scheduled_events import _appointment_buttons
+            buttons = _appointment_buttons(active_consultation.id)
+        else:
+            text = "Ваша заявка на консультацию уже принята. Эксперт AI My Time свяжется с вами в Telegram в рабочее время."
+            buttons = []
+        await OutboundQueue(session).enqueue(
+            user_id=user_id,
+            channel="telegram_lead",
+            payload={"kind": "message", "text": text, "buttons": buttons},
+            dedupe_key=f"consultation:{active_consultation.id}:menu",
+        )
+        return
+    if await lifecycle.bridge(user_id=user_id):
+        return
+    await LeadProfileFlow(session).start(user_id=user_id)
+
+
 def _apply_telegram_profile(user: User, update: object) -> None:
     """Telegram sends mutable profile fields with every normal private interaction."""
     user.telegram_first_name = getattr(update, "telegram_first_name", None)
@@ -196,7 +238,7 @@ def _diagnostic_provider(request: Request):
         return None
 
 
-async def _acknowledge_callback(request: Request, callback_query_id: str) -> None:
+async def _acknowledge_callback(request: Request, callback_query_id: str, *, url: str | None = None) -> None:
     factory = getattr(request.app.state, "telegram_callback_acknowledger_factory", None)
     settings = request.app.state.settings
     token = settings.telegram_bot_token
@@ -208,6 +250,9 @@ async def _acknowledge_callback(request: Request, callback_query_id: str) -> Non
         return
     try:
         acknowledger = factory() if factory is not None else (TelegramEdgeCallbackAcknowledger(edge_url=settings.telegram_edge_url or "", secret=settings.telegram_edge_core_secret or "") if settings.telegram_transport_mode == "edge" else TelegramCallbackAcknowledger(token=token or ""))
-        await acknowledger.acknowledge(callback_query_id)
+        if url:
+            await acknowledger.acknowledge(callback_query_id, url=url)
+        else:
+            await acknowledger.acknowledge(callback_query_id)
     except (TelegramDeliveryError, ValueError, OSError):
         _LOG.warning("Telegram callback acknowledgement failed")

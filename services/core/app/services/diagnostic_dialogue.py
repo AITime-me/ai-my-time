@@ -18,6 +18,7 @@ from app.services.diagnostic_report import DiagnosticReportService
 from app.services.outbox import OutboundQueue
 from app.services.consultation_lifecycle import ConsultationLifecycleService
 from app.services.scheduled_events import ScheduledEventService
+from app.core.telegram_channel import channel_callback_button
 
 CTA_TEXT = (
     "По вашим ответам уже видно направление, но точное решение зависит от того, "
@@ -27,8 +28,8 @@ CTA_TEXT = (
 )
 PRICE_REPLY = load_diagnostic_prompt_bundle().price_reply
 CONSULTATION_CONFIRMATION = (
-    "Запрос на онлайн-консультацию зафиксирован. Повторно нажимать кнопку не нужно: "
-    "эксперт AI My Time увидит его в рабочем списке для связи."
+    "Заявка на консультацию принята. Эксперт AI My Time свяжется с вами в Telegram "
+    "в рабочее время — с 08:00 до 18:00 по Москве."
 )
 DIAGNOSTIC_UNAVAILABLE_TEXT = (
     "Ответы сохранены. Сейчас первичный разбор временно недоступен, "
@@ -36,7 +37,14 @@ DIAGNOSTIC_UNAVAILABLE_TEXT = (
 )
 _PRICE_RE = re.compile(r"(?:цен|стоим|бюджет|прайс|тариф|сколько\s+стоит|\bот\s+\d)", re.I)
 def _cta_button(session_id: uuid.UUID) -> list[dict[str, str]]:
-    return [{"text": "Записаться на онлайн-консультацию", "callback_data": f"diagnostic:consult:{session_id}"}]
+    buttons = [{"text": "Запросить консультацию", "callback_data": f"diagnostic:consult:{session_id}"}]
+    if button := channel_callback_button(session_id):
+        buttons.append(button)
+    return buttons
+
+
+def _menu_button(session_id: uuid.UUID) -> list[dict[str, str]]:
+    return [{"text": "Что можно сделать?", "callback_data": f"menu:show:{session_id}"}]
 
 
 class DiagnosticDialogueService:
@@ -134,7 +142,8 @@ class DiagnosticDialogueService:
         assert user is not None
         active = await ConsultationLifecycleService(self._session).active(user_id)
         if active is not None:
-            text = (f"У вас уже назначена консультация на {active.appointment_at.astimezone().strftime('%d.%m %H:%M')}."
+            from app.core.timezones import format_moscow
+            text = (f"У вас уже назначена консультация на {format_moscow(active.appointment_at)}."
                     if active.status == "scheduled" and active.appointment_at else
                     "У вас уже есть активная заявка на разбор. Эксперт AI My Time свяжется с вами в Telegram в рабочее время.")
             await self._outbox.enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":text,"buttons":[]}, dedupe_key=f"consultation:{active.id}:active-guard")
@@ -210,7 +219,12 @@ class DiagnosticDialogueService:
         return response.question
 
     async def _message(self, diagnostic: DiagnosticSession, text: str, suffix: str, buttons: list[dict[str, str]]) -> None:
-        await self._outbox.enqueue(user_id=diagnostic.user_id, channel="telegram_lead", payload={"kind": "message", "text": text, "buttons": buttons}, dedupe_key=f"diagnostic:{diagnostic.id}:{suffix}")
+        await self._outbox.enqueue(
+            user_id=diagnostic.user_id,
+            channel="telegram_lead",
+            payload={"kind": "message", "text": text, "buttons": buttons or _menu_button(diagnostic.id)},
+            dedupe_key=f"diagnostic:{diagnostic.id}:{suffix}",
+        )
 
     async def _pause(self, diagnostic: DiagnosticSession) -> None:
         """Keep all answers and turns intact while waiting for a later approved provider recovery."""

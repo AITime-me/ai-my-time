@@ -12,7 +12,9 @@ def test_diagnostic_prompt_assets_are_versioned_and_separated() -> None:
     bundle = load_diagnostic_prompt_bundle()
     assert bundle.version == "v1"
     assert "Never state a price" in bundle.guardrails
+    assert "Missing control is not itself a business loss" in bundle.guardrails
     assert "observable facts" in bundle.prompt
+    assert "loss on this fragment is not yet proven" in bundle.prompt
     assert "feedback_gap" in bundle.knowledge_base
     assert bundle.price_reply.startswith("Стоимость автоматизации рассчитывается индивидуально")
 

@@ -241,7 +241,7 @@ class AdminLeadReadService:
             user_id=user.id,
             display_name=user.display_name,
             telegram_username=user.telegram_username,
-            lifecycle_stage=user.lifecycle_stage,
+            lifecycle_stage=_current_stage(user.lifecycle_stage, consultation),
             source=touchpoint.source_code if touchpoint else None,
             conference_code=conference.conference_code if conference else None,
             diagnostic_status=diagnostic.status if diagnostic else None,
@@ -330,6 +330,20 @@ def _answer_value(value: object) -> str | None:
         candidate = value.get("value")
         return str(candidate) if candidate is not None else None
     return str(value) if value is not None else None
+
+
+def _current_stage(stored: str, consultation: ConsultationRequest | None) -> str:
+    """Prefer the authoritative consultation lifecycle over an old projection."""
+    if consultation is None:
+        return stored
+    return {
+        "new": "consultation_requested",
+        "waiting_response": "consultation_requested",
+        "scheduled": "consultation_scheduled",
+        "completed": "consultation_completed",
+        "cancelled": "consultation_cancelled",
+        "no_show": "consultation_no_show",
+    }.get(consultation.status, stored)
 
 def _matches_search(view: AdminLeadView, needle: str) -> bool:
     normalized = needle.strip().casefold()

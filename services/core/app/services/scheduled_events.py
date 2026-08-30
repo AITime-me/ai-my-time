@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.session import session_scope
 from app.models import ConsultationRequest, DiagnosticSession, ScheduledEvent, User
+from app.core.timezones import format_moscow
 from app.services.outbox import OutboundQueue
 
 PENDING = "pending"
@@ -112,12 +113,14 @@ class ScheduledEventService:
                 await queue.enqueue(user_id=event.user_id, channel="telegram_lead", payload={"kind":"message", "text":"Диагностика остановилась. Продолжите, когда будет удобно.", "buttons":[{"text":"Продолжить диагностику", "callback_data":f"diagnostic:resume:{diagnostic.id}"}]}, dedupe_key=f"scheduled:{event.id}:followup")
         elif request and event.event_type in {"appointment_t24", "appointment_t1"} and request.status == "scheduled":
             buttons = [] if event.event_type == "appointment_t1" else _appointment_buttons(request.id)
-            text = "Напоминаем: консультация через час." if event.event_type == "appointment_t1" else "Напоминаем о консультации завтра. Подтвердите, перенесите или отмените встречу."
+            when = format_moscow(request.appointment_at) if request.appointment_at else "назначенное время"
+            text = f"Напоминаем: консультация {when} — через час." if event.event_type == "appointment_t1" else f"Напоминаем о консультации {when} завтра. Подтвердите, перенесите или отмените встречу."
             await queue.enqueue(user_id=request.user_id, channel="telegram_lead", payload={"kind":"message", "text":text, "buttons":buttons}, dedupe_key=f"scheduled:{event.id}:reminder")
         elif request and event.event_type == "appointment_auto_cancel" and request.status == "scheduled" and request.confirmation_state == "pending":
             request.status = "cancelled"
             await self.cancel_for_consultation(request.id)
-            await queue.enqueue(user_id=request.user_id, channel="telegram_lead", payload={"kind":"message", "text":"Время консультации освобождено, потому что подтверждение не было получено.", "buttons":[]}, dedupe_key=f"scheduled:{event.id}:cancelled")
+            when = format_moscow(request.appointment_at) if request.appointment_at else "назначенное время"
+            await queue.enqueue(user_id=request.user_id, channel="telegram_lead", payload={"kind":"message", "text":f"Время консультации {when} освобождено, потому что подтверждение не было получено.", "buttons":[]}, dedupe_key=f"scheduled:{event.id}:cancelled")
         event.status = FIRED; event.fired_at = datetime.now(timezone.utc); event.lease_token = None; event.lease_expires_at = None
 
 

@@ -1,6 +1,7 @@
 from app.adapters.telegram_lead import (
     ConsultationRequest,
     DiagnosticText,
+    LifecycleCallback,
     ProfileAnswer,
     StartProfile,
     adapt_telegram_lead_payload,
@@ -54,3 +55,15 @@ def test_adapter_accepts_only_private_diagnostic_text_and_consultation_callback(
         {"callback_query": {"id": "callback-consult", "from": {"id": 900001}, "message": {"chat": {"type": "private"}}, "data": "diagnostic:consult:123"}}
     )
     assert callback == ConsultationRequest(telegram_user_id="900001", callback_query_id="callback-consult", diagnostic_session_id="123")
+
+
+def test_adapter_accepts_state_aware_menu_callback() -> None:
+    callback = adapt_telegram_lead_payload(
+        {"callback_query": {"id": "callback-menu", "from": {"id": 900001}, "message": {"chat": {"type": "private"}}, "data": "menu:show:00000000-0000-0000-0000-000000000001"}}
+    )
+    assert callback == LifecycleCallback(
+        telegram_user_id="900001",
+        callback_query_id="callback-menu",
+        action="menu:show",
+        entity_id="00000000-0000-0000-0000-000000000001",
+    )

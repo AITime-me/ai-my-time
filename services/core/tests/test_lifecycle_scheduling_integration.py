@@ -10,6 +10,7 @@ from app.db.session import create_session_factory, session_scope
 from app.models import ConsultationRequest, DiagnosticSession, OutboundMessage, ScheduledEvent, User
 from app.services.consultation_lifecycle import ConsultationLifecycleService
 from app.services.scheduled_events import ScheduledEventService
+from app.core.timezones import format_moscow
 
 
 def _url() -> str: return os.environ.get("AI_MY_TIME_TEST_DATABASE_URL", "postgresql+asyncpg:///ai_my_time_test")
@@ -37,9 +38,13 @@ async def _run_lifecycle() -> None:
             diagnostic = DiagnosticSession(user_id=user.id, status="diagnostic_completed", input_snapshot_json={}); session.add(diagnostic); await session.flush()
             request = ConsultationRequest(user_id=user.id, diagnostic_session_id=diagnostic.id, status="new"); session.add(request); await session.flush()
             lifecycle = ConsultationLifecycleService(session)
-            appointment = datetime.now(timezone.utc) + timedelta(days=2)
+            appointment = datetime(2026, 9, 1, 9, 0, tzinfo=timezone.utc)
             await lifecycle.schedule_appointment(request, appointment_at=appointment)
             assert request.status == "scheduled" and request.confirmation_state == "pending"
+            notice = await session.scalar(select(OutboundMessage).where(OutboundMessage.dedupe_key.like(f"appointment:{request.id}%notice")))
+            assert notice is not None
+            assert format_moscow(appointment) == "01.09.2026 12:00 МСК"
+            assert "01.09.2026 12:00 МСК" in str(notice.payload_json["text"])
             events = list((await session.scalars(select(ScheduledEvent).where(ScheduledEvent.consultation_request_id == request.id))).all())
             assert {event.event_type for event in events} == {"appointment_t24", "appointment_t1", "appointment_auto_cancel"}
             assert len((await session.scalars(select(OutboundMessage))).all()) == 1
@@ -52,6 +57,7 @@ async def _run_lifecycle() -> None:
             messages = list((await session.scalars(select(OutboundMessage))).all())
             assert len([m for m in messages if m.dedupe_key.endswith("thank-you")]) == 1
             assert request.status == "completed"
+            assert user.lifecycle_stage == "consultation_completed"
             assert user.communication_status == "subscribed"
     finally: await factory.kw["bind"].dispose()
 
