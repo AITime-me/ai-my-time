@@ -352,8 +352,10 @@ async def _cta_counts(database_url: str, diagnostic_id: str) -> tuple[int, int, 
             )
             return events, confirmations, bool(
                 confirmation
-                and "Повторно нажимать кнопку не нужно" in str(confirmation.get("text"))
-                and not confirmation.get("buttons")
+                and confirmation.get("text")
+                == "Заявка на консультацию принята. Эксперт AI My Time свяжется с вами в Telegram в рабочее время — с 08:00 до 18:00 по Москве."
+                and confirmation.get("buttons")
+                == [{"text": "Что можно сделать?", "callback_data": f"menu:show:{diagnostic_id}"}]
             )
     finally:
         await factory.kw["bind"].dispose()
