@@ -1,5 +1,6 @@
 from app.schemas.diagnostic_result_v2 import DiagnosticResultV2
 from app.services.diagnostic_dialogue import _telegram_report
+from app.services.diagnostic_result_rendering import render_telegram_diagnostic_result
 
 
 def test_renderer_uses_client_language_and_hides_optional_ai_block() -> None:
@@ -25,3 +26,4 @@ def test_renderer_uses_client_language_and_hides_optional_ai_block() -> None:
     assert "Где может помочь AI" not in text
     assert "execution_gap" not in text
     assert "role_split" not in text
+    assert render_telegram_diagnostic_result(result) == text

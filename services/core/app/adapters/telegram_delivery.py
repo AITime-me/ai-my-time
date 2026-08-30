@@ -43,11 +43,17 @@ def telegram_send_payload(message: OutboundDelivery) -> dict[str, object]:
                 raise TelegramDeliveryError("invalid Telegram button")
             label = button.get("text")
             callback_data = button.get("callback_data")
-            if not isinstance(label, str) or not label or not isinstance(callback_data, str):
+            url = button.get("url")
+            if not isinstance(label, str) or not label or (callback_data is None and url is None) or (callback_data is not None and url is not None):
                 raise TelegramDeliveryError("invalid Telegram button")
-            if not callback_data or len(callback_data.encode("utf-8")) > _MAX_CALLBACK_BYTES:
-                raise TelegramDeliveryError("invalid Telegram callback data")
-            rows.append([{"text": label, "callback_data": callback_data}])
+            if callback_data is not None:
+                if not isinstance(callback_data, str) or not callback_data or len(callback_data.encode("utf-8")) > _MAX_CALLBACK_BYTES:
+                    raise TelegramDeliveryError("invalid Telegram callback data")
+                rows.append([{"text": label, "callback_data": callback_data}])
+            else:
+                if not isinstance(url, str) or not url.startswith("https://"):
+                    raise TelegramDeliveryError("invalid Telegram button URL")
+                rows.append([{"text": label, "url": url}])
         body["reply_markup"] = {"inline_keyboard": rows}
     return body
 
@@ -143,12 +149,10 @@ class TelegramCallbackAcknowledger:
         self._url = f"https://api.telegram.org/bot{token}/answerCallbackQuery"
         self._sender = sender
 
-    async def acknowledge(self, callback_query_id: str, *, url: str | None = None) -> None:
+    async def acknowledge(self, callback_query_id: str) -> None:
         if not callback_query_id or len(callback_query_id) > 128:
             raise TelegramDeliveryError("invalid Telegram callback query")
         payload: dict[str, str] = {"callback_query_id": callback_query_id, "text": "Нажатие получено"}
-        if url:
-            payload["url"] = url
         body = json.dumps(
             payload,
             ensure_ascii=False,
@@ -175,11 +179,9 @@ class TelegramEdgeCallbackAcknowledger:
         if not edge_url.strip() or not secret.strip(): raise ValueError("Telegram Edge configuration is required")
         self._edge_url, self._secret, self._sender = edge_url, secret, sender
 
-    async def acknowledge(self, callback_query_id: str, *, url: str | None = None) -> None:
+    async def acknowledge(self, callback_query_id: str) -> None:
         if not callback_query_id or len(callback_query_id) > 128: raise TelegramDeliveryError("invalid Telegram callback query")
         payload: dict[str, str] = {"callback_query_id": callback_query_id, "text": "Нажатие получено"}
-        if url:
-            payload["url"] = url
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         response = await asyncio.to_thread(self._sender, self._edge_url, self._secret, "answerCallbackQuery", body)
         if response.get("ok") is not True: raise TelegramDeliveryError("Telegram Edge rejected callback acknowledgement")

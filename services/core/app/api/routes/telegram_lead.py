@@ -33,7 +33,6 @@ from app.services.consultation_lifecycle import ConsultationLifecycleService
 from app.services.outbox import OutboundQueue
 from app.adapters.yandex_diagnostic import build_diagnostic_provider
 from app.adapters.telegram_delivery import TelegramCallbackAcknowledger, TelegramDeliveryError, TelegramEdgeCallbackAcknowledger
-from app.core.telegram_channel import channel_url
 from app.core.timezones import format_moscow
 
 router = APIRouter(tags=["telegram-lead"])
@@ -60,8 +59,7 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
         # Acknowledge the button before any database/provider work so Telegram
         # closes its spinner immediately.  This is UX-only: a transient Bot API
         # failure must never discard a durable profile answer or CTA request.
-        url = channel_url() if isinstance(update, LifecycleCallback) and update.action == "diagnostic:channel" else None
-        await _acknowledge_callback(request, update.callback_query_id, url=url)
+        await _acknowledge_callback(request, update.callback_query_id)
 
     factory = get_session_factory(request)
     async with session_scope(factory) as session:
@@ -135,7 +133,7 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                 await lifecycle.replay_result(user_id=user_id, diagnostic_id=entity_id)
             elif update.action == "diagnostic:repeat":
                 user.lifecycle_stage = f"repeat_task_input:{entity_id}"
-                await OutboundQueue(session).enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":"Коротко опишите, что сейчас хочется изменить или наладить в работе бизнеса. Достаточно 1–2 предложений — задача будет передана эксперту AI My Time.","buttons":[]}, dedupe_key=f"diagnostic:{entity_id}:repeat-prompt")
+                await OutboundQueue(session).enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":"Коротко опишите, что сейчас хочется изменить или наладить в работе бизнеса. Достаточно 1–2 предложений — задача будет передана эксперту AI My Time.","buttons":[]}, dedupe_key=f"diagnostic:{entity_id}:repeat-prompt:{uuid.uuid4()}")
             elif update.action == "diagnostic:channel":
                 session.add(Event(user_id=user_id, kind="channel_clicked", payload_json={"diagnostic_session_id": str(entity_id)}))
             else:
@@ -151,8 +149,11 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
             if user.lifecycle_stage.startswith("repeat_task_input:"):
                 try: diagnostic_id = uuid.UUID(user.lifecycle_stage.split(":", 1)[1])
                 except ValueError: return Response(status_code=204)
-                await ConsultationLifecycleService(session).create_repeat(user_id=user_id, diagnostic_id=diagnostic_id, text=update.text)
-                user.lifecycle_stage = "consultation_requested"
+                request = await ConsultationLifecycleService(session).create_repeat(user_id=user_id, diagnostic_id=diagnostic_id, text=update.text)
+                if request is not None:
+                    user.lifecycle_stage = "consultation_requested"
+                else:
+                    await OutboundQueue(session).enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":"У вас уже есть активная заявка на разбор. Эксперт AI My Time свяжется с вами в Telegram в рабочее время.","buttons":[]}, dedupe_key=f"repeat-consultation:{diagnostic_id}:active-guard")
                 return Response(status_code=204)
             await DiagnosticDialogueService(session, _diagnostic_provider(request)).receive(user_id=user_id, text=update.text)
             return Response(status_code=204)
@@ -246,7 +247,7 @@ def _diagnostic_provider(request: Request):
         return None
 
 
-async def _acknowledge_callback(request: Request, callback_query_id: str, *, url: str | None = None) -> None:
+async def _acknowledge_callback(request: Request, callback_query_id: str) -> None:
     factory = getattr(request.app.state, "telegram_callback_acknowledger_factory", None)
     settings = request.app.state.settings
     token = settings.telegram_bot_token
@@ -258,9 +259,6 @@ async def _acknowledge_callback(request: Request, callback_query_id: str, *, url
         return
     try:
         acknowledger = factory() if factory is not None else (TelegramEdgeCallbackAcknowledger(edge_url=settings.telegram_edge_url or "", secret=settings.telegram_edge_core_secret or "") if settings.telegram_transport_mode == "edge" else TelegramCallbackAcknowledger(token=token or ""))
-        if url:
-            await acknowledger.acknowledge(callback_query_id, url=url)
-        else:
-            await acknowledger.acknowledge(callback_query_id)
+        await acknowledger.acknowledge(callback_query_id)
     except (TelegramDeliveryError, ValueError, OSError):
         _LOG.warning("Telegram callback acknowledgement failed")

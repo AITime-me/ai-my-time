@@ -19,13 +19,8 @@ from app.services.outbox import OutboundQueue
 from app.services.consultation_lifecycle import ConsultationLifecycleService
 from app.services.scheduled_events import ScheduledEventService
 from app.core.telegram_channel import channel_callback_button
+from app.services.diagnostic_result_rendering import CTA_TEXT, render_telegram_diagnostic_result
 
-CTA_TEXT = (
-    "По вашим ответам уже видно направление, но точное решение зависит от того, "
-    "как сейчас проходят обращения между каналами, сотрудниками и системами. "
-    "На онлайн-консультации эксперт AI My Time разберёт этот процесс подробнее и поможет "
-    "определить, что имеет смысл автоматизировать в первую очередь."
-)
 PRICE_REPLY = load_diagnostic_prompt_bundle().price_reply
 CONSULTATION_CONFIRMATION = (
     "Заявка на консультацию принята. Эксперт AI My Time свяжется с вами в Telegram "
@@ -236,20 +231,4 @@ class DiagnosticDialogueService:
 
 
 def _telegram_report(report: DiagnosticResultV2) -> str:
-    """Client view contains no internal v2 names and tolerates optional AI/questions."""
-    view = report.client_view
-    blocks = [
-        "Первичный разбор готов.",
-        f"Что сейчас происходит\n{view.what_is_happening}",
-        f"Где теряется результат\n{view.where_result_is_lost}",
-        f"Как это может работать\n{view.future_process}",
-        "Что может взять на себя система\n" + "\n".join(f"• {item}" for item in view.system_responsibilities),
-    ]
-    if view.ai_responsibilities:
-        blocks.append("Где может помочь AI\n" + "\n".join(f"• {item}" for item in view.ai_responsibilities))
-    blocks.append("Что останется человеку\n" + "\n".join(f"• {item}" for item in view.human_responsibilities))
-    if view.open_questions:
-        blocks.append("Что ещё важно понять\n" + "\n".join(f"• {item}" for item in view.open_questions))
-    return (
-        "\n\n".join(blocks) + "\n\n" + CTA_TEXT
-    )
+    return render_telegram_diagnostic_result(report)

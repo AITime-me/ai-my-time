@@ -378,7 +378,6 @@ class ConsultationRequest(Timestamped, Base):
 
     __tablename__ = "consultation_requests"
     __table_args__ = (
-        UniqueConstraint("diagnostic_session_id", name="uq_consultation_requests_diagnostic_session"),
         Index("ix_consultation_requests_status_created", "status", "created_at"),
         Index("ix_consultation_requests_user_created", "user_id", "created_at"),
     )

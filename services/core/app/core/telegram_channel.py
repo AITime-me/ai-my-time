@@ -13,5 +13,6 @@ def channel_url() -> str:
     return value
 
 
-def channel_callback_button(diagnostic_id: object) -> dict[str, str] | None:
-    return {"text": "Перейти в Telegram-канал", "callback_data": f"diagnostic:channel:{diagnostic_id}"}
+def channel_callback_button(_diagnostic_id: object) -> dict[str, str] | None:
+    """Native inline URL button; Telegram opens the public channel directly."""
+    return {"text": "Перейти в Telegram-канал", "url": channel_url()}

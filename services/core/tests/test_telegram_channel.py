@@ -11,12 +11,12 @@ def _clear_settings_cache():
     get_settings.cache_clear()
 
 
-def test_channel_callback_uses_public_channel_default(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_channel_button_uses_public_channel_default(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("TELEGRAM_CHANNEL_URL", raising=False)
     assert channel_url() == "https://t.me/AIautomationsales"
     assert channel_callback_button("session") == {
         "text": "Перейти в Telegram-канал",
-        "callback_data": "diagnostic:channel:session",
+        "url": "https://t.me/AIautomationsales",
     }
 
 
@@ -26,7 +26,7 @@ def test_channel_callback_uses_configured_tme_url(monkeypatch: pytest.MonkeyPatc
     assert channel_url() == "https://t.me/AIautomationsales"
     assert channel_callback_button("session") == {
         "text": "Перейти в Telegram-канал",
-        "callback_data": "diagnostic:channel:session",
+        "url": "https://t.me/AIautomationsales",
     }
 
 

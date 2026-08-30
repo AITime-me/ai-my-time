@@ -7,7 +7,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, text
 
 from app.db.session import create_session_factory, session_scope
-from app.models import ConsultationRequest, DiagnosticSession, OutboundMessage, ScheduledEvent, User
+from app.models import ConsultationRequest, DiagnosticReport, DiagnosticSession, OutboundMessage, ScheduledEvent, User
+from app.schemas.diagnostic_result_v2 import DiagnosticResultV2
 from app.services.consultation_lifecycle import ConsultationLifecycleService
 from app.services.scheduled_events import ScheduledEventService
 from app.core.timezones import format_moscow
@@ -66,6 +67,64 @@ def test_followup_is_rescheduled_once_and_cancelled() -> None:
     asyncio.run(_clean())
     asyncio.run(_run_followup())
     asyncio.run(_clean())
+
+
+def test_saved_result_replay_and_repeat_task_create_a_distinct_admin_request() -> None:
+    asyncio.run(_clean())
+    asyncio.run(_run_saved_result_and_repeat())
+    asyncio.run(_clean())
+
+
+async def _run_saved_result_and_repeat() -> None:
+    factory = create_session_factory(_url())
+    try:
+        async with session_scope(factory) as session:
+            user = User(lifecycle_stage="diagnostic_ready"); session.add(user); await session.flush()
+            diagnostic = DiagnosticSession(user_id=user.id, status="diagnostic_completed", input_snapshot_json={}); session.add(diagnostic); await session.flush()
+            result = DiagnosticResultV2.model_validate({
+                "contract_version": "v2",
+                "evidence": {"facts": ["Заявки фиксируются вручную"]},
+                "mechanism": "Нет единого следующего шага.",
+                "problem_types": ["execution_gap"],
+                "problem_scale": "process",
+                "solution_class_id": "lead_intake_contour",
+                "client_view": {
+                    "what_is_happening": "Заявки ведутся вручную.",
+                    "where_result_is_lost": "Следующий шаг теряется.",
+                    "future_process": "Система фиксирует следующий шаг.",
+                    "system_responsibilities": ["Фиксировать следующий шаг"],
+                    "human_responsibilities": ["Вести нестандартные переговоры"],
+                    "open_questions": ["Уточнить роли"],
+                },
+            })
+            session.add(DiagnosticReport(
+                diagnostic_session_id=diagnostic.id,
+                summary=result.client_view.what_is_happening,
+                priorities_json=[], next_steps_json=[], limitations_json=[], role_split_json={},
+                result_version="v2", result_json=result.model_dump(mode="json"),
+            ))
+            await session.flush()
+            session.add(ConsultationRequest(
+                user_id=user.id,
+                diagnostic_session_id=diagnostic.id,
+                status="completed",
+                origin_type="primary_diagnostic",
+            ))
+            await session.flush()
+            lifecycle = ConsultationLifecycleService(session)
+            assert await lifecycle.replay_result(user_id=user.id, diagnostic_id=diagnostic.id)
+            replay = await session.scalar(select(OutboundMessage.payload_json).where(OutboundMessage.dedupe_key == f"diagnostic:{diagnostic.id}:result-replay"))
+            assert replay is not None
+            for section in ("Что сейчас происходит", "Где теряется результат", "Как это может работать", "Что может взять на себя система", "Что останется человеку", "Что ещё важно понять"):
+                assert section in str(replay["text"])
+            repeat = await lifecycle.create_repeat(user_id=user.id, diagnostic_id=diagnostic.id, text="Нужно наладить передачу заявок")
+            assert repeat is not None
+            assert repeat.origin_type == "repeat_task"
+            assert repeat.repeat_task_text == "Нужно наладить передачу заявок"
+            assert await session.scalar(select(ConsultationRequest).where(ConsultationRequest.id == repeat.id)) is repeat
+            assert len((await session.scalars(select(ConsultationRequest).where(ConsultationRequest.diagnostic_session_id == diagnostic.id))).all()) == 2
+    finally:
+        await factory.kw["bind"].dispose()
 
 
 async def _run_followup() -> None:

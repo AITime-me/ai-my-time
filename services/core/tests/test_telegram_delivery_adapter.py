@@ -74,19 +74,19 @@ def test_callback_acknowledger_sends_immediate_non_business_feedback() -> None:
     ]
 
 
-def test_callback_acknowledger_can_open_the_configured_channel() -> None:
-    calls: list[tuple[str, dict[str, object]]] = []
-
-    def sender(url: str, body: bytes) -> dict[str, object]:
-        calls.append((url, json.loads(body)))
-        return {"ok": True, "result": True}
-
-    asyncio.run(
-        TelegramCallbackAcknowledger(token="test-token", sender=sender).acknowledge(
-            "callback-1", url="https://t.me/aimytime"
-        )
+def test_telegram_payload_supports_a_native_inline_url_button() -> None:
+    payload = _delivery()
+    payload = payload.__class__(
+        message_id=payload.message_id,
+        user_id=payload.user_id,
+        channel=payload.channel,
+        recipient_id=payload.recipient_id,
+        payload={"kind": "message", "text": "Канал", "buttons": [{"text": "Перейти в Telegram-канал", "url": "https://t.me/AIautomationsales"}]},
+        lease_token=payload.lease_token,
     )
-    assert calls[0][1]["url"] == "https://t.me/aimytime"
+    assert telegram_send_payload(payload)["reply_markup"] == {
+        "inline_keyboard": [[{"text": "Перейти в Telegram-канал", "url": "https://t.me/AIautomationsales"}]]
+    }
 
 
 def test_edge_transport_uses_only_allowlisted_edge_operation() -> None:

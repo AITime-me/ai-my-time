@@ -12,6 +12,11 @@ from app.core.timezones import format_moscow
 from app.services.outbox import OutboundQueue
 from app.services.scheduled_events import ScheduledEventService, _appointment_buttons
 from app.core.telegram_channel import channel_callback_button
+from app.schemas.diagnostic_result_v2 import DiagnosticResultV2
+from app.services.diagnostic_result_rendering import (
+    render_legacy_telegram_diagnostic_result,
+    render_telegram_diagnostic_result,
+)
 
 ACTIVE = {"new", "waiting_response", "scheduled"}
 TERMINAL = {"completed", "cancelled", "no_show"}
@@ -28,7 +33,12 @@ class ConsultationLifecycleService:
         ).order_by(ConsultationRequest.created_at.desc()).limit(1))
 
     async def create_repeat(self, *, user_id: uuid.UUID, diagnostic_id: uuid.UUID, text: str) -> ConsultationRequest | None:
-        if await self.active(user_id): return None
+        diagnostic = await self._session.scalar(
+            select(DiagnosticSession).where(DiagnosticSession.id == diagnostic_id).with_for_update()
+        )
+        if diagnostic is None or diagnostic.user_id != user_id or diagnostic.status != "diagnostic_completed":
+            return None
+        if not text.strip() or await self.active(user_id): return None
         request = ConsultationRequest(user_id=user_id, diagnostic_session_id=diagnostic_id, status="new", origin_type="repeat_task", repeat_task_text=text.strip())
         self._session.add(request); await self._session.flush()
         self._session.add(Event(user_id=user_id, kind="repeat_consultation_requested", payload_json={"consultation_request_id":str(request.id)}))
@@ -100,5 +110,18 @@ class ConsultationLifecycleService:
     async def replay_result(self, *, user_id: uuid.UUID, diagnostic_id: uuid.UUID) -> bool:
         report = await self._session.scalar(select(DiagnosticReport).join(DiagnosticSession).where(DiagnosticReport.diagnostic_session_id==diagnostic_id, DiagnosticSession.user_id==user_id))
         if report is None: return False
-        await self._outbox.enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":report.summary,"buttons":[]}, dedupe_key=f"diagnostic:{diagnostic_id}:result-replay")
+        if report.result_version == "v2":
+            try:
+                text = render_telegram_diagnostic_result(DiagnosticResultV2.model_validate(report.result_json))
+            except ValueError:
+                return False
+        else:
+            text = render_legacy_telegram_diagnostic_result(
+                summary=report.summary,
+                priorities=report.priorities_json,
+                next_steps=report.next_steps_json,
+                role_split=report.role_split_json,
+                limitations=report.limitations_json,
+            )
+        await self._outbox.enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":text,"buttons":[]}, dedupe_key=f"diagnostic:{diagnostic_id}:result-replay")
         return True
