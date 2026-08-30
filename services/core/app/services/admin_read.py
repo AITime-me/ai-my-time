@@ -178,9 +178,9 @@ class AdminLeadReadService:
         if status:
             statement = statement.where(ConsultationRequest.status == status)
         elif history:
-            statement = statement.where(ConsultationRequest.status.in_(("completed", "cancelled")))
+            statement = statement.where(ConsultationRequest.status.in_(("completed", "cancelled", "no_show")))
         else:
-            statement = statement.where(ConsultationRequest.status.in_(("new", "in_progress")))
+            statement = statement.where(ConsultationRequest.status.in_(("new", "waiting_response", "scheduled")))
         statement = statement.order_by(desc(ConsultationRequest.created_at)).offset(offset).limit(limit)
         rows = (await self._session.scalars(statement)).all()
         return AdminConsultationList(items=[await self._consultation_view(row) for row in rows], limit=limit, offset=offset)
@@ -279,6 +279,12 @@ class AdminLeadReadService:
             created_at=request.created_at,
             diagnostic_summary=report.summary if report else None,
             source=touchpoint.source_code if touchpoint else None,
+            appointment_at=request.appointment_at,
+            confirmation_state=request.confirmation_state,
+            confirmation_source=request.confirmation_source,
+            commercial_result=request.commercial_result,
+            origin_type=request.origin_type,
+            repeat_task_text=request.repeat_task_text,
             person=await self._person_contact(request.user_id),
         )
 

@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     database_url: str | None = None
     telegram_bot_token: str | None = None
     telegram_lead_webhook_secret: str | None = None
+    telegram_ops_bot_token_path: str | None = None
+    telegram_ops_chat_id: str | None = None
     diagnostic_provider: Literal["disabled", "yandex_nonprod", "yandex_production"] = "disabled"
     diagnostic_prompt_version: str = "v1"
     yandex_nonprod_folder_id: str | None = None

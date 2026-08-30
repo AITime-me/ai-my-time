@@ -17,6 +17,8 @@ from app.schemas.admin import (
     AdminLeadList,
     AdminPersonDetail,
     AdminStatusUpdate,
+    AdminAppointmentUpdate,
+    AdminCommercialResultUpdate,
 )
 from app.services.admin_actions import AdminActionService
 from app.services.admin_read import AdminLeadReadService
@@ -154,6 +156,36 @@ async def update_consultation(request_id: uuid.UUID, payload: AdminStatusUpdate,
         if changed is None:
             raise HTTPException(status_code=404, detail="consultation not found")
         return await AdminLeadReadService(session).consultations()
+
+
+@router.post("/consultations/{request_id}/appointment", response_model=AdminConsultationList)
+async def schedule_consultation(request_id: uuid.UUID, payload: AdminAppointmentUpdate, request: Request) -> AdminConsultationList:
+    actor = await current_actor(request)
+    async with session_scope(get_session_factory(request)) as session:
+        try:
+            changed = await AdminActionService(session).schedule_consultation(actor_id=actor.user_id, request_id=request_id, appointment_at=payload.appointment_at, owner_confirm=payload.owner_confirm)
+        except ValueError as error: raise HTTPException(status_code=422, detail=str(error)) from None
+        if changed is None: raise HTTPException(status_code=404, detail="consultation not found")
+        return await AdminLeadReadService(session).consultations()
+
+
+@router.post("/consultations/{request_id}/owner-confirm", response_model=AdminConsultationList)
+async def owner_confirm_consultation(request_id: uuid.UUID, request: Request) -> AdminConsultationList:
+    actor = await current_actor(request)
+    async with session_scope(get_session_factory(request)) as session:
+        changed = await AdminActionService(session).owner_confirm_consultation(actor_id=actor.user_id, request_id=request_id)
+        if changed is None: raise HTTPException(status_code=404, detail="consultation not found")
+        return await AdminLeadReadService(session).consultations()
+
+
+@router.patch("/consultations/{request_id}/commercial-result", response_model=AdminConsultationList)
+async def commercial_result(request_id: uuid.UUID, payload: AdminCommercialResultUpdate, request: Request) -> AdminConsultationList:
+    actor = await current_actor(request)
+    async with session_scope(get_session_factory(request)) as session:
+        try: changed = await AdminActionService(session).set_commercial_result(actor_id=actor.user_id, request_id=request_id, commercial_result=payload.commercial_result)
+        except ValueError as error: raise HTTPException(status_code=422, detail=str(error)) from None
+        if changed is None: raise HTTPException(status_code=404, detail="consultation not found")
+        return await AdminLeadReadService(session).consultations(history=True)
 
 
 @router.patch("/attention/{item_id}", response_model=AdminAttentionList)

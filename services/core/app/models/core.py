@@ -391,6 +391,14 @@ class ConsultationRequest(Timestamped, Base):
         UUID(as_uuid=True), ForeignKey("diagnostic_sessions.id", ondelete="RESTRICT"), nullable=False
     )
     status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="new")
+    appointment_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    confirmation_state: Mapped[str] = mapped_column(String(24), nullable=False, server_default="pending")
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    confirmation_source: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    commercial_result: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    origin_type: Mapped[str] = mapped_column(String(32), nullable=False, server_default="primary_diagnostic")
+    repeat_task_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reschedule_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -424,6 +432,37 @@ class AttentionItem(Timestamped, Base):
     priority: Mapped[str] = mapped_column(String(24), nullable=False, server_default="normal")
     status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="new")
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ScheduledEvent(Base):
+    """Durable business scheduler, separate from outbound transport retries."""
+
+    __tablename__ = "scheduled_events"
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_scheduled_events_idempotency_key"),
+        Index("ix_scheduled_events_status_due", "status", "due_at"),
+        Index("ix_scheduled_events_consultation_status", "consultation_request_id", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    consultation_request_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("consultation_requests.id", ondelete="RESTRICT"), nullable=True
+    )
+    diagnostic_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("diagnostic_sessions.id", ondelete="RESTRICT"), nullable=True
+    )
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    payload_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    idempotency_key: Mapped[str] = mapped_column(String(180), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="pending")
+    lease_token: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    fired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 class AdminAuditEvent(Base):

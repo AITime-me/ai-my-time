@@ -10,8 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import AdminAuditEvent, AttentionItem, ConsultationRequest, User, UserIdentity
 from app.services.outbox import OutboundQueue
+from app.services.consultation_lifecycle import ConsultationLifecycleService
 
-_CONSULTATION_STATUSES = {"new", "in_progress", "completed", "cancelled"}
+_CONSULTATION_STATUSES = {"new", "in_progress", "waiting_response", "completed", "cancelled", "no_show"}
 _ATTENTION_STATUSES = {"new", "in_progress", "resolved"}
 _MARKETING_CONSENT_STATUSES = {"unknown", "confirmed", "revoked"}
 
@@ -28,9 +29,14 @@ class AdminActionService:
         request = await self._session.get(ConsultationRequest, request_id)
         if request is None:
             return None
+        if status == "in_progress":
+            status = "waiting_response"
         before = request.status
         if before != status:
-            request.status = status
+            if status in {"completed", "cancelled", "no_show"}:
+                request = await ConsultationLifecycleService(self._session).complete(request, status=status)
+            else:
+                request.status = status
             self._session.add(
                 AdminAuditEvent(
                     actor_id=actor_id,
@@ -47,9 +53,10 @@ class AdminActionService:
                 attention_before = attention.status
                 attention_after = {
                     "new": "new",
-                    "in_progress": "in_progress",
+                    "waiting_response": "in_progress",
                     "completed": "resolved",
                     "cancelled": "resolved",
+                    "no_show": "resolved",
                 }[status]
                 if attention_before != attention_after:
                     attention.status = attention_after
@@ -68,6 +75,30 @@ class AdminActionService:
                             },
                         )
                     )
+        return request
+
+    async def schedule_consultation(self, *, actor_id: uuid.UUID, request_id: uuid.UUID, appointment_at, owner_confirm: bool) -> ConsultationRequest | None:
+        request = await self._session.get(ConsultationRequest, request_id)
+        if request is None: return None
+        before = request.status
+        request = await ConsultationLifecycleService(self._session).schedule_appointment(request, appointment_at=appointment_at, owner_confirm=owner_confirm)
+        self._session.add(AdminAuditEvent(actor_id=actor_id, action="consultation.scheduled", object_type="consultation_request", object_id=request.id, delta_json={"before":before,"appointment_at":appointment_at.isoformat()}))
+        return request
+
+    async def owner_confirm_consultation(self, *, actor_id: uuid.UUID, request_id: uuid.UUID) -> ConsultationRequest | None:
+        request = await self._session.get(ConsultationRequest, request_id)
+        if request is None: return None
+        request = await ConsultationLifecycleService(self._session).confirm(request, source="owner")
+        self._session.add(AdminAuditEvent(actor_id=actor_id, action="consultation.owner_confirmed", object_type="consultation_request", object_id=request.id, delta_json={}))
+        return request
+
+    async def set_commercial_result(self, *, actor_id: uuid.UUID, request_id: uuid.UUID, commercial_result: str) -> ConsultationRequest | None:
+        if commercial_result not in {"purchased", "not_purchased", "decision_pending"}: raise ValueError("unsupported commercial result")
+        request = await self._session.get(ConsultationRequest, request_id)
+        if request is None: return None
+        if request.status != "completed": raise ValueError("commercial result requires completed consultation")
+        request.commercial_result = commercial_result
+        self._session.add(AdminAuditEvent(actor_id=actor_id, action="consultation.commercial_result_changed", object_type="consultation_request", object_id=request.id, delta_json={"commercial_result":commercial_result}))
         return request
 
     async def set_attention_status(

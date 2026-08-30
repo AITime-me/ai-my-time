@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +16,8 @@ from app.schemas.diagnostic_result_v2 import DiagnosticResultV2
 from app.services.diagnostic_generation import DiagnosticConversationInput, DiagnosticConversationProvider
 from app.services.diagnostic_report import DiagnosticReportService
 from app.services.outbox import OutboundQueue
+from app.services.consultation_lifecycle import ConsultationLifecycleService
+from app.services.scheduled_events import ScheduledEventService
 
 CTA_TEXT = (
     "По вашим ответам уже видно направление, но точное решение зависит от того, "
@@ -48,6 +51,7 @@ class DiagnosticDialogueService:
         diagnostic = await self._session.get(DiagnosticSession, diagnostic_session_id)
         if diagnostic is None or diagnostic.status not in {"prepared", "diagnostic_active"}:
             return False
+        await ScheduledEventService(self._session).touch_followup(user_id=diagnostic.user_id, diagnostic_id=diagnostic.id, due_at=datetime.now(timezone.utc) + timedelta(hours=24))
         if self._provider is None:
             await self._pause(diagnostic)
             return False
@@ -81,6 +85,7 @@ class DiagnosticDialogueService:
                 await self._message(completed, CTA_TEXT, "completed:info", _cta_button(completed.id))
                 return True
             return False
+        await ScheduledEventService(self._session).touch_followup(user_id=user_id, diagnostic_id=diagnostic.id, due_at=datetime.now(timezone.utc) + timedelta(hours=24))
         cleaned = text.strip()
         if not cleaned:
             return True
@@ -127,6 +132,13 @@ class DiagnosticDialogueService:
             return False
         user = await self._session.get(User, user_id)
         assert user is not None
+        active = await ConsultationLifecycleService(self._session).active(user_id)
+        if active is not None:
+            text = (f"У вас уже назначена консультация на {active.appointment_at.astimezone().strftime('%d.%m %H:%M')}."
+                    if active.status == "scheduled" and active.appointment_at else
+                    "У вас уже есть активная заявка на разбор. Эксперт AI My Time свяжется с вами в Telegram в рабочее время.")
+            await self._outbox.enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":text,"buttons":[]}, dedupe_key=f"consultation:{active.id}:active-guard")
+            return True
         existing = await self._session.scalar(
             select(ConsultationRequest).where(
                 ConsultationRequest.diagnostic_session_id == diagnostic.id
@@ -208,6 +220,7 @@ class DiagnosticDialogueService:
     async def _complete(self, diagnostic: DiagnosticSession, generated: DiagnosticResultV2) -> None:
         command = RecordDiagnosticReportV2Command(diagnostic_session_id=diagnostic.id, result=generated)
         result = await DiagnosticReportService(self._session).record_v2(command)
+        await ScheduledEventService(self._session).cancel_followup(diagnostic.id)
         if result.created:
             await self._message(diagnostic, _telegram_report(generated), "result", _cta_button(diagnostic.id))
 

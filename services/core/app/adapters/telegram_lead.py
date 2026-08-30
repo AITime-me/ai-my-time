@@ -85,8 +85,17 @@ class ConsultationRequest:
     telegram_last_name: str | None = None
     telegram_username: str | None = None
 
+@dataclass(frozen=True)
+class LifecycleCallback:
+    telegram_user_id: str
+    callback_query_id: str
+    action: str
+    entity_id: str
+    telegram_first_name: str | None = None
+    telegram_last_name: str | None = None
+    telegram_username: str | None = None
 
-TelegramLeadInput = StartProfile | ProfileAnswer | DiagnosticText | CommunicationCommand | ConsultationRequest
+TelegramLeadInput = StartProfile | ProfileAnswer | DiagnosticText | CommunicationCommand | ConsultationRequest | LifecycleCallback
 
 
 def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
@@ -147,6 +156,9 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
                 diagnostic_session_id=session_id,
                 **_profile(callback.from_),
             )
+    parts = callback.data.split(":")
+    if len(parts) == 3 and ((parts[0] == "consult" and parts[1] in {"confirm", "reschedule", "cancel", "cancel_yes", "cancel_no"}) or (parts[0] == "diagnostic" and parts[1] in {"resume", "result", "repeat", "channel"})):
+        return LifecycleCallback(telegram_user_id=str(callback.from_.id), callback_query_id=callback.id, action=f"{parts[0]}:{parts[1]}", entity_id=parts[2], **_profile(callback.from_))
     return None
 
 

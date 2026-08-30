@@ -55,6 +55,12 @@ class AdminConsultationView(BaseModel):
     created_at: datetime
     diagnostic_summary: str | None = None
     source: str | None = None
+    appointment_at: datetime | None = None
+    confirmation_state: str = "pending"
+    confirmation_source: str | None = None
+    commercial_result: str | None = None
+    origin_type: str = "primary_diagnostic"
+    repeat_task_text: str | None = None
     person: AdminPersonContact
 
 
@@ -109,6 +115,13 @@ class AdminAttentionList(BaseModel):
 
 class AdminStatusUpdate(BaseModel):
     status: str = Field(min_length=2, max_length=24)
+
+class AdminAppointmentUpdate(BaseModel):
+    appointment_at: datetime
+    owner_confirm: bool = False
+
+class AdminCommercialResultUpdate(BaseModel):
+    commercial_result: str = Field(pattern="^(purchased|not_purchased|decision_pending)$")
 
 
 class AdminConsentUpdate(BaseModel):

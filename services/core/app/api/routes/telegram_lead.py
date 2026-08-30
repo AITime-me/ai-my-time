@@ -12,6 +12,7 @@ import uuid
 
 from app.adapters.telegram_lead import (
     ConsultationRequest,
+    LifecycleCallback,
     CommunicationCommand,
     DiagnosticText,
     ProfileAnswer,
@@ -20,13 +21,15 @@ from app.adapters.telegram_lead import (
 )
 from app.db.dependencies import get_session_factory
 from app.db.session import session_scope
-from app.models import User, UserIdentity
+from app.models import ConsultationRequest as ConsultationRequestModel, DiagnosticSession, Event, User, UserIdentity
 from app.schemas.conference import ConferenceStartCommand
 from app.services.conference_intake import ConferenceIntakeService
 from app.services.lead_profile_flow import LeadProfileFlow
 from app.services.diagnostic_acceptance import DiagnosticAcceptanceService, is_acceptance_start
 from app.services.diagnostic_dialogue import DiagnosticDialogueService
 from app.services.communication import CommunicationConsentService
+from app.services.consultation_lifecycle import ConsultationLifecycleService
+from app.services.outbox import OutboundQueue
 from app.adapters.yandex_diagnostic import build_diagnostic_provider
 from app.adapters.telegram_delivery import TelegramCallbackAcknowledger, TelegramDeliveryError
 
@@ -48,7 +51,7 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
     if update is None:
         return Response(status_code=204)
 
-    if isinstance(update, (ProfileAnswer, ConsultationRequest)):
+    if isinstance(update, (ProfileAnswer, ConsultationRequest, LifecycleCallback)):
         # Acknowledge the button before any database/provider work so Telegram
         # closes its spinner immediately.  This is UX-only: a transient Bot API
         # failure must never discard a durable profile answer or CTA request.
@@ -84,7 +87,14 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                     telegram_username=update.telegram_username,
                 )
             )
-            await LeadProfileFlow(session).start(user_id=entry.user_id)
+            completed = await session.scalar(select(DiagnosticSession).where(DiagnosticSession.user_id == entry.user_id, DiagnosticSession.status == "diagnostic_completed").limit(1))
+            active = await session.scalar(select(DiagnosticSession).where(DiagnosticSession.user_id == entry.user_id, DiagnosticSession.status.in_(("prepared", "diagnostic_active"))).limit(1))
+            if active is not None:
+                await OutboundQueue(session).enqueue(user_id=entry.user_id, channel="telegram_lead", payload={"kind":"message","text":"Диагностика ещё не завершена.","buttons":[{"text":"Продолжить диагностику","callback_data":f"diagnostic:resume:{active.id}"}]}, dedupe_key=f"diagnostic:{active.id}:resume-cta")
+            elif completed is not None:
+                await ConsultationLifecycleService(session).bridge(user_id=entry.user_id)
+            else:
+                await LeadProfileFlow(session).start(user_id=entry.user_id)
             return Response(status_code=204)
 
         user_id = await session.scalar(
@@ -100,7 +110,35 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
         if user is None:
             return Response(status_code=204)
         _apply_telegram_profile(user, update)
+        if isinstance(update, LifecycleCallback):
+            try: entity_id = uuid.UUID(update.entity_id)
+            except ValueError: return Response(status_code=204)
+            lifecycle = ConsultationLifecycleService(session)
+            if update.action == "diagnostic:resume":
+                await DiagnosticDialogueService(session, _diagnostic_provider(request)).open(diagnostic_session_id=entity_id)
+            elif update.action == "diagnostic:result":
+                await lifecycle.replay_result(user_id=user_id, diagnostic_id=entity_id)
+            elif update.action == "diagnostic:repeat":
+                user.lifecycle_stage = f"repeat_task_input:{entity_id}"
+                await OutboundQueue(session).enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":"Коротко опишите, что сейчас хочется изменить или наладить в работе бизнеса. Достаточно 1–2 предложений — задача будет передана эксперту AI My Time.","buttons":[]}, dedupe_key=f"diagnostic:{entity_id}:repeat-prompt")
+            elif update.action == "diagnostic:channel":
+                session.add(Event(user_id=user_id, kind="channel_clicked", payload_json={"diagnostic_session_id": str(entity_id)}))
+            else:
+                request_row = await session.get(ConsultationRequestModel, entity_id)
+                if request_row is not None and request_row.user_id == user_id:
+                    if update.action == "consult:confirm": await lifecycle.confirm(request_row, source="client")
+                    elif update.action == "consult:reschedule": await lifecycle.reschedule_requested(request_row)
+                    elif update.action == "consult:cancel":
+                        await OutboundQueue(session).enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":"Точно отменить консультацию?","buttons":[{"text":"Да, отменить","callback_data":f"consult:cancel_yes:{request_row.id}"},{"text":"Нет, оставить","callback_data":f"consult:cancel_no:{request_row.id}"}]}, dedupe_key=f"appointment:{request_row.id}:cancel-confirm")
+                    elif update.action == "consult:cancel_yes": await lifecycle.cancel(request_row)
+            return Response(status_code=204)
         if isinstance(update, DiagnosticText):
+            if user.lifecycle_stage.startswith("repeat_task_input:"):
+                try: diagnostic_id = uuid.UUID(user.lifecycle_stage.split(":", 1)[1])
+                except ValueError: return Response(status_code=204)
+                await ConsultationLifecycleService(session).create_repeat(user_id=user_id, diagnostic_id=diagnostic_id, text=update.text)
+                user.lifecycle_stage = "consultation_requested"
+                return Response(status_code=204)
             await DiagnosticDialogueService(session, _diagnostic_provider(request)).receive(user_id=user_id, text=update.text)
             return Response(status_code=204)
         if isinstance(update, CommunicationCommand):

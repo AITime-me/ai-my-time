@@ -23,6 +23,7 @@ from app.models.core import (
     BroadcastCampaign,
     OutboundMessage,
     OperationalLogEvent,
+    ScheduledEvent,
 )
 
 __all__ = [
@@ -50,4 +51,5 @@ __all__ = [
     "BroadcastCampaign",
     "OutboundMessage",
     "OperationalLogEvent",
+    "ScheduledEvent",
 ]
