@@ -12,6 +12,7 @@ from app.schemas.diagnostic_result_v2 import DiagnosticResultV2
 from app.services.consultation_lifecycle import ConsultationLifecycleService
 from app.services.scheduled_events import ScheduledEventService
 from app.core.timezones import format_moscow
+from app.api.routes.telegram_lead import _show_available_actions
 
 
 def _url() -> str: return os.environ.get("AI_MY_TIME_TEST_DATABASE_URL", "postgresql+asyncpg:///ai_my_time_test")
@@ -112,11 +113,91 @@ async def _run_saved_result_and_repeat() -> None:
             ))
             await session.flush()
             lifecycle = ConsultationLifecycleService(session)
-            assert await lifecycle.replay_result(user_id=user.id, diagnostic_id=diagnostic.id)
-            replay = await session.scalar(select(OutboundMessage.payload_json).where(OutboundMessage.dedupe_key == f"diagnostic:{diagnostic.id}:result-replay"))
+            assert await lifecycle.replay_result(
+                user_id=user.id,
+                diagnostic_id=diagnostic.id,
+                interaction_id="test-result-replay",
+            )
+            replay = await session.scalar(select(OutboundMessage.payload_json).where(OutboundMessage.dedupe_key == f"diagnostic:{diagnostic.id}:result-replay:test-result-replay"))
             assert replay is not None
             for section in ("Что сейчас происходит", "Где теряется результат", "Как это может работать", "Что может взять на себя система", "Что останется человеку", "Что ещё важно понять"):
                 assert section in str(replay["text"])
+            # A new explicit navigation interaction must receive a new response,
+            # while a re-delivery of the same Telegram interaction remains inert.
+            for interaction_id in ("menu-1", "menu-2", "menu-3", "menu-3"):
+                assert await lifecycle.bridge(user_id=user.id, interaction_id=interaction_id)
+            bridges = list(
+                (await session.scalars(
+                    select(OutboundMessage).where(
+                        OutboundMessage.dedupe_key.like(f"diagnostic:{diagnostic.id}:bridge:%")
+                    )
+                )).all()
+            )
+            assert len(bridges) == 3
+            for interaction_id in ("result-1", "result-2", "result-3", "result-3"):
+                assert await lifecycle.replay_result(
+                    user_id=user.id,
+                    diagnostic_id=diagnostic.id,
+                    interaction_id=interaction_id,
+                )
+            replays = list(
+                (await session.scalars(
+                    select(OutboundMessage).where(
+                        OutboundMessage.dedupe_key.like(f"diagnostic:{diagnostic.id}:result-replay:result-%")
+                    )
+                )).all()
+            )
+            assert len(replays) == 3
+            scheduled = await session.scalar(
+                select(ConsultationRequest).where(
+                    ConsultationRequest.diagnostic_session_id == diagnostic.id
+                )
+            )
+            assert scheduled is not None
+            scheduled.status = "scheduled"
+            scheduled.appointment_at = datetime.now(timezone.utc) + timedelta(days=1)
+            for interaction_id in ("scheduled-1", "scheduled-2", "scheduled-2"):
+                await _show_available_actions(
+                    session,
+                    user_id=user.id,
+                    lifecycle=lifecycle,
+                    interaction_id=interaction_id,
+                )
+            scheduled_messages = list(
+                (await session.scalars(
+                    select(OutboundMessage).where(
+                        OutboundMessage.dedupe_key.like(f"consultation:{scheduled.id}:menu:scheduled-%")
+                    )
+                )).all()
+            )
+            assert len(scheduled_messages) == 2
+            assert len((await session.scalars(select(ConsultationRequest).where(ConsultationRequest.diagnostic_session_id == diagnostic.id))).all()) == 1
+            active_user = User(lifecycle_stage="diagnostic_in_progress")
+            session.add(active_user)
+            await session.flush()
+            active_diagnostic = DiagnosticSession(
+                user_id=active_user.id,
+                status="diagnostic_active",
+                input_snapshot_json={},
+            )
+            session.add(active_diagnostic)
+            await session.flush()
+            for interaction_id in ("active-1", "active-2", "active-2"):
+                await _show_available_actions(
+                    session,
+                    user_id=active_user.id,
+                    lifecycle=lifecycle,
+                    interaction_id=interaction_id,
+                )
+            active_messages = list(
+                (await session.scalars(
+                    select(OutboundMessage).where(
+                        OutboundMessage.dedupe_key.like(f"diagnostic:{active_diagnostic.id}:menu:active-%")
+                    )
+                )).all()
+            )
+            assert len(active_messages) == 2
+            scheduled.status = "completed"
             repeat = await lifecycle.create_repeat(user_id=user.id, diagnostic_id=diagnostic.id, text="Нужно наладить передачу заявок")
             assert repeat is not None
             assert repeat.origin_type == "repeat_task"

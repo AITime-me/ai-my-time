@@ -95,7 +95,7 @@ class ConsultationLifecycleService:
         if status == "completed": await self._outbox.enqueue(user_id=request.user_id, channel="telegram_lead", payload={"kind":"message","text":THANK_YOU,"buttons":[]}, dedupe_key=f"consultation:{request.id}:thank-you")
         return request
 
-    async def bridge(self, *, user_id: uuid.UUID) -> bool:
+    async def bridge(self, *, user_id: uuid.UUID, interaction_id: str) -> bool:
         diagnostic = await self._session.scalar(select(DiagnosticSession).where(DiagnosticSession.user_id==user_id, DiagnosticSession.status=="diagnostic_completed").order_by(DiagnosticSession.created_at.desc()).limit(1))
         if diagnostic is None or await self.active(user_id): return False
         buttons = [
@@ -104,10 +104,10 @@ class ConsultationLifecycleService:
         ]
         if button := channel_callback_button(diagnostic.id):
             buttons.append(button)
-        await self._outbox.enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message", "text":"Вы уже проходили диагностику AI My Time — её результат сохранён. Если с тех пор появилась другая задача, её можно передать эксперту на разбор.", "buttons":buttons}, dedupe_key=f"diagnostic:{diagnostic.id}:bridge")
+        await self._outbox.enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message", "text":"Вы уже проходили диагностику AI My Time — её результат сохранён. Если с тех пор появилась другая задача, её можно передать эксперту на разбор.", "buttons":buttons}, dedupe_key=f"diagnostic:{diagnostic.id}:bridge:{interaction_id}")
         return True
 
-    async def replay_result(self, *, user_id: uuid.UUID, diagnostic_id: uuid.UUID) -> bool:
+    async def replay_result(self, *, user_id: uuid.UUID, diagnostic_id: uuid.UUID, interaction_id: str) -> bool:
         report = await self._session.scalar(select(DiagnosticReport).join(DiagnosticSession).where(DiagnosticReport.diagnostic_session_id==diagnostic_id, DiagnosticSession.user_id==user_id))
         if report is None: return False
         if report.result_version == "v2":
@@ -123,5 +123,5 @@ class ConsultationLifecycleService:
                 role_split=report.role_split_json,
                 limitations=report.limitations_json,
             )
-        await self._outbox.enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":text,"buttons":[]}, dedupe_key=f"diagnostic:{diagnostic_id}:result-replay")
+        await self._outbox.enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":text,"buttons":[]}, dedupe_key=f"diagnostic:{diagnostic_id}:result-replay:{interaction_id}")
         return True

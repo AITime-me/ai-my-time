@@ -19,6 +19,7 @@ class _Sender(BaseModel):
 
 
 class _Message(BaseModel):
+    message_id: int | None = None
     chat: _Chat
     from_: _Sender | None = Field(default=None, alias="from")
     text: str | None = None
@@ -32,6 +33,7 @@ class _CallbackQuery(BaseModel):
 
 
 class _Update(BaseModel):
+    update_id: int | None = None
     message: _Message | None = None
     callback_query: _CallbackQuery | None = None
 
@@ -40,6 +42,7 @@ class _Update(BaseModel):
 class StartProfile:
     telegram_user_id: str
     entry_code: str
+    interaction_id: str
     telegram_first_name: str | None = None
     telegram_last_name: str | None = None
     telegram_username: str | None = None
@@ -81,6 +84,7 @@ class MenuCommand:
     """The single permanent Telegram commands-menu entrypoint."""
 
     telegram_user_id: str
+    interaction_id: str
     telegram_first_name: str | None = None
     telegram_last_name: str | None = None
     telegram_username: str | None = None
@@ -101,6 +105,7 @@ class LifecycleCallback:
     callback_query_id: str
     action: str
     entity_id: str
+    interaction_id: str
     telegram_first_name: str | None = None
     telegram_last_name: str | None = None
     telegram_username: str | None = None
@@ -130,10 +135,15 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
         entry_code = _start_parameter(message.text)
         if entry_code is not None:
             return StartProfile(
-                telegram_user_id=str(message.from_.id), entry_code=entry_code, **_profile(message.from_)
+                telegram_user_id=str(message.from_.id), entry_code=entry_code,
+                interaction_id=_message_interaction_id(update, message), **_profile(message.from_)
             )
         if _is_menu_command(message.text):
-            return MenuCommand(telegram_user_id=str(message.from_.id), **_profile(message.from_))
+            return MenuCommand(
+                telegram_user_id=str(message.from_.id),
+                interaction_id=_message_interaction_id(update, message),
+                **_profile(message.from_),
+            )
         action = _communication_action(message.text)
         if action is not None:
             return CommunicationCommand(telegram_user_id=str(message.from_.id), action=action, **_profile(message.from_))
@@ -170,7 +180,14 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
             )
     parts = callback.data.split(":")
     if len(parts) == 3 and ((parts[0] == "consult" and parts[1] in {"confirm", "reschedule", "cancel", "cancel_yes", "cancel_no"}) or (parts[0] == "diagnostic" and parts[1] in {"resume", "result", "repeat", "channel"}) or (parts[0] == "menu" and parts[1] == "show")):
-        return LifecycleCallback(telegram_user_id=str(callback.from_.id), callback_query_id=callback.id, action=f"{parts[0]}:{parts[1]}", entity_id=parts[2], **_profile(callback.from_))
+        return LifecycleCallback(
+            telegram_user_id=str(callback.from_.id),
+            callback_query_id=callback.id,
+            action=f"{parts[0]}:{parts[1]}",
+            entity_id=parts[2],
+            interaction_id=_callback_interaction_id(update, callback),
+            **_profile(callback.from_),
+        )
     return None
 
 
@@ -180,6 +197,20 @@ def _profile(sender: _Sender) -> dict[str, str | None]:
         "telegram_last_name": sender.last_name,
         "telegram_username": sender.username,
     }
+
+
+def _message_interaction_id(update: _Update, message: _Message) -> str:
+    if update.update_id is not None:
+        return f"telegram-update:{update.update_id}"
+    if message.message_id is not None:
+        return f"telegram-message:{message.message_id}"
+    raise ValueError("Telegram navigation update is missing an interaction identity")
+
+
+def _callback_interaction_id(update: _Update, callback: _CallbackQuery) -> str:
+    if update.update_id is not None:
+        return f"telegram-update:{update.update_id}"
+    return f"telegram-callback:{callback.id}"
 
 
 def _start_parameter(text: str) -> str | None:

@@ -46,21 +46,29 @@ class DiagnosticDialogueService:
         self._provider = provider
         self._outbox = OutboundQueue(session)
 
-    async def open(self, *, diagnostic_session_id: uuid.UUID) -> bool:
+    async def open(self, *, diagnostic_session_id: uuid.UUID, interaction_id: str | None = None) -> bool:
         diagnostic = await self._session.get(DiagnosticSession, diagnostic_session_id)
         if diagnostic is None or diagnostic.status not in {"prepared", "diagnostic_active"}:
             return False
         await ScheduledEventService(self._session).touch_followup(user_id=diagnostic.user_id, diagnostic_id=diagnostic.id, due_at=datetime.now(timezone.utc) + timedelta(hours=24))
         if self._provider is None:
-            await self._pause(diagnostic)
+            await self._pause(diagnostic, interaction_id=interaction_id)
             return False
         turns = await self._turns(diagnostic.id)
         if diagnostic.status == "diagnostic_active" and turns:
+            if interaction_id is not None:
+                question = next((content for actor, content in reversed(turns) if actor == "assistant"), None)
+                await self._outbox.enqueue(
+                    user_id=diagnostic.user_id,
+                    channel="telegram_lead",
+                    payload={"kind": "message", "text": question or "Диагностика уже открыта. Продолжите с сохранённого места.", "buttons": []},
+                    dedupe_key=f"diagnostic:{diagnostic.id}:resume:{interaction_id}",
+                )
             return True
         try:
             response = await self._provider.advance(self._input(diagnostic, turns))
         except Exception:  # provider failure must not roll back already accepted lead data
-            await self._pause(diagnostic)
+            await self._pause(diagnostic, interaction_id=interaction_id)
             return False
         if response.diagnostic is not None:
             await self._complete(diagnostic, response.diagnostic)
@@ -68,7 +76,8 @@ class DiagnosticDialogueService:
         question = self._question(response)
         diagnostic.status = "diagnostic_active"
         await self._append(diagnostic.id, "assistant", question)
-        await self._message(diagnostic, question, "opening", [])
+        suffix = f"opening:{interaction_id}" if interaction_id is not None else "opening"
+        await self._message(diagnostic, question, suffix, [])
         return True
 
     async def receive(self, *, user_id: uuid.UUID, text: str) -> bool:
@@ -217,10 +226,11 @@ class DiagnosticDialogueService:
             dedupe_key=f"diagnostic:{diagnostic.id}:{suffix}",
         )
 
-    async def _pause(self, diagnostic: DiagnosticSession) -> None:
+    async def _pause(self, diagnostic: DiagnosticSession, *, interaction_id: str | None = None) -> None:
         """Keep all answers and turns intact while waiting for a later approved provider recovery."""
         diagnostic.status = "prepared"
-        await self._message(diagnostic, DIAGNOSTIC_UNAVAILABLE_TEXT, "provider-unavailable", [])
+        suffix = f"provider-unavailable:{interaction_id}" if interaction_id is not None else "provider-unavailable"
+        await self._message(diagnostic, DIAGNOSTIC_UNAVAILABLE_TEXT, suffix, [])
 
     async def _complete(self, diagnostic: DiagnosticSession, generated: DiagnosticResultV2) -> None:
         command = RecordDiagnosticReportV2Command(diagnostic_session_id=diagnostic.id, result=generated)

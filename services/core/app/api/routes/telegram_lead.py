@@ -94,9 +94,11 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
             completed = await session.scalar(select(DiagnosticSession).where(DiagnosticSession.user_id == entry.user_id, DiagnosticSession.status == "diagnostic_completed").limit(1))
             active = await session.scalar(select(DiagnosticSession).where(DiagnosticSession.user_id == entry.user_id, DiagnosticSession.status.in_(("prepared", "diagnostic_active"))).limit(1))
             if active is not None:
-                await OutboundQueue(session).enqueue(user_id=entry.user_id, channel="telegram_lead", payload={"kind":"message","text":"Диагностика ещё не завершена.","buttons":[{"text":"Продолжить диагностику","callback_data":f"diagnostic:resume:{active.id}"}]}, dedupe_key=f"diagnostic:{active.id}:resume-cta")
+                await OutboundQueue(session).enqueue(user_id=entry.user_id, channel="telegram_lead", payload={"kind":"message","text":"Диагностика ещё не завершена.","buttons":[{"text":"Продолжить диагностику","callback_data":f"diagnostic:resume:{active.id}"}]}, dedupe_key=f"diagnostic:{active.id}:resume-cta:{update.interaction_id}")
             elif completed is not None:
-                await ConsultationLifecycleService(session).bridge(user_id=entry.user_id)
+                await ConsultationLifecycleService(session).bridge(
+                    user_id=entry.user_id, interaction_id=update.interaction_id
+                )
             else:
                 await LeadProfileFlow(session).start(user_id=entry.user_id)
             return Response(status_code=204)
@@ -119,6 +121,7 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                 session,
                 user_id=user_id,
                 lifecycle=ConsultationLifecycleService(session),
+                interaction_id=update.interaction_id,
             )
             return Response(status_code=204)
         if isinstance(update, LifecycleCallback):
@@ -126,14 +129,20 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
             except ValueError: return Response(status_code=204)
             lifecycle = ConsultationLifecycleService(session)
             if update.action == "menu:show":
-                await _show_available_actions(session, user_id=user_id, lifecycle=lifecycle)
+                await _show_available_actions(
+                    session, user_id=user_id, lifecycle=lifecycle, interaction_id=update.interaction_id
+                )
             elif update.action == "diagnostic:resume":
-                await DiagnosticDialogueService(session, _diagnostic_provider(request)).open(diagnostic_session_id=entity_id)
+                await DiagnosticDialogueService(session, _diagnostic_provider(request)).open(
+                    diagnostic_session_id=entity_id, interaction_id=update.interaction_id
+                )
             elif update.action == "diagnostic:result":
-                await lifecycle.replay_result(user_id=user_id, diagnostic_id=entity_id)
+                await lifecycle.replay_result(
+                    user_id=user_id, diagnostic_id=entity_id, interaction_id=update.interaction_id
+                )
             elif update.action == "diagnostic:repeat":
                 user.lifecycle_stage = f"repeat_task_input:{entity_id}"
-                await OutboundQueue(session).enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":"Коротко опишите, что сейчас хочется изменить или наладить в работе бизнеса. Достаточно 1–2 предложений — задача будет передана эксперту AI My Time.","buttons":[]}, dedupe_key=f"diagnostic:{entity_id}:repeat-prompt:{uuid.uuid4()}")
+                await OutboundQueue(session).enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":"Коротко опишите, что сейчас хочется изменить или наладить в работе бизнеса. Достаточно 1–2 предложений — задача будет передана эксперту AI My Time.","buttons":[]}, dedupe_key=f"diagnostic:{entity_id}:repeat-prompt:{update.interaction_id}")
             elif update.action == "diagnostic:channel":
                 session.add(Event(user_id=user_id, kind="channel_clicked", payload_json={"diagnostic_session_id": str(entity_id)}))
             else:
@@ -142,7 +151,7 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                     if update.action == "consult:confirm": await lifecycle.confirm(request_row, source="client")
                     elif update.action == "consult:reschedule": await lifecycle.reschedule_requested(request_row)
                     elif update.action == "consult:cancel":
-                        await OutboundQueue(session).enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":"Точно отменить консультацию?","buttons":[{"text":"Да, отменить","callback_data":f"consult:cancel_yes:{request_row.id}"},{"text":"Нет, оставить","callback_data":f"consult:cancel_no:{request_row.id}"}]}, dedupe_key=f"appointment:{request_row.id}:cancel-confirm")
+                        await OutboundQueue(session).enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":"Точно отменить консультацию?","buttons":[{"text":"Да, отменить","callback_data":f"consult:cancel_yes:{request_row.id}"},{"text":"Нет, оставить","callback_data":f"consult:cancel_no:{request_row.id}"}]}, dedupe_key=f"appointment:{request_row.id}:cancel-confirm:{update.interaction_id}")
                     elif update.action == "consult:cancel_yes": await lifecycle.cancel(request_row)
             return Response(status_code=204)
         if isinstance(update, DiagnosticText):
@@ -186,7 +195,9 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
     return Response(status_code=204)
 
 
-async def _show_available_actions(session, *, user_id: uuid.UUID, lifecycle: ConsultationLifecycleService) -> None:
+async def _show_available_actions(
+    session, *, user_id: uuid.UUID, lifecycle: ConsultationLifecycleService, interaction_id: str
+) -> None:
     """Return the next useful action without restarting the user journey."""
     active_diagnostic = await session.scalar(
         select(DiagnosticSession).where(
@@ -199,7 +210,7 @@ async def _show_available_actions(session, *, user_id: uuid.UUID, lifecycle: Con
             user_id=user_id,
             channel="telegram_lead",
             payload={"kind": "message", "text": "У вас есть незавершённая диагностика. Можно продолжить с сохранённого места.", "buttons": [{"text": "Продолжить диагностику", "callback_data": f"diagnostic:resume:{active_diagnostic.id}"}]},
-            dedupe_key=f"diagnostic:{active_diagnostic.id}:menu",
+            dedupe_key=f"diagnostic:{active_diagnostic.id}:menu:{interaction_id}",
         )
         return
     active_consultation = await lifecycle.active(user_id)
@@ -215,10 +226,10 @@ async def _show_available_actions(session, *, user_id: uuid.UUID, lifecycle: Con
             user_id=user_id,
             channel="telegram_lead",
             payload={"kind": "message", "text": text, "buttons": buttons},
-            dedupe_key=f"consultation:{active_consultation.id}:menu",
+            dedupe_key=f"consultation:{active_consultation.id}:menu:{interaction_id}",
         )
         return
-    if await lifecycle.bridge(user_id=user_id):
+    if await lifecycle.bridge(user_id=user_id, interaction_id=interaction_id):
         return
     await LeadProfileFlow(session).start(user_id=user_id)
 
