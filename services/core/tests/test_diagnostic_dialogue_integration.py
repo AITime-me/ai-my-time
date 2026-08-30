@@ -137,15 +137,16 @@ async def _run_consultation_per_result(url: str) -> None:
             events = (await session.scalars(
                 select(Event).where(Event.kind == "consultation_requested").order_by(Event.occurred_at)
             )).all()
-            assert len(events) == 2
+            # Block A deliberately prevents a second active consultation for one person.
+            assert len(events) == 1
             assert {event.payload_json["diagnostic_session_id"] for event in events} == {
-                str(first.diagnostic_session_id), str(second.diagnostic_session_id)
+                str(first.diagnostic_session_id)
             }
             confirmations = (await session.scalars(
                 select(OutboundMessage).where(OutboundMessage.dedupe_key.like("diagnostic:%:consultation:confirmation"))
             )).all()
-            assert len(confirmations) == 2
-            assert len({message.dedupe_key for message in confirmations}) == 2
+            assert len(confirmations) == 1
+            assert len({message.dedupe_key for message in confirmations}) == 1
     finally:
         async with session_scope(factory) as session:
             await session.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))

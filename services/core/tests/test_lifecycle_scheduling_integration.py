@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, text
@@ -11,7 +12,7 @@ from app.services.consultation_lifecycle import ConsultationLifecycleService
 from app.services.scheduled_events import ScheduledEventService
 
 
-def _url() -> str: return "postgresql+asyncpg:///ai_my_time_test"
+def _url() -> str: return os.environ.get("AI_MY_TIME_TEST_DATABASE_URL", "postgresql+asyncpg:///ai_my_time_test")
 
 
 async def _clean() -> None:

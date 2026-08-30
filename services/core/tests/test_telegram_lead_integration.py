@@ -270,7 +270,9 @@ def test_cards_persist_and_fallback_stays_recoverable_without_a_provider(
             assert client.post("/webhooks/telegram/lead", json={
                 "update_id": 1200, "message": {"chat": {"type": "private"}, "from": {"id": telegram_user_id}, "text": "Продолжим?"},
             }, headers=headers).status_code == 204
-        assert asyncio.run(_fallback_state(database_url)) == ("completed", "prepared", 6, 0, 7, 1)
+        # Repeat /start during an active Diagnostic AI session now creates an explicit
+        # resume CTA; it must not restart the profile or lose diagnostic context.
+        assert asyncio.run(_fallback_state(database_url)) == ("completed", "prepared", 6, 0, 8, 1)
     finally:
         get_settings.cache_clear()
         asyncio.run(_clear_conference_tables(database_url))
