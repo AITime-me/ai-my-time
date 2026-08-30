@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -171,11 +172,31 @@ def test_admin_work_queue_transitions_and_history(monkeypatch: pytest.MonkeyPatc
                 f"/admin/attention/{ids['linked_attention']}", json={"status": "resolved"}
             ).status_code == 422
 
+            appointment_at = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
+            scheduled = client.post(
+                f"/admin/consultations/{ids['consultation']}/appointment",
+                json={"appointment_at": appointment_at},
+            )
+            assert scheduled.status_code == 200
+            active = client.get("/admin/consultations").json()["items"]
+            assert [item["status"] for item in active] == ["scheduled"]
+            assert active[0]["appointment_at"] is not None
+            assert active[0]["confirmation_state"] == "pending"
+            assert client.post(f"/admin/consultations/{ids['consultation']}/owner-confirm").status_code == 200
+            active = client.get("/admin/consultations").json()["items"]
+            assert active[0]["confirmation_state"] == "confirmed"
+            dashboard = client.get("/admin/dashboard").json()
+            assert dashboard["consultations_in_progress"] == 1
+
             assert client.patch(
                 f"/admin/consultations/{ids['consultation']}", json={"status": "completed"}
             ).status_code == 200
             assert client.get("/admin/consultations").json()["items"] == []
             assert [item["status"] for item in client.get("/admin/consultations?history=true").json()["items"]] == ["completed"]
+            assert client.patch(
+                f"/admin/consultations/{ids['consultation']}/commercial-result",
+                json={"commercial_result": "decision_pending"},
+            ).status_code == 200
             assert all(
                 item["attention_item_id"] != ids["linked_attention"]
                 for item in client.get("/admin/attention").json()["items"]

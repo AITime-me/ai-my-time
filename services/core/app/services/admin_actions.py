@@ -82,6 +82,14 @@ class AdminActionService:
         if request is None: return None
         before = request.status
         request = await ConsultationLifecycleService(self._session).schedule_appointment(request, appointment_at=appointment_at, owner_confirm=owner_confirm)
+        attention = await self._session.scalar(
+            select(AttentionItem).where(AttentionItem.consultation_request_id == request.id)
+        )
+        if attention is not None and attention.status != "in_progress":
+            before_attention = attention.status
+            attention.status = "in_progress"
+            attention.resolved_at = None
+            self._session.add(AdminAuditEvent(actor_id=actor_id, action="attention.status_synchronized", object_type="attention_item", object_id=attention.id, delta_json={"status":{"before":before_attention,"after":"in_progress"},"source":"consultation"}))
         self._session.add(AdminAuditEvent(actor_id=actor_id, action="consultation.scheduled", object_type="consultation_request", object_id=request.id, delta_json={"before":before,"appointment_at":appointment_at.isoformat()}))
         return request
 

@@ -122,7 +122,9 @@ class AdminLeadReadService:
         )
         consultations = await self._count(ConsultationRequest, ConsultationRequest.created_at >= since)
         new_consultations = await self._count(ConsultationRequest, ConsultationRequest.status == "new")
-        consultations_in_progress = await self._count(ConsultationRequest, ConsultationRequest.status == "in_progress")
+        consultations_in_progress = await self._count(
+            ConsultationRequest, ConsultationRequest.status.in_(("waiting_response", "scheduled"))
+        )
         new_attention = await self._count(
             AttentionItem,
             AttentionItem.consultation_request_id.is_(None),
