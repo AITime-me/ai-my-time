@@ -12,7 +12,17 @@ from sqlalchemy import func, select, text
 from app.core.settings import get_settings
 from app.db.session import create_session_factory, session_scope
 from app.main import create_app
-from app.models import DiagnosticSession, DiagnosticTurn, Event, LeadBotSession, OutboundMessage, ProfileAnswer, User
+from app.models import (
+    ConsultationRequest,
+    DiagnosticSession,
+    DiagnosticTurn,
+    Event,
+    LeadBotSession,
+    OutboundMessage,
+    ProfileAnswer,
+    User,
+    UserIdentity,
+)
 from app.services.lead_profile_flow import PROFILE_STEPS
 from tests.doubles import ScriptedDiagnosticProvider
 
@@ -229,6 +239,47 @@ def test_callback_is_acknowledged_immediately_and_cta_keeps_static_confirmation(
         asyncio.run(_clear_conference_tables(database_url))
 
 
+def test_repeat_task_callback_persists_stage_enqueues_prompt_and_stays_idempotent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression proof for Q1.4: a UUID-bearing repeat stage fits durably."""
+    database_url = _test_database_url()
+    asyncio.run(_clear_conference_tables(database_url))
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("TELEGRAM_LEAD_WEBHOOK_SECRET", "test-lead-webhook-secret")
+    get_settings.cache_clear()
+    headers = {"X-Telegram-Bot-Api-Secret-Token": "test-lead-webhook-secret"}
+    telegram_user_id = 901111
+    diagnostic_id = asyncio.run(_seed_completed_repeat_user(database_url, telegram_user_id))
+    try:
+        with TestClient(create_app()) as client:
+            callback = _callback_payload(
+                update_id=8101,
+                telegram_user_id=telegram_user_id,
+                data=f"diagnostic:repeat:{diagnostic_id}",
+            )
+            assert client.post("/webhooks/telegram/lead", json=callback, headers=headers).status_code == 204
+            # Telegram may redeliver the exact callback. It must not create a
+            # second prompt or a second business request.
+            assert client.post("/webhooks/telegram/lead", json=callback, headers=headers).status_code == 204
+            assert client.post(
+                "/webhooks/telegram/lead",
+                json={
+                    "update_id": 8102,
+                    "message": {
+                        "chat": {"type": "private"},
+                        "from": {"id": telegram_user_id},
+                        "text": "Нужно наладить передачу заявок между сменами.",
+                    },
+                },
+                headers=headers,
+            ).status_code == 204
+        assert asyncio.run(_repeat_task_state(database_url, diagnostic_id)) == (1, 1, "repeat_task")
+    finally:
+        get_settings.cache_clear()
+        asyncio.run(_clear_conference_tables(database_url))
+
+
 async def _communication_state(database_url: str) -> tuple[str | None, int, int]:
     factory = create_session_factory(database_url)
     try:
@@ -321,6 +372,57 @@ async def _completed_diagnostic_id(database_url: str) -> str:
             )
             assert diagnostic is not None
             return str(diagnostic.id)
+    finally:
+        await factory.kw["bind"].dispose()
+
+
+async def _seed_completed_repeat_user(database_url: str, telegram_user_id: int) -> str:
+    factory = create_session_factory(database_url)
+    try:
+        async with session_scope(factory) as session:
+            user = User(lifecycle_stage="diagnostic_ready")
+            session.add(user)
+            await session.flush()
+            session.add(
+                UserIdentity(
+                    user_id=user.id,
+                    provider="telegram",
+                    connection_scope="ai_my_time_lead_bot",
+                    external_id=str(telegram_user_id),
+                )
+            )
+            diagnostic = DiagnosticSession(
+                user_id=user.id,
+                status="diagnostic_completed",
+                input_snapshot_json={},
+            )
+            session.add(diagnostic)
+            await session.flush()
+            return str(diagnostic.id)
+    finally:
+        await factory.kw["bind"].dispose()
+
+
+async def _repeat_task_state(database_url: str, diagnostic_id: str) -> tuple[int, int, str | None]:
+    factory = create_session_factory(database_url)
+    try:
+        async with session_scope(factory) as session:
+            prompt_count = int(
+                await session.scalar(
+                    select(func.count())
+                    .select_from(OutboundMessage)
+                    .where(OutboundMessage.dedupe_key.like(f"diagnostic:{diagnostic_id}:repeat-prompt:%"))
+                )
+                or 0
+            )
+            requests = list(
+                (await session.scalars(
+                    select(ConsultationRequest).where(
+                        ConsultationRequest.diagnostic_session_id == diagnostic_id
+                    )
+                )).all()
+            )
+            return prompt_count, len(requests), requests[0].origin_type if requests else None
     finally:
         await factory.kw["bind"].dispose()
 

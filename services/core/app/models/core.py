@@ -40,7 +40,7 @@ class User(Timestamped, Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     lifecycle_stage: Mapped[str] = mapped_column(
-        String(40), nullable=False, server_default="new"
+        String(80), nullable=False, server_default="new"
     )
     display_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
     telegram_first_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
