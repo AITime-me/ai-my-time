@@ -9,6 +9,7 @@ from app.adapters.telegram_delivery import (
     TelegramBotTransport,
     TelegramCallbackAcknowledger,
     TelegramEdgeCallbackAcknowledger,
+    TelegramEdgeMenuConfigurer,
     TelegramEdgeTransport,
     TelegramDeliveryError,
     telegram_send_payload,
@@ -98,6 +99,28 @@ def test_edge_transport_uses_only_allowlisted_edge_operation() -> None:
     assert [(row[2], row[3]) for row in calls] == [
         ("sendMessage", telegram_send_payload(_delivery())),
         ("answerCallbackQuery", {"callback_query_id": "callback-1", "text": "Нажатие получено"}),
+    ]
+
+
+def test_edge_menu_configurer_uses_only_the_fixed_commands_menu_operations() -> None:
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def sender(url: str, secret: str, operation: str, body: bytes) -> dict[str, object]:
+        assert url == "https://edge.example"
+        assert secret == "edge-secret"
+        calls.append((operation, json.loads(body)))
+        return {"ok": True}
+
+    asyncio.run(
+        TelegramEdgeMenuConfigurer(
+            edge_url="https://edge.example", secret="edge-secret", sender=sender
+        ).configure_and_verify()
+    )
+    assert calls == [
+        ("setMyCommands", {"commands": [{"command": "menu", "description": "Что можно сделать?"}]}),
+        ("setChatMenuButton", {"menu_button": {"type": "commands"}}),
+        ("getMyCommands", {}),
+        ("getChatMenuButton", {}),
     ]
 
 

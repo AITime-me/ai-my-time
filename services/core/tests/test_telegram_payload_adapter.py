@@ -2,6 +2,7 @@ from app.adapters.telegram_lead import (
     ConsultationRequest,
     DiagnosticText,
     LifecycleCallback,
+    MenuCommand,
     ProfileAnswer,
     StartProfile,
     adapt_telegram_lead_payload,
@@ -67,3 +68,13 @@ def test_adapter_accepts_state_aware_menu_callback() -> None:
         action="menu:show",
         entity_id="00000000-0000-0000-0000-000000000001",
     )
+
+
+def test_adapter_extracts_the_permanent_commands_menu_entrypoint() -> None:
+    action = adapt_telegram_lead_payload(
+        {"message": {"chat": {"type": "private"}, "from": {"id": 900001}, "text": "/menu"}}
+    )
+    assert action == MenuCommand(telegram_user_id="900001")
+    assert adapt_telegram_lead_payload(
+        {"message": {"chat": {"type": "private"}, "from": {"id": 900001}, "text": "/menux"}}
+    ) is None

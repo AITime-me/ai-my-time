@@ -9,10 +9,13 @@ import socket
 import ssl
 from collections.abc import Callable, Mapping
 from typing import Any
+from urllib.parse import urlsplit
 
 from app.services.outbox_delivery import OutboundDelivery
 
 _MAX_CALLBACK_BYTES = 64
+_MENU_COMMANDS = [{"command": "menu", "description": "Что можно сделать?"}]
+_MENU_BUTTON = {"type": "commands"}
 
 
 class TelegramDeliveryError(RuntimeError):
@@ -180,3 +183,29 @@ class TelegramEdgeCallbackAcknowledger:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         response = await asyncio.to_thread(self._sender, self._edge_url, self._secret, "answerCallbackQuery", body)
         if response.get("ok") is not True: raise TelegramDeliveryError("Telegram Edge rejected callback acknowledgement")
+
+
+class TelegramEdgeMenuConfigurer:
+    """Configure and verify the one fixed native Telegram commands-menu item."""
+
+    def __init__(self, *, edge_url: str, secret: str, sender: Callable[[str, str, str, bytes], Mapping[str, Any]] = _send_edge_json) -> None:
+        if not edge_url.strip() or not secret.strip():
+            raise ValueError("Telegram Edge configuration is required")
+        self._edge_url, self._secret, self._sender = edge_url, secret, sender
+
+    async def configure_and_verify(self) -> None:
+        for operation, payload in (
+            ("setMyCommands", {"commands": _MENU_COMMANDS}),
+            ("setChatMenuButton", {"menu_button": _MENU_BUTTON}),
+            ("getMyCommands", {}),
+            ("getChatMenuButton", {}),
+        ):
+            response = await asyncio.to_thread(
+                self._sender,
+                self._edge_url,
+                self._secret,
+                operation,
+                json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            )
+            if response.get("ok") is not True:
+                raise TelegramDeliveryError("Telegram Edge rejected commands-menu configuration")

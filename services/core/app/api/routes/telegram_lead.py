@@ -15,6 +15,7 @@ from app.adapters.telegram_lead import (
     LifecycleCallback,
     CommunicationCommand,
     DiagnosticText,
+    MenuCommand,
     ProfileAnswer,
     StartProfile,
     adapt_telegram_lead_payload,
@@ -115,6 +116,13 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
         if user is None:
             return Response(status_code=204)
         _apply_telegram_profile(user, update)
+        if isinstance(update, MenuCommand):
+            await _show_available_actions(
+                session,
+                user_id=user_id,
+                lifecycle=ConsultationLifecycleService(session),
+            )
+            return Response(status_code=204)
         if isinstance(update, LifecycleCallback):
             try: entity_id = uuid.UUID(update.entity_id)
             except ValueError: return Response(status_code=204)

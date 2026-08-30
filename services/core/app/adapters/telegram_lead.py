@@ -77,6 +77,16 @@ class CommunicationCommand:
 
 
 @dataclass(frozen=True)
+class MenuCommand:
+    """The single permanent Telegram commands-menu entrypoint."""
+
+    telegram_user_id: str
+    telegram_first_name: str | None = None
+    telegram_last_name: str | None = None
+    telegram_username: str | None = None
+
+
+@dataclass(frozen=True)
 class ConsultationRequest:
     telegram_user_id: str
     callback_query_id: str
@@ -95,7 +105,7 @@ class LifecycleCallback:
     telegram_last_name: str | None = None
     telegram_username: str | None = None
 
-TelegramLeadInput = StartProfile | ProfileAnswer | DiagnosticText | CommunicationCommand | ConsultationRequest | LifecycleCallback
+TelegramLeadInput = StartProfile | ProfileAnswer | DiagnosticText | CommunicationCommand | MenuCommand | ConsultationRequest | LifecycleCallback
 
 
 def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
@@ -122,6 +132,8 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
             return StartProfile(
                 telegram_user_id=str(message.from_.id), entry_code=entry_code, **_profile(message.from_)
             )
+        if _is_menu_command(message.text):
+            return MenuCommand(telegram_user_id=str(message.from_.id), **_profile(message.from_))
         action = _communication_action(message.text)
         if action is not None:
             return CommunicationCommand(telegram_user_id=str(message.from_.id), action=action, **_profile(message.from_))
@@ -184,6 +196,11 @@ def _communication_action(text: str) -> str | None:
     if command == "/subscribe":
         return "subscribe"
     return None
+
+
+def _is_menu_command(text: str) -> bool:
+    command = text.strip().split(maxsplit=1)[0].casefold()
+    return command == "/menu" or command.startswith("/menu@")
 
 
 def _profile_callback(data: str) -> tuple[str, str | None, int | None, int | None] | None:

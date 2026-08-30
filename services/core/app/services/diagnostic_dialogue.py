@@ -43,10 +43,6 @@ def _cta_button(session_id: uuid.UUID) -> list[dict[str, str]]:
     return buttons
 
 
-def _menu_button(session_id: uuid.UUID) -> list[dict[str, str]]:
-    return [{"text": "Что можно сделать?", "callback_data": f"menu:show:{session_id}"}]
-
-
 class DiagnosticDialogueService:
     """Stores no more than four user clarifications and closes the session deterministically."""
 
@@ -222,7 +218,7 @@ class DiagnosticDialogueService:
         await self._outbox.enqueue(
             user_id=diagnostic.user_id,
             channel="telegram_lead",
-            payload={"kind": "message", "text": text, "buttons": buttons or _menu_button(diagnostic.id)},
+            payload={"kind": "message", "text": text, "buttons": buttons},
             dedupe_key=f"diagnostic:{diagnostic.id}:{suffix}",
         )
 
