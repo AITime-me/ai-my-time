@@ -143,7 +143,7 @@ def test_edge_menu_configurer_uses_only_the_fixed_commands_menu_operations() -> 
         ).configure_and_verify()
     )
     assert calls == [
-        ("setMyCommands", {"commands": [{"command": "menu", "description": "Что можно сделать?"}]}),
+        ("setMyCommands", {"commands": [{"command": "menu", "description": "Открыть доступные действия"}]}),
         ("setChatMenuButton", {"menu_button": {"type": "commands"}}),
         ("getMyCommands", {}),
         ("getChatMenuButton", {}),

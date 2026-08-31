@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 from app.services.outbox_delivery import OutboundDelivery
 
 _MAX_CALLBACK_BYTES = 64
-_MENU_COMMANDS = [{"command": "menu", "description": "Что можно сделать?"}]
+_MENU_COMMANDS = [{"command": "menu", "description": "Открыть доступные действия"}]
 _MENU_BUTTON = {"type": "commands"}
 
 
