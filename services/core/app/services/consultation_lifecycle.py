@@ -12,6 +12,7 @@ from app.core.timezones import format_moscow
 from app.services.outbox import OutboundQueue
 from app.services.ops_notifications import OpsNotificationService
 from app.services.scheduled_events import ScheduledEventService, _appointment_buttons
+from app.services.communication import subscription_button
 from app.core.telegram_channel import channel_callback_button
 from app.schemas.diagnostic_result_v2 import DiagnosticResultV2
 from app.services.diagnostic_result_rendering import (
@@ -104,6 +105,9 @@ class ConsultationLifecycleService:
             {"text":"Посмотреть прошлый результат","callback_data":f"diagnostic:result:{diagnostic.id}"},
             {"text":"Разобрать новую задачу с экспертом","callback_data":f"diagnostic:repeat:{diagnostic.id}"},
         ]
+        user = await self._session.get(User, user_id)
+        if user is not None:
+            buttons.append(subscription_button(user))
         if button := channel_callback_button(diagnostic.id):
             buttons.append(button)
         await self._outbox.enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message", "text":"Вы уже проходили диагностику AI My Time — её результат сохранён. Если с тех пор появилась другая задача, её можно передать эксперту на разбор.", "buttons":buttons}, dedupe_key=f"diagnostic:{diagnostic.id}:bridge:{interaction_id}")

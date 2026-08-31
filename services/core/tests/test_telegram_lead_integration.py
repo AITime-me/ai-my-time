@@ -97,7 +97,7 @@ def test_unrelated_or_malformed_telegram_payload_is_acknowledged_without_action(
         asyncio.run(_clear_conference_tables(database_url))
 
 
-def test_stop_and_explicit_subscribe_change_consent_without_erasing_person(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_stop_and_explicit_subscribe_manage_only_content_subscription(monkeypatch: pytest.MonkeyPatch) -> None:
     database_url = _test_database_url()
     asyncio.run(_clear_conference_tables(database_url))
     monkeypatch.setenv("DATABASE_URL", database_url)
@@ -106,13 +106,13 @@ def test_stop_and_explicit_subscribe_change_consent_without_erasing_person(monke
     headers = {"X-Telegram-Bot-Api-Secret-Token": "test-lead-webhook-secret"}
     try:
         with TestClient(create_app()) as client:
-            for update_id, command in ((1050, "/start qr_conf_main"), (1051, "/stop"), (1052, "/subscribe")):
+            for update_id, command in ((1050, "/start qr_conf_main"), (1051, "/subscribe"), (1052, "/stop"), (1053, "/subscribe")):
                 assert client.post(
                     "/webhooks/telegram/lead",
                     json={"update_id": update_id, "message": {"chat": {"type": "private"}, "from": {"id": 901010}, "text": command}},
                     headers=headers,
                 ).status_code == 204
-        assert asyncio.run(_communication_state(database_url)) == ("subscribed", 2, 2)
+        assert asyncio.run(_content_subscription_state(database_url)) == ("subscribed", "subscribed", 3, 3)
     finally:
         get_settings.cache_clear()
         asyncio.run(_clear_conference_tables(database_url))
@@ -332,14 +332,14 @@ def test_repeat_task_callback_shows_existing_consultation_without_entering_input
         asyncio.run(_clear_conference_tables(database_url))
 
 
-async def _communication_state(database_url: str) -> tuple[str | None, int, int]:
+async def _content_subscription_state(database_url: str) -> tuple[str | None, str | None, int, int]:
     factory = create_session_factory(database_url)
     try:
         async with session_scope(factory) as session:
             user = await session.scalar(select(User))
-            events = int(await session.scalar(select(func.count()).select_from(Event).where(Event.kind.in_(("communication_subscribed", "communication_unsubscribed")))) or 0)
-            messages = int(await session.scalar(select(func.count()).select_from(OutboundMessage).where(OutboundMessage.dedupe_key.like("communication:%"))) or 0)
-            return (user.communication_status if user else None, events, messages)
+            events = int(await session.scalar(select(func.count()).select_from(Event).where(Event.kind.in_(("content_subscribed", "content_unsubscribed")))) or 0)
+            messages = int(await session.scalar(select(func.count()).select_from(OutboundMessage).where(OutboundMessage.dedupe_key.like("content-subscription:%"))) or 0)
+            return (user.communication_status if user else None, user.content_subscription_status if user else None, events, messages)
     finally:
         await factory.kw["bind"].dispose()
 

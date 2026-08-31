@@ -1,5 +1,6 @@
 from app.adapters.telegram_lead import (
     ConsultationRequest,
+    CommunicationCommand,
     DiagnosticText,
     LifecycleCallback,
     MenuCommand,
@@ -83,3 +84,19 @@ def test_adapter_extracts_the_permanent_commands_menu_entrypoint() -> None:
     assert adapt_telegram_lead_payload(
         {"message": {"chat": {"type": "private"}, "from": {"id": 900001}, "text": "/menux"}}
     ) is None
+
+
+def test_adapter_extracts_content_subscription_commands_and_callback() -> None:
+    subscribe = adapt_telegram_lead_payload(
+        {"update_id": 106, "message": {"chat": {"type": "private"}, "from": {"id": 900001}, "text": "/subscribe"}}
+    )
+    assert subscribe == CommunicationCommand(
+        telegram_user_id="900001", action="subscribe", interaction_id="telegram-update:106"
+    )
+    callback = adapt_telegram_lead_payload(
+        {"update_id": 107, "callback_query": {"id": "callback-content", "from": {"id": 900001}, "message": {"chat": {"type": "private"}}, "data": "content:unsubscribe:00000000-0000-0000-0000-000000000001"}}
+    )
+    assert callback == LifecycleCallback(
+        telegram_user_id="900001", callback_query_id="callback-content", action="content:unsubscribe",
+        entity_id="00000000-0000-0000-0000-000000000001", interaction_id="telegram-update:107",
+    )

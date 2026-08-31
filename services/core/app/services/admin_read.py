@@ -249,6 +249,7 @@ class AdminLeadReadService:
             consultation_status=consultation.status if consultation else None,
             business_segment=_answer_value(business_type),
             communication_status=user.communication_status,
+            content_subscription_status=user.content_subscription_status,
             marketing_consent_status=user.marketing_consent_status,
             telegram_reachability=user.telegram_reachability,
             attention_count=attention_count,

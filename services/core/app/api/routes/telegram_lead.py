@@ -28,7 +28,7 @@ from app.services.conference_intake import ConferenceIntakeService
 from app.services.lead_profile_flow import LeadProfileFlow
 from app.services.diagnostic_acceptance import DiagnosticAcceptanceService, is_acceptance_start
 from app.services.diagnostic_dialogue import DiagnosticDialogueService
-from app.services.communication import CommunicationConsentService
+from app.services.communication import ContentSubscriptionService, subscription_button
 from app.services.consultation_lifecycle import ConsultationLifecycleService
 from app.services.outbox import OutboundQueue
 from app.adapters.yandex_diagnostic import build_diagnostic_provider
@@ -132,6 +132,13 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                 await _show_available_actions(
                     session, user_id=user_id, lifecycle=lifecycle, interaction_id=update.interaction_id
                 )
+            elif update.action in {"content:subscribe", "content:unsubscribe"}:
+                if entity_id == user_id:
+                    await ContentSubscriptionService(session).set_status(
+                        user_id=user_id,
+                        status="subscribed" if update.action == "content:subscribe" else "unsubscribed",
+                        interaction_id=update.interaction_id,
+                    )
             elif update.action == "diagnostic:resume":
                 await DiagnosticDialogueService(session, _diagnostic_provider(request)).open(
                     diagnostic_session_id=entity_id, interaction_id=update.interaction_id
@@ -175,9 +182,10 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
             await DiagnosticDialogueService(session, _diagnostic_provider(request)).receive(user_id=user_id, text=update.text)
             return Response(status_code=204)
         if isinstance(update, CommunicationCommand):
-            await CommunicationConsentService(session).set_status(
+            await ContentSubscriptionService(session).set_status(
                 user_id=user_id,
                 status="unsubscribed" if update.action == "unsubscribe" else "subscribed",
+                interaction_id=update.interaction_id,
             )
             return Response(status_code=204)
         if isinstance(update, ConsultationRequest):
@@ -217,7 +225,7 @@ async def _show_available_actions(
         await OutboundQueue(session).enqueue(
             user_id=user_id,
             channel="telegram_lead",
-            payload={"kind": "message", "text": "У вас есть незавершённая диагностика. Можно продолжить с сохранённого места.", "buttons": [{"text": "Продолжить диагностику", "callback_data": f"diagnostic:resume:{active_diagnostic.id}"}]},
+            payload={"kind": "message", "text": "У вас есть незавершённая диагностика. Можно продолжить с сохранённого места.", "buttons": [{"text": "Продолжить диагностику", "callback_data": f"diagnostic:resume:{active_diagnostic.id}"}, subscription_button(await session.get(User, user_id))]},
             dedupe_key=f"diagnostic:{active_diagnostic.id}:menu:{interaction_id}",
         )
         return
@@ -245,6 +253,9 @@ async def _show_active_consultation(
     else:
         text = "Ваша заявка на консультацию уже принята. Эксперт AI My Time свяжется с вами в Telegram в рабочее время."
         buttons = []
+    user = await session.get(User, active_consultation.user_id)
+    if user is not None:
+        buttons.append(subscription_button(user))
     await OutboundQueue(session).enqueue(
         user_id=active_consultation.user_id,
         channel="telegram_lead",

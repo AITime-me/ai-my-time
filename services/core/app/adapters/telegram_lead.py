@@ -74,6 +74,7 @@ class DiagnosticText:
 class CommunicationCommand:
     telegram_user_id: str
     action: str
+    interaction_id: str
     telegram_first_name: str | None = None
     telegram_last_name: str | None = None
     telegram_username: str | None = None
@@ -146,7 +147,7 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
             )
         action = _communication_action(message.text)
         if action is not None:
-            return CommunicationCommand(telegram_user_id=str(message.from_.id), action=action, **_profile(message.from_))
+            return CommunicationCommand(telegram_user_id=str(message.from_.id), action=action, interaction_id=_message_interaction_id(update, message), **_profile(message.from_))
         if not message.text.strip().startswith("/"):
             return DiagnosticText(telegram_user_id=str(message.from_.id), text=message.text, **_profile(message.from_))
 
@@ -179,7 +180,7 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
                 **_profile(callback.from_),
             )
     parts = callback.data.split(":")
-    if len(parts) == 3 and ((parts[0] == "consult" and parts[1] in {"confirm", "reschedule", "cancel", "cancel_yes", "cancel_no"}) or (parts[0] == "diagnostic" and parts[1] in {"resume", "result", "repeat", "channel"}) or (parts[0] == "menu" and parts[1] == "show")):
+    if len(parts) == 3 and ((parts[0] == "consult" and parts[1] in {"confirm", "reschedule", "cancel", "cancel_yes", "cancel_no"}) or (parts[0] == "diagnostic" and parts[1] in {"resume", "result", "repeat", "channel"}) or (parts[0] == "menu" and parts[1] == "show") or (parts[0] == "content" and parts[1] in {"subscribe", "unsubscribe"})):
         return LifecycleCallback(
             telegram_user_id=str(callback.from_.id),
             callback_query_id=callback.id,

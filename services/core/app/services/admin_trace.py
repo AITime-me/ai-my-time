@@ -17,8 +17,8 @@ _BUSINESS_EVENT_KINDS = {
     "profile_answered",
     "diagnostic_started",
     "diagnostic_completed",
-    "communication_subscribed",
-    "communication_unsubscribed",
+    "content_subscribed",
+    "content_unsubscribed",
 }
 
 

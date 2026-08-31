@@ -50,6 +50,9 @@ class User(Timestamped, Base):
     communication_status: Mapped[str] = mapped_column(
         String(24), nullable=False, server_default="subscribed"
     )
+    content_subscription_status: Mapped[str] = mapped_column(
+        String(24), nullable=False, server_default="unsubscribed"
+    )
     telegram_reachability: Mapped[str] = mapped_column(
         String(24), nullable=False, server_default="unknown"
     )

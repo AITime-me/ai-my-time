@@ -18,6 +18,7 @@ class AdminLeadView(BaseModel):
     consultation_status: str | None
     business_segment: str | None = None
     communication_status: str
+    content_subscription_status: str
     marketing_consent_status: str
     telegram_reachability: str
     attention_count: int = Field(ge=0)
