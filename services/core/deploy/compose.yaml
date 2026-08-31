@@ -68,9 +68,12 @@ services:
       TELEGRAM_TRANSPORT_MODE: edge
       TELEGRAM_EDGE_URL: https://edge.aimytimebot.ru
       TELEGRAM_EDGE_CORE_SECRET_FILE: /run/secrets/telegram_edge_core_secret
+      TELEGRAM_OPS_BOT_TOKEN_PATH: /run/secrets/telegram_ops_bot_token
+      TELEGRAM_OPS_CHAT_ID: "-1004328477143"
     volumes:
       - /srv/ai-my-time/secrets/database_url:/run/secrets/database_url:ro
       - /srv/ai-my-time/secrets/telegram_edge_core_secret:/run/secrets/telegram_edge_core_secret:ro
+      - /srv/ai-my-time/secrets/telegram_ops_bot_token:/run/secrets/telegram_ops_bot_token:ro
     command: ["python", "-m", "scripts.run_outbound_worker"]
     networks: [private, egress]
 
