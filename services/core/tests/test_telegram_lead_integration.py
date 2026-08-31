@@ -280,6 +280,58 @@ def test_repeat_task_callback_persists_stage_enqueues_prompt_and_stays_idempoten
         asyncio.run(_clear_conference_tables(database_url))
 
 
+def test_repeat_task_callback_shows_existing_consultation_without_entering_input(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_url = _test_database_url()
+    asyncio.run(_clear_conference_tables(database_url))
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("TELEGRAM_LEAD_WEBHOOK_SECRET", "test-lead-webhook-secret")
+    get_settings.cache_clear()
+    headers = {"X-Telegram-Bot-Api-Secret-Token": "test-lead-webhook-secret"}
+    telegram_user_id = 901112
+    diagnostic_id = asyncio.run(_seed_completed_repeat_user(database_url, telegram_user_id, active=True))
+    try:
+        with TestClient(create_app()) as client:
+            callback = _callback_payload(
+                update_id=8111,
+                telegram_user_id=telegram_user_id,
+                data=f"diagnostic:repeat:{diagnostic_id}",
+            )
+            assert client.post("/webhooks/telegram/lead", json=callback, headers=headers).status_code == 204
+            # Re-delivery of the same Telegram update remains idempotent.
+            assert client.post("/webhooks/telegram/lead", json=callback, headers=headers).status_code == 204
+        assert asyncio.run(_active_repeat_guard_state(database_url, diagnostic_id)) == ("diagnostic_ready", 0, 1)
+        # A terminal consultation no longer blocks the normal repeat-task flow.
+        asyncio.run(_complete_existing_repeat_request(database_url, diagnostic_id))
+        with TestClient(create_app()) as client:
+            assert client.post(
+                "/webhooks/telegram/lead",
+                json=_callback_payload(
+                    update_id=8112,
+                    telegram_user_id=telegram_user_id,
+                    data=f"diagnostic:repeat:{diagnostic_id}",
+                ),
+                headers=headers,
+            ).status_code == 204
+            assert client.post(
+                "/webhooks/telegram/lead",
+                json={
+                    "update_id": 8113,
+                    "message": {
+                        "chat": {"type": "private"},
+                        "from": {"id": telegram_user_id},
+                        "text": "Нужно собрать обращения из всех каналов в одну очередь.",
+                    },
+                },
+                headers=headers,
+            ).status_code == 204
+        assert asyncio.run(_repeat_task_state(database_url, diagnostic_id)) == (1, 2, "repeat_task")
+    finally:
+        get_settings.cache_clear()
+        asyncio.run(_clear_conference_tables(database_url))
+
+
 async def _communication_state(database_url: str) -> tuple[str | None, int, int]:
     factory = create_session_factory(database_url)
     try:
@@ -376,7 +428,7 @@ async def _completed_diagnostic_id(database_url: str) -> str:
         await factory.kw["bind"].dispose()
 
 
-async def _seed_completed_repeat_user(database_url: str, telegram_user_id: int) -> str:
+async def _seed_completed_repeat_user(database_url: str, telegram_user_id: int, *, active: bool = False) -> str:
     factory = create_session_factory(database_url)
     try:
         async with session_scope(factory) as session:
@@ -398,6 +450,14 @@ async def _seed_completed_repeat_user(database_url: str, telegram_user_id: int) 
             )
             session.add(diagnostic)
             await session.flush()
+            if active:
+                session.add(ConsultationRequest(
+                    user_id=user.id,
+                    diagnostic_session_id=diagnostic.id,
+                    status="new",
+                    origin_type="repeat_task",
+                    repeat_task_text="Уже в работе",
+                ))
             return str(diagnostic.id)
     finally:
         await factory.kw["bind"].dispose()
@@ -423,6 +483,43 @@ async def _repeat_task_state(database_url: str, diagnostic_id: str) -> tuple[int
                 )).all()
             )
             return prompt_count, len(requests), requests[0].origin_type if requests else None
+    finally:
+        await factory.kw["bind"].dispose()
+
+
+async def _active_repeat_guard_state(database_url: str, diagnostic_id: str) -> tuple[str, int, int]:
+    factory = create_session_factory(database_url)
+    try:
+        async with session_scope(factory) as session:
+            user = await session.scalar(select(User))
+            assert user is not None
+            prompts = int(await session.scalar(
+                select(func.count()).select_from(OutboundMessage).where(
+                    OutboundMessage.dedupe_key.like(f"diagnostic:{diagnostic_id}:repeat-prompt:%")
+                )
+            ) or 0)
+            active_messages = int(await session.scalar(
+                select(func.count()).select_from(OutboundMessage).where(
+                    OutboundMessage.dedupe_key.like("consultation:%:menu:telegram-update:8111")
+                )
+            ) or 0)
+            return user.lifecycle_stage, prompts, active_messages
+    finally:
+        await factory.kw["bind"].dispose()
+
+
+async def _complete_existing_repeat_request(database_url: str, diagnostic_id: str) -> None:
+    factory = create_session_factory(database_url)
+    try:
+        async with session_scope(factory) as session:
+            request = await session.scalar(
+                select(ConsultationRequest).where(
+                    ConsultationRequest.diagnostic_session_id == diagnostic_id,
+                    ConsultationRequest.status == "new",
+                )
+            )
+            assert request is not None
+            request.status = "completed"
     finally:
         await factory.kw["bind"].dispose()
 

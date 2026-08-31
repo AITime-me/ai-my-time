@@ -141,6 +141,14 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                     user_id=user_id, diagnostic_id=entity_id, interaction_id=update.interaction_id
                 )
             elif update.action == "diagnostic:repeat":
+                active_consultation = await lifecycle.active(user_id)
+                if active_consultation is not None:
+                    await _show_active_consultation(
+                        session,
+                        active_consultation=active_consultation,
+                        interaction_id=update.interaction_id,
+                    )
+                    return Response(status_code=204)
                 user.lifecycle_stage = f"repeat_task_input:{entity_id}"
                 await OutboundQueue(session).enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":"Коротко опишите, что сейчас хочется изменить или наладить в работе бизнеса. Достаточно 1–2 предложений — задача будет передана эксперту AI My Time.","buttons":[]}, dedupe_key=f"diagnostic:{entity_id}:repeat-prompt:{update.interaction_id}")
             elif update.action == "diagnostic:channel":
@@ -215,23 +223,34 @@ async def _show_available_actions(
         return
     active_consultation = await lifecycle.active(user_id)
     if active_consultation is not None:
-        if active_consultation.status == "scheduled" and active_consultation.appointment_at is not None:
-            text = f"У вас назначена консультация: {format_moscow(active_consultation.appointment_at)}."
-            from app.services.scheduled_events import _appointment_buttons
-            buttons = _appointment_buttons(active_consultation.id)
-        else:
-            text = "Ваша заявка на консультацию уже принята. Эксперт AI My Time свяжется с вами в Telegram в рабочее время."
-            buttons = []
-        await OutboundQueue(session).enqueue(
-            user_id=user_id,
-            channel="telegram_lead",
-            payload={"kind": "message", "text": text, "buttons": buttons},
-            dedupe_key=f"consultation:{active_consultation.id}:menu:{interaction_id}",
+        await _show_active_consultation(
+            session,
+            active_consultation=active_consultation,
+            interaction_id=interaction_id,
         )
         return
     if await lifecycle.bridge(user_id=user_id, interaction_id=interaction_id):
         return
     await LeadProfileFlow(session).start(user_id=user_id)
+
+
+async def _show_active_consultation(
+    session, *, active_consultation: ConsultationRequestModel, interaction_id: str
+) -> None:
+    """Show the existing consultation state for an explicit user interaction."""
+    if active_consultation.status == "scheduled" and active_consultation.appointment_at is not None:
+        text = f"У вас назначена консультация: {format_moscow(active_consultation.appointment_at)}."
+        from app.services.scheduled_events import _appointment_buttons
+        buttons = _appointment_buttons(active_consultation.id)
+    else:
+        text = "Ваша заявка на консультацию уже принята. Эксперт AI My Time свяжется с вами в Telegram в рабочее время."
+        buttons = []
+    await OutboundQueue(session).enqueue(
+        user_id=active_consultation.user_id,
+        channel="telegram_lead",
+        payload={"kind": "message", "text": text, "buttons": buttons},
+        dedupe_key=f"consultation:{active_consultation.id}:menu:{interaction_id}",
+    )
 
 
 def _apply_telegram_profile(user: User, update: object) -> None:
