@@ -40,13 +40,18 @@ async def _run_lifecycle() -> None:
             diagnostic = DiagnosticSession(user_id=user.id, status="diagnostic_completed", input_snapshot_json={}); session.add(diagnostic); await session.flush()
             request = ConsultationRequest(user_id=user.id, diagnostic_session_id=diagnostic.id, status="new"); session.add(request); await session.flush()
             lifecycle = ConsultationLifecycleService(session)
-            appointment = datetime(2026, 9, 1, 9, 0, tzinfo=timezone.utc)
+            # Keep all three lifecycle notices safely in the future regardless
+            # of the calendar date and of the runner's local timezone.
+            appointment = (datetime.now(timezone.utc) + timedelta(days=3)).replace(
+                hour=9, minute=0, second=0, microsecond=0
+            )
+            appointment_text = format_moscow(appointment)
             await lifecycle.schedule_appointment(request, appointment_at=appointment)
             assert request.status == "scheduled" and request.confirmation_state == "pending"
             notice = await session.scalar(select(OutboundMessage).where(OutboundMessage.dedupe_key.like(f"appointment:{request.id}%notice")))
             assert notice is not None
-            assert format_moscow(appointment) == "01.09.2026 12:00 МСК"
-            assert "01.09.2026 12:00 МСК" in str(notice.payload_json["text"])
+            assert appointment_text.endswith("12:00 МСК")
+            assert appointment_text in str(notice.payload_json["text"])
             events = list((await session.scalars(select(ScheduledEvent).where(ScheduledEvent.consultation_request_id == request.id))).all())
             assert {event.event_type for event in events} == {"appointment_t24", "appointment_t1", "appointment_auto_cancel"}
             assert len((await session.scalars(select(OutboundMessage))).all()) == 1
