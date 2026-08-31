@@ -56,8 +56,8 @@ def test_telegram_payload_rejects_missing_recipient() -> None:
 
 
 def test_ops_payload_uses_only_the_fixed_private_chat() -> None:
-    assert telegram_ops_send_payload(_ops_delivery(), chat_id="-1004355109668") == {
-        "chat_id": "-1004355109668", "text": "Новая консультация"
+    assert telegram_ops_send_payload(_ops_delivery(), chat_id="-1004328477143") == {
+        "chat_id": "-1004328477143", "text": "Новая консультация"
     }
 
 
@@ -67,8 +67,8 @@ def test_ops_transport_never_uses_the_client_recipient() -> None:
     def sender(_url: str, body: bytes) -> dict[str, object]:
         calls.append(json.loads(body)); return {"ok": True}
 
-    asyncio.run(TelegramOpsTransport(token="test-token", chat_id="-1004355109668", sender=sender).deliver(_ops_delivery()))
-    assert calls == [{"chat_id": "-1004355109668", "text": "Новая консультация"}]
+    asyncio.run(TelegramOpsTransport(token="test-token", chat_id="-1004328477143", sender=sender).deliver(_ops_delivery()))
+    assert calls == [{"chat_id": "-1004328477143", "text": "Новая консультация"}]
 
 
 def test_transport_sends_only_serialized_message_payload() -> None:
