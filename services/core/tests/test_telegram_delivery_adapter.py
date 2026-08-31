@@ -7,12 +7,14 @@ import pytest
 from app.adapters import telegram_delivery
 from app.adapters.telegram_delivery import (
     TelegramBotTransport,
+    TelegramOpsTransport,
     TelegramCallbackAcknowledger,
     TelegramEdgeCallbackAcknowledger,
     TelegramEdgeMenuConfigurer,
     TelegramEdgeTransport,
     TelegramDeliveryError,
     telegram_send_payload,
+    telegram_ops_send_payload,
 )
 from app.services.outbox_delivery import OutboundDelivery
 
@@ -32,6 +34,14 @@ def _delivery(*, recipient_id: str | None = "900001") -> OutboundDelivery:
     )
 
 
+def _ops_delivery() -> OutboundDelivery:
+    return OutboundDelivery(
+        message_id=uuid.uuid4(), user_id=uuid.uuid4(), channel="telegram_ops",
+        recipient_id=None, payload={"kind": "message", "text": "Новая консультация"},
+        lease_token=uuid.uuid4(),
+    )
+
+
 def test_telegram_payload_has_numeric_recipient_and_inline_keyboard() -> None:
     payload = telegram_send_payload(_delivery())
     assert payload["chat_id"] == "900001"
@@ -43,6 +53,22 @@ def test_telegram_payload_has_numeric_recipient_and_inline_keyboard() -> None:
 def test_telegram_payload_rejects_missing_recipient() -> None:
     with pytest.raises(TelegramDeliveryError, match="recipient"):
         telegram_send_payload(_delivery(recipient_id=None))
+
+
+def test_ops_payload_uses_only_the_fixed_private_chat() -> None:
+    assert telegram_ops_send_payload(_ops_delivery(), chat_id="-1004355109668") == {
+        "chat_id": "-1004355109668", "text": "Новая консультация"
+    }
+
+
+def test_ops_transport_never_uses_the_client_recipient() -> None:
+    calls: list[dict[str, object]] = []
+
+    def sender(_url: str, body: bytes) -> dict[str, object]:
+        calls.append(json.loads(body)); return {"ok": True}
+
+    asyncio.run(TelegramOpsTransport(token="test-token", chat_id="-1004355109668", sender=sender).deliver(_ops_delivery()))
+    assert calls == [{"chat_id": "-1004355109668", "text": "Новая консультация"}]
 
 
 def test_transport_sends_only_serialized_message_payload() -> None:

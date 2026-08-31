@@ -58,6 +58,20 @@ def telegram_send_payload(message: OutboundDelivery) -> dict[str, object]:
     return body
 
 
+def telegram_ops_send_payload(message: OutboundDelivery, *, chat_id: str) -> dict[str, object]:
+    """Render a private operations notification for its fixed configured chat."""
+    if message.channel != "telegram_ops":
+        raise TelegramDeliveryError("unsupported outbound channel")
+    if not chat_id.startswith("-") or not chat_id[1:].isdecimal():
+        raise TelegramDeliveryError("invalid Telegram ops chat")
+    if message.payload.get("kind") != "message":
+        raise TelegramDeliveryError("unsupported Telegram payload kind")
+    text = message.payload.get("text")
+    if not isinstance(text, str) or not text.strip() or len(text) > 4096:
+        raise TelegramDeliveryError("invalid Telegram message text")
+    return {"chat_id": chat_id, "text": text}
+
+
 HttpSender = Callable[[str, bytes], Mapping[str, Any]]
 
 
@@ -138,6 +152,25 @@ class TelegramBotTransport:
         response = await asyncio.to_thread(self._sender, self._url, body)
         if response.get("ok") is not True:
             raise TelegramDeliveryError("Telegram API rejected message")
+
+
+class TelegramOpsTransport:
+    """Direct, fixed-destination transport for the private operations chat."""
+
+    def __init__(self, *, token: str, chat_id: str, sender: HttpSender = _send_json) -> None:
+        if not token.strip() or not chat_id.strip():
+            raise ValueError("Telegram ops configuration is required")
+        self._url = f"https://api.telegram.org/bot{token}/sendMessage"
+        self._chat_id = chat_id
+        self._sender = sender
+
+    async def deliver(self, message: OutboundDelivery) -> None:
+        body = json.dumps(
+            telegram_ops_send_payload(message, chat_id=self._chat_id), ensure_ascii=False
+        ).encode("utf-8")
+        response = await asyncio.to_thread(self._sender, self._url, body)
+        if response.get("ok") is not True:
+            raise TelegramDeliveryError("Telegram API rejected operations notification")
 
 
 class TelegramCallbackAcknowledger:

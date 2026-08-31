@@ -204,6 +204,12 @@ async def _run_saved_result_and_repeat() -> None:
             assert repeat.repeat_task_text == "Нужно наладить передачу заявок"
             assert await session.scalar(select(ConsultationRequest).where(ConsultationRequest.id == repeat.id)) is repeat
             assert len((await session.scalars(select(ConsultationRequest).where(ConsultationRequest.diagnostic_session_id == diagnostic.id))).all()) == 2
+            ops = await session.scalar(select(OutboundMessage).where(
+                OutboundMessage.dedupe_key == f"ops:consultation-created:{repeat.id}"
+            ))
+            assert ops is not None and ops.channel == "telegram_ops"
+            assert "Повторное обращение — новая задача" in str(ops.payload_json["text"])
+            assert "Нужно наладить передачу заявок" in str(ops.payload_json["text"])
     finally:
         await factory.kw["bind"].dispose()
 

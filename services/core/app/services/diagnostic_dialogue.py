@@ -18,6 +18,7 @@ from app.services.diagnostic_report import DiagnosticReportService
 from app.services.outbox import OutboundQueue
 from app.services.consultation_lifecycle import ConsultationLifecycleService
 from app.services.scheduled_events import ScheduledEventService
+from app.services.ops_notifications import OpsNotificationService
 from app.core.telegram_channel import channel_callback_button
 from app.services.diagnostic_result_rendering import CTA_TEXT, render_telegram_diagnostic_result
 
@@ -173,6 +174,7 @@ class DiagnosticDialogueService:
                     status="new",
                 )
             )
+            await OpsNotificationService(self._session).enqueue_created_consultation(request)
         user.lifecycle_stage = "consultation_requested"
         await self._message(diagnostic, CONSULTATION_CONFIRMATION, "consultation:confirmation", [])
         return True

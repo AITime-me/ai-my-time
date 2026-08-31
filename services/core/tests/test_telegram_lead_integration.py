@@ -233,7 +233,7 @@ def test_callback_is_acknowledged_immediately_and_cta_keeps_static_confirmation(
                 headers=headers,
             ).status_code == 204
         assert acknowledger.callback_ids[-1] == "callback-1500"
-        assert asyncio.run(_cta_counts(database_url, diagnostic_id)) == (1, 1, True)
+        assert asyncio.run(_cta_counts(database_url, diagnostic_id)) == (1, 1, True, 1)
     finally:
         get_settings.cache_clear()
         asyncio.run(_clear_conference_tables(database_url))
@@ -524,7 +524,7 @@ async def _complete_existing_repeat_request(database_url: str, diagnostic_id: st
         await factory.kw["bind"].dispose()
 
 
-async def _cta_counts(database_url: str, diagnostic_id: str) -> tuple[int, int, bool]:
+async def _cta_counts(database_url: str, diagnostic_id: str) -> tuple[int, int, bool, int]:
     factory = create_session_factory(database_url)
     try:
         async with session_scope(factory) as session:
@@ -549,12 +549,20 @@ async def _cta_counts(database_url: str, diagnostic_id: str) -> tuple[int, int, 
                     OutboundMessage.dedupe_key == f"diagnostic:{diagnostic_id}:consultation:confirmation"
                 )
             )
+            ops = int(
+                await session.scalar(
+                    select(func.count()).select_from(OutboundMessage).where(
+                        OutboundMessage.dedupe_key.like("ops:consultation-created:%")
+                    )
+                )
+                or 0
+            )
             return events, confirmations, bool(
                 confirmation
                 and confirmation.get("text")
                 == "Заявка на консультацию принята. Эксперт AI My Time свяжется с вами в Telegram в рабочее время — с 08:00 до 18:00 по Москве."
                 and confirmation.get("buttons") == []
-            )
+            ), ops
     finally:
         await factory.kw["bind"].dispose()
 

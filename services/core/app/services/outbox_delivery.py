@@ -110,9 +110,10 @@ class OutboundDeliveryService:
         )
         if result.rowcount != 1:
             raise ValueError("outbound delivery lease is no longer active")
-        await self._session.execute(
-            update(User).where(User.id == delivery.user_id).values(telegram_reachability="allowed")
-        )
+        if delivery.channel == "telegram_lead":
+            await self._session.execute(
+                update(User).where(User.id == delivery.user_id).values(telegram_reachability="allowed")
+            )
 
     async def mark_retry(self, delivery: OutboundDelivery, *, error_code: str) -> None:
         attempt_count = await self._session.scalar(
@@ -150,7 +151,7 @@ class OutboundDeliveryService:
         )
         if result.rowcount != 1:
             raise ValueError("outbound delivery lease is no longer active")
-        if attempt_count >= MAX_DELIVERY_ATTEMPTS:
+        if attempt_count >= MAX_DELIVERY_ATTEMPTS and delivery.channel == "telegram_lead":
             await self._session.execute(
                 update(User).where(User.id == delivery.user_id).values(telegram_reachability="blocked")
             )

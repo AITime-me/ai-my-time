@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import AttentionItem, ConsultationRequest, DiagnosticReport, DiagnosticSession, Event, User
 from app.core.timezones import format_moscow
 from app.services.outbox import OutboundQueue
+from app.services.ops_notifications import OpsNotificationService
 from app.services.scheduled_events import ScheduledEventService, _appointment_buttons
 from app.core.telegram_channel import channel_callback_button
 from app.schemas.diagnostic_result_v2 import DiagnosticResultV2
@@ -43,6 +44,7 @@ class ConsultationLifecycleService:
         self._session.add(request); await self._session.flush()
         self._session.add(Event(user_id=user_id, kind="repeat_consultation_requested", payload_json={"consultation_request_id":str(request.id)}))
         self._session.add(AttentionItem(user_id=user_id, consultation_request_id=request.id, diagnostic_session_id=diagnostic_id, kind="repeat_consultation_requested", reason="Повторное обращение — новая задача", priority="normal", status="new"))
+        await OpsNotificationService(self._session).enqueue_created_consultation(request)
         await self._outbox.enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":"Задача получена. Эксперт AI My Time свяжется с вами в Telegram в рабочее время.","buttons":[]}, dedupe_key=f"repeat-consultation:{request.id}:confirmation")
         return request
 
