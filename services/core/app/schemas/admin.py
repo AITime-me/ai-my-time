@@ -232,6 +232,14 @@ class AdminAudienceList(BaseModel):
     offset: int = Field(default=0, ge=0)
 
 
+class AdminAudienceOptions(BaseModel):
+    source_codes: list[str]
+    campaign_codes: list[str]
+    business_segments: list[str]
+    diagnostic_stages: list[str]
+    consultation_statuses: list[str]
+
+
 class AdminBroadcastDraftCreate(BaseModel):
     segment_id: uuid.UUID
     title: str = Field(min_length=2, max_length=160)

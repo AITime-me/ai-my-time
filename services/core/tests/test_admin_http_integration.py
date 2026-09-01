@@ -102,6 +102,13 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             assert client.get("/admin/attention").json()["items"] == []
             audiences = client.get("/admin/audiences")
             assert audiences.status_code == 200
+            options = client.get("/admin/audience-options")
+            assert options.status_code == 200
+            assert options.json()["source_codes"] == ["conference_2026"]
+            assert options.json()["campaign_codes"] == ["conference_2026"]
+            assert options.json()["business_segments"] == ["Услуги"]
+            assert "prepared" in options.json()["diagnostic_stages"]
+            assert "completed" in options.json()["consultation_statuses"]
             subscribers = next(item for item in audiences.json()["items"] if item["key"] == "all_content_subscribers")
             assert subscribers["title"] == "Все подписанные на полезные материалы"
             assert subscribers["is_system"] is True

@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response
 from app.api.routes.admin_auth import current_actor
 from app.db.dependencies import get_session_factory
 from app.db.session import session_scope
-from app.schemas.admin import AdminAudienceCreate, AdminAudienceDetail, AdminAudienceList, AdminAudienceMemberList, AdminAudienceView
+from app.schemas.admin import AdminAudienceCreate, AdminAudienceDetail, AdminAudienceList, AdminAudienceMemberList, AdminAudienceOptions, AdminAudienceView
 from app.services.admin_broadcasts import AdminAudienceService
 
 router = APIRouter(prefix="/admin", tags=["admin-audiences"])
@@ -21,6 +21,12 @@ async def audiences(request: Request, limit: int = Query(default=20, ge=1, le=10
     await owner_actor(request)
     async with session_scope(get_session_factory(request)) as session:
         return await AdminAudienceService(session).audiences(limit=limit, offset=offset)
+
+@router.get("/audience-options", response_model=AdminAudienceOptions)
+async def audience_options(request: Request) -> AdminAudienceOptions:
+    await owner_actor(request)
+    async with session_scope(get_session_factory(request)) as session:
+        return AdminAudienceOptions(**(await AdminAudienceService(session).options()))
 
 @router.post("/audiences", response_model=AdminAudienceView, status_code=201)
 async def create_audience(payload: AdminAudienceCreate, request: Request) -> AdminAudienceView:

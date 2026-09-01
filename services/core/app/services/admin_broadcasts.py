@@ -33,6 +33,31 @@ class AdminAudienceService:
             return None
         return AdminAudienceDetail(**(await self._view(row)).model_dump(), conditions=AudienceConditions.model_validate(row.definition_json))
 
+    async def options(self) -> dict[str, list[str]]:
+        """Return only data-backed choices and domain-allowed states for the Admin form."""
+        touchpoints = (await self._session.scalars(select(Touchpoint))).all()
+        conferences = (await self._session.scalars(select(ConferenceEntry.conference_code))).all()
+        business_answers = (await self._session.scalars(
+            select(ProfileAnswer.answer_json).where(ProfileAnswer.question_code == "business_type")
+        )).all()
+        sources = {row.source_code for row in touchpoints if row.source_code}
+        campaigns = {
+            row.metadata_json.get("campaign") for row in touchpoints
+            if isinstance(row.metadata_json.get("campaign"), str) and row.metadata_json["campaign"]
+        }
+        campaigns.update(code for code in conferences if code)
+        businesses = {
+            answer.get("value") for answer in business_answers
+            if isinstance(answer, dict) and isinstance(answer.get("value"), str) and answer["value"]
+        }
+        return {
+            "source_codes": sorted(sources),
+            "campaign_codes": sorted(campaigns),
+            "business_segments": sorted(businesses),
+            "diagnostic_stages": ["prepared", "diagnostic_active", "diagnostic_completed"],
+            "consultation_statuses": ["new", "waiting_response", "scheduled", "completed", "cancelled", "no_show"],
+        }
+
     async def create(self, *, actor_id: uuid.UUID, title: str, conditions: AudienceConditions) -> AdminSegment:
         row = AdminSegment(key=f"audience-{uuid.uuid4().hex}", title=title.strip(), definition_json=conditions.model_dump(mode="json", exclude_none=True))
         self._session.add(row)
