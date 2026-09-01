@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -174,15 +175,59 @@ class AdminOperationalTrace(BaseModel):
     items: list[AdminOperationalTraceEvent]
 
 
-class AdminSegmentView(BaseModel):
-    segment_id: uuid.UUID
+class AudienceConditions(BaseModel):
+    """Only these data-backed fields may shape a saved dynamic audience."""
+    content_subscription_status: Literal["subscribed", "unsubscribed"] | None = None
+    source_codes: list[str] | None = Field(default=None, max_length=30)
+    campaign_codes: list[str] | None = Field(default=None, max_length=30)
+    business_segments: list[str] | None = Field(default=None, max_length=30)
+    diagnostic_stages: list[str] | None = Field(default=None, max_length=20)
+    consultation_statuses: list[str] | None = Field(default=None, max_length=20)
+    commercial_results: list[Literal["purchased", "not_purchased", "decision_pending"]] | None = Field(default=None, max_length=10)
+    first_seen_from: datetime | None = None
+    first_seen_to: datetime | None = None
+
+    def model_post_init(self, __context: object) -> None:
+        if self.first_seen_from and self.first_seen_to and self.first_seen_from >= self.first_seen_to:
+            raise ValueError("first_seen_from must be before first_seen_to")
+
+
+class AdminAudienceCreate(BaseModel):
+    title: str = Field(min_length=2, max_length=160)
+    conditions: AudienceConditions
+
+
+class AdminAudienceView(BaseModel):
+    audience_id: uuid.UUID
     key: str
     title: str
-    eligible_count: int = Field(ge=0)
+    is_system: bool
+    current_count: int = Field(ge=0)
+    created_at: datetime
+    updated_at: datetime
 
 
-class AdminSegmentList(BaseModel):
-    items: list[AdminSegmentView]
+class AdminAudienceDetail(AdminAudienceView):
+    conditions: AudienceConditions
+
+
+class AdminAudienceMemberView(BaseModel):
+    user_id: uuid.UUID
+    display_name: str | None = None
+    telegram_username: str | None = None
+    created_at: datetime
+
+
+class AdminAudienceMemberList(BaseModel):
+    audience_id: uuid.UUID
+    total_count: int = Field(ge=0)
+    items: list[AdminAudienceMemberView]
+    limit: int = Field(ge=1, le=100)
+    offset: int = Field(default=0, ge=0)
+
+
+class AdminAudienceList(BaseModel):
+    items: list[AdminAudienceView]
     limit: int = Field(ge=1, le=100)
     offset: int = Field(default=0, ge=0)
 

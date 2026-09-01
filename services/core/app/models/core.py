@@ -567,6 +567,7 @@ class AdminSegment(Timestamped, Base):
     title: Mapped[str] = mapped_column(String(160), nullable=False)
     definition_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
     is_active: Mapped[bool] = mapped_column(nullable=False, server_default="true")
+    is_system: Mapped[bool] = mapped_column(nullable=False, server_default="false")
 
 
 class BroadcastCampaign(Timestamped, Base):

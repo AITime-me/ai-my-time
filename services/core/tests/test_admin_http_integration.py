@@ -17,19 +17,8 @@ from app.services.admin_auth import AdminAuthService
 from app.schemas.conference import ConferenceStartCommand
 from app.schemas.profile import SaveProfileAnswersCommand
 from app.services.conference_intake import ConferenceIntakeService
-from app.services.outbox_delivery import OutboundDelivery, OutboundWorker
 from app.services.profile import ProfileService
-from app.adapters.telegram_delivery import telegram_send_payload
 from app.models import AttentionItem, ConsultationRequest, DiagnosticSession, User
-
-
-class _RecordingTransport:
-    def __init__(self) -> None:
-        self.deliveries: list[OutboundDelivery] = []
-
-    async def deliver(self, delivery: OutboundDelivery) -> None:
-        assert telegram_send_payload(delivery)["text"] == "Только черновик"
-        self.deliveries.append(delivery)
 
 
 def _test_database_url() -> str:
@@ -45,7 +34,8 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
     database_url = _test_database_url()
     asyncio.run(_bootstrap_test_owner(database_url))
     asyncio.run(_create_test_lead(database_url))
-    asyncio.run(_enable_broadcast_recipient(database_url))
+    asyncio.run(_enable_audience_member(database_url))
+    asyncio.run(_create_audience_facts(database_url))
     monkeypatch.setenv("DATABASE_URL", database_url)
     get_settings.cache_clear()
     try:
@@ -110,22 +100,28 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             assert analytics.json()["completion_rate"] is None
             assert client.get("/admin/consultations").json()["items"] == []
             assert client.get("/admin/attention").json()["items"] == []
-            segments = client.get("/admin/segments")
-            assert segments.status_code == 200
-            eligible = next(item for item in segments.json()["items"] if item["key"] == "eligible_telegram_broadcast")
-            assert eligible["eligible_count"] == 1
-            draft = client.post("/admin/broadcasts/drafts", json={"segment_id": eligible["segment_id"], "title": "Черновик", "body": "Только черновик"})
-            assert draft.status_code == 201
-            assert draft.json()["status"] == "draft"
-            broadcast_id = draft.json()["broadcast_id"]
-            assert client.get(f"/admin/broadcasts/{broadcast_id}/preview").json()["eligible_count"] == 1
-            queued = client.post(f"/admin/broadcasts/{broadcast_id}/confirm-send")
-            assert queued.status_code == 200
-            assert queued.json()["queued_count"] == 1
-            assert client.post(f"/admin/broadcasts/{broadcast_id}/confirm-send").json()["queued_count"] == 1
-            assert asyncio.run(_deliver_broadcast(database_url)) == 1
-            assert client.get(f"/admin/broadcasts/{broadcast_id}/preview").json()["sent_count"] == 1
-            assert client.get("/admin/broadcasts").json()["items"][0]["title"] == "Черновик"
+            audiences = client.get("/admin/audiences")
+            assert audiences.status_code == 200
+            subscribers = next(item for item in audiences.json()["items"] if item["key"] == "all_content_subscribers")
+            assert subscribers["title"] == "Все подписанные на полезные материалы"
+            assert subscribers["is_system"] is True
+            assert subscribers["current_count"] == 1
+            created = client.post("/admin/audiences", json={"title": "Подписанные услуги с конференции", "conditions": {"content_subscription_status": "subscribed", "source_codes": ["conference_2026"], "campaign_codes": ["conference_2026"], "business_segments": ["Услуги"], "diagnostic_stages": ["prepared"], "consultation_statuses": ["completed"], "commercial_results": ["purchased"], "first_seen_from": "2020-01-01T00:00:00Z"}})
+            assert created.status_code == 201
+            audience_id = created.json()["audience_id"]
+            assert created.json()["current_count"] == 1
+            members = client.get(f"/admin/audiences/{audience_id}/members")
+            assert members.status_code == 200
+            assert members.json()["total_count"] == 1
+            assert members.json()["items"][0]["display_name"] == "Тестовый Пользователь"
+            asyncio.run(_set_content_subscription(database_url, "unsubscribed"))
+            assert client.get(f"/admin/audiences/{audience_id}/members").json()["total_count"] == 0
+            asyncio.run(_set_content_subscription(database_url, "subscribed"))
+            assert client.patch(f"/admin/audiences/{subscribers['audience_id']}", json={"title": "Нет", "conditions": {}}).status_code == 404
+            assert client.delete(f"/admin/audiences/{subscribers['audience_id']}").status_code == 404
+            assert client.patch(f"/admin/audiences/{audience_id}", json={"title": "Все тестовые", "conditions": {"content_subscription_status": "subscribed"}}).status_code == 200
+            assert client.delete(f"/admin/audiences/{audience_id}").status_code == 204
+            assert client.get(f"/admin/audiences/{audience_id}").status_code == 404
             assert client.post("/admin/auth/logout").status_code == 403
             assert client.post(
                 "/admin/auth/logout", headers={"Origin": "http://testserver"}
@@ -266,11 +262,34 @@ async def _create_test_lead(database_url: str) -> None:
         await factory.kw["bind"].dispose()
 
 
-async def _enable_broadcast_recipient(database_url: str) -> None:
+async def _enable_audience_member(database_url: str) -> None:
     factory = create_session_factory(database_url)
     try:
         async with session_scope(factory) as session:
-            await session.execute(text("UPDATE users SET marketing_consent_status = 'confirmed', telegram_reachability = 'allowed', communication_status = 'subscribed'"))
+            await session.execute(text("UPDATE users SET content_subscription_status = 'subscribed'"))
+    finally:
+        await factory.kw["bind"].dispose()
+
+
+async def _set_content_subscription(database_url: str, status: str) -> None:
+    factory = create_session_factory(database_url)
+    try:
+        async with session_scope(factory) as session:
+            await session.execute(text("UPDATE users SET content_subscription_status = :status"), {"status": status})
+    finally:
+        await factory.kw["bind"].dispose()
+
+
+async def _create_audience_facts(database_url: str) -> None:
+    factory = create_session_factory(database_url)
+    try:
+        async with session_scope(factory) as session:
+            user = await session.scalar(select(User))
+            assert user is not None
+            diagnostic = DiagnosticSession(user_id=user.id, input_snapshot_json={"test": True})
+            session.add(diagnostic)
+            await session.flush()
+            session.add(ConsultationRequest(user_id=user.id, diagnostic_session_id=diagnostic.id, status="completed", commercial_result="purchased"))
     finally:
         await factory.kw["bind"].dispose()
 
@@ -306,17 +325,6 @@ async def _create_work_items(database_url: str) -> dict[str, str]:
                 "linked_attention": str(linked.id),
                 "standalone_attention": str(standalone.id),
             }
-    finally:
-        await factory.kw["bind"].dispose()
-
-
-async def _deliver_broadcast(database_url: str) -> int:
-    factory = create_session_factory(database_url)
-    try:
-        transport = _RecordingTransport()
-        delivered = await OutboundWorker(factory, transport).run_once()
-        assert len(transport.deliveries) == delivered
-        return delivered
     finally:
         await factory.kw["bind"].dispose()
 

@@ -1,45 +1,63 @@
 import uuid
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
+
 from app.api.routes.admin_auth import current_actor
 from app.db.dependencies import get_session_factory
 from app.db.session import session_scope
-from app.schemas.admin import AdminBroadcastDraftCreate, AdminBroadcastList, AdminBroadcastView, AdminSegmentList
-from app.services.admin_broadcasts import AdminBroadcastService
+from app.schemas.admin import AdminAudienceCreate, AdminAudienceDetail, AdminAudienceList, AdminAudienceMemberList, AdminAudienceView
+from app.services.admin_broadcasts import AdminAudienceService
 
-router = APIRouter(prefix="/admin", tags=["admin-broadcasts"])
+router = APIRouter(prefix="/admin", tags=["admin-audiences"])
 
-@router.get("/segments", response_model=AdminSegmentList)
-async def segments(request: Request, limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0)) -> AdminSegmentList:
-    await current_actor(request)
-    async with session_scope(get_session_factory(request)) as session: return await AdminBroadcastService(session).segments(limit=limit, offset=offset)
-
-@router.get("/broadcasts", response_model=AdminBroadcastList)
-async def broadcasts(request: Request, limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0)) -> AdminBroadcastList:
-    await current_actor(request)
-    async with session_scope(get_session_factory(request)) as session: return await AdminBroadcastService(session).broadcasts(limit=limit, offset=offset)
-
-@router.post("/broadcasts/drafts", response_model=AdminBroadcastView, status_code=201)
-async def draft(payload: AdminBroadcastDraftCreate, request: Request) -> AdminBroadcastView:
+async def owner_actor(request: Request):
     actor = await current_actor(request)
-    async with session_scope(get_session_factory(request)) as session:
-        service = AdminBroadcastService(session); row = await service.create_draft(actor_id=actor.user_id, **payload.model_dump())
-        if row is None: raise HTTPException(status_code=404, detail="segment not found")
-        count = next(item.eligible_count for item in (await service.segments()).items if item.segment_id == row.segment_id)
-        return AdminBroadcastView(broadcast_id=row.id, segment_id=row.segment_id, title=row.title, body=row.body, status=row.status, eligible_count=count, queued_count=0, sent_count=0, failed_count=0, created_at=row.created_at)
+    if actor.role != "owner":
+        raise HTTPException(status_code=403, detail="owner role required")
+    return actor
 
-@router.get("/broadcasts/{broadcast_id}/preview", response_model=AdminBroadcastView)
-async def preview(broadcast_id: uuid.UUID, request: Request) -> AdminBroadcastView:
-    await current_actor(request)
+@router.get("/audiences", response_model=AdminAudienceList)
+async def audiences(request: Request, limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0)) -> AdminAudienceList:
+    await owner_actor(request)
     async with session_scope(get_session_factory(request)) as session:
-        row = await AdminBroadcastService(session).preview(broadcast_id)
-        if row is None: raise HTTPException(status_code=404, detail="broadcast not found")
+        return await AdminAudienceService(session).audiences(limit=limit, offset=offset)
+
+@router.post("/audiences", response_model=AdminAudienceView, status_code=201)
+async def create_audience(payload: AdminAudienceCreate, request: Request) -> AdminAudienceView:
+    actor = await owner_actor(request)
+    async with session_scope(get_session_factory(request)) as session:
+        row = await AdminAudienceService(session).create(actor_id=actor.user_id, **payload.model_dump())
+        return await AdminAudienceService(session)._view(row)
+
+@router.get("/audiences/{audience_id}", response_model=AdminAudienceDetail)
+async def audience(audience_id: uuid.UUID, request: Request) -> AdminAudienceDetail:
+    await owner_actor(request)
+    async with session_scope(get_session_factory(request)) as session:
+        row = await AdminAudienceService(session).audience(audience_id)
+        if row is None: raise HTTPException(status_code=404, detail="audience not found")
         return row
 
-@router.post("/broadcasts/{broadcast_id}/confirm-send", response_model=AdminBroadcastView)
-async def confirm_send(broadcast_id: uuid.UUID, request: Request) -> AdminBroadcastView:
-    actor = await current_actor(request)
+@router.patch("/audiences/{audience_id}", response_model=AdminAudienceView)
+async def update_audience(audience_id: uuid.UUID, payload: AdminAudienceCreate, request: Request) -> AdminAudienceView:
+    actor = await owner_actor(request)
     async with session_scope(get_session_factory(request)) as session:
-        row = await AdminBroadcastService(session).confirm_send(actor_id=actor.user_id, broadcast_id=broadcast_id)
-        if row is None: raise HTTPException(status_code=404, detail="broadcast not found")
+        service = AdminAudienceService(session)
+        row = await service.update(actor_id=actor.user_id, audience_id=audience_id, **payload.model_dump())
+        if row is None: raise HTTPException(status_code=404, detail="audience not found or is system managed")
+        return await service._view(row)
+
+@router.delete("/audiences/{audience_id}", status_code=204)
+async def delete_audience(audience_id: uuid.UUID, request: Request) -> Response:
+    actor = await owner_actor(request)
+    async with session_scope(get_session_factory(request)) as session:
+        if not await AdminAudienceService(session).delete(actor_id=actor.user_id, audience_id=audience_id):
+            raise HTTPException(status_code=404, detail="audience not found or is system managed")
+    return Response(status_code=204)
+
+@router.get("/audiences/{audience_id}/members", response_model=AdminAudienceMemberList)
+async def audience_members(audience_id: uuid.UUID, request: Request, limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0)) -> AdminAudienceMemberList:
+    await owner_actor(request)
+    async with session_scope(get_session_factory(request)) as session:
+        row = await AdminAudienceService(session).members(audience_id=audience_id, limit=limit, offset=offset)
+        if row is None: raise HTTPException(status_code=404, detail="audience not found")
         return row
