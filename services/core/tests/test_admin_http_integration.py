@@ -97,7 +97,7 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
             analytics = client.get("/admin/analytics?days=7")
             assert analytics.status_code == 200
             assert analytics.json()["people"] == 1
-            assert analytics.json()["completion_rate"] is None
+            assert analytics.json()["completion_rate"] == 0.0
             assert client.get("/admin/consultations").json()["items"] == []
             assert client.get("/admin/attention").json()["items"] == []
             audiences = client.get("/admin/audiences")

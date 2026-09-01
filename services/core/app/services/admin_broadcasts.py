@@ -34,7 +34,7 @@ class AdminAudienceService:
         return AdminAudienceDetail(**(await self._view(row)).model_dump(), conditions=AudienceConditions.model_validate(row.definition_json))
 
     async def create(self, *, actor_id: uuid.UUID, title: str, conditions: AudienceConditions) -> AdminSegment:
-        row = AdminSegment(key=f"audience-{uuid.uuid4().hex}", title=title.strip(), definition_json=conditions.model_dump(exclude_none=True))
+        row = AdminSegment(key=f"audience-{uuid.uuid4().hex}", title=title.strip(), definition_json=conditions.model_dump(mode="json", exclude_none=True))
         self._session.add(row)
         await self._session.flush()
         self._session.add(AdminAuditEvent(actor_id=actor_id, action="audience.created", object_type="admin_segment", object_id=row.id, delta_json={"title": row.title, "conditions": row.definition_json}))
@@ -45,8 +45,10 @@ class AdminAudienceService:
         if row is None or not row.is_active or row.is_system:
             return None
         row.title = title.strip()
-        row.definition_json = conditions.model_dump(exclude_none=True)
+        row.definition_json = conditions.model_dump(mode="json", exclude_none=True)
         self._session.add(AdminAuditEvent(actor_id=actor_id, action="audience.updated", object_type="admin_segment", object_id=row.id, delta_json={"title": row.title, "conditions": row.definition_json}))
+        await self._session.flush()
+        await self._session.refresh(row)
         return row
 
     async def delete(self, *, actor_id: uuid.UUID, audience_id: uuid.UUID) -> bool:

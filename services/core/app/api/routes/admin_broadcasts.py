@@ -26,7 +26,7 @@ async def audiences(request: Request, limit: int = Query(default=20, ge=1, le=10
 async def create_audience(payload: AdminAudienceCreate, request: Request) -> AdminAudienceView:
     actor = await owner_actor(request)
     async with session_scope(get_session_factory(request)) as session:
-        row = await AdminAudienceService(session).create(actor_id=actor.user_id, **payload.model_dump())
+        row = await AdminAudienceService(session).create(actor_id=actor.user_id, title=payload.title, conditions=payload.conditions)
         return await AdminAudienceService(session)._view(row)
 
 @router.get("/audiences/{audience_id}", response_model=AdminAudienceDetail)
@@ -42,7 +42,7 @@ async def update_audience(audience_id: uuid.UUID, payload: AdminAudienceCreate, 
     actor = await owner_actor(request)
     async with session_scope(get_session_factory(request)) as session:
         service = AdminAudienceService(session)
-        row = await service.update(actor_id=actor.user_id, audience_id=audience_id, **payload.model_dump())
+        row = await service.update(actor_id=actor.user_id, audience_id=audience_id, title=payload.title, conditions=payload.conditions)
         if row is None: raise HTTPException(status_code=404, detail="audience not found or is system managed")
         return await service._view(row)
 
