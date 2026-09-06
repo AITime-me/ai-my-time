@@ -50,6 +50,19 @@ def test_telegram_payload_has_numeric_recipient_and_inline_keyboard() -> None:
     }
 
 
+def test_content_campaign_uses_the_same_safe_telegram_message_contract() -> None:
+    delivery = _delivery()
+    campaign_delivery = delivery.__class__(
+        message_id=delivery.message_id, user_id=delivery.user_id, channel=delivery.channel,
+        recipient_id=delivery.recipient_id,
+        payload={"kind": "content_campaign", "text": "Полезный материал", "buttons": []},
+        lease_token=delivery.lease_token,
+    )
+    assert telegram_send_payload(campaign_delivery) == {
+        "chat_id": "900001", "text": "Полезный материал"
+    }
+
+
 def test_telegram_payload_rejects_missing_recipient() -> None:
     with pytest.raises(TelegramDeliveryError, match="recipient"):
         telegram_send_payload(_delivery(recipient_id=None))

@@ -14,7 +14,7 @@ from typing import Protocol
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.models import CampaignRecipient, OutboundMessage, User, UserIdentity
+from app.models import BroadcastCampaign, CampaignRecipient, OutboundMessage, User, UserIdentity
 from app.db.session import session_scope
 
 MAX_DELIVERY_ATTEMPTS = 5
@@ -75,7 +75,9 @@ class OutboundDeliveryService:
                     if isinstance(recipient_id, str):
                         try:
                             recipient = await self._session.get(CampaignRecipient, uuid.UUID(recipient_id))
-                            if recipient is not None: recipient.state = "skipped"
+                            if recipient is not None:
+                                recipient.state = "skipped"
+                                await self._sync_campaign_status(recipient)
                         except ValueError: pass
                     continue
             lease_token = uuid.uuid4()
@@ -125,6 +127,7 @@ class OutboundDeliveryService:
             await self._session.execute(
                 update(User).where(User.id == delivery.user_id).values(telegram_reachability="allowed")
             )
+        await self._sync_campaign_status_from_delivery(delivery)
 
     async def mark_retry(self, delivery: OutboundDelivery, *, error_code: str) -> None:
         attempt_count = await self._session.scalar(
@@ -162,10 +165,43 @@ class OutboundDeliveryService:
         )
         if result.rowcount != 1:
             raise ValueError("outbound delivery lease is no longer active")
+        if attempt_count >= MAX_DELIVERY_ATTEMPTS:
+            await self._set_recipient_state_from_delivery(delivery, "failed")
         if attempt_count >= MAX_DELIVERY_ATTEMPTS and delivery.channel == "telegram_lead":
             await self._session.execute(
                 update(User).where(User.id == delivery.user_id).values(telegram_reachability="blocked")
             )
+
+    async def _sync_campaign_status_from_delivery(self, delivery: OutboundDelivery) -> None:
+        await self._set_recipient_state_from_delivery(delivery, "sent")
+
+    async def _set_recipient_state_from_delivery(self, delivery: OutboundDelivery, state: str) -> None:
+        recipient_id = delivery.payload.get("recipient_id")
+        if not isinstance(recipient_id, str):
+            return
+        try:
+            recipient = await self._session.get(CampaignRecipient, uuid.UUID(recipient_id))
+        except ValueError:
+            return
+        if recipient is None:
+            return
+        recipient.state = state
+        await self._sync_campaign_status(recipient)
+
+    async def _sync_campaign_status(self, recipient: CampaignRecipient) -> None:
+        """Reflect terminal recipient outcomes in the immutable campaign history."""
+        campaign = await self._session.get(BroadcastCampaign, recipient.campaign_id, with_for_update=True)
+        if campaign is None:
+            return
+        states = list(await self._session.scalars(
+            select(CampaignRecipient.state).where(CampaignRecipient.campaign_id == campaign.id)
+        ))
+        if any(state == "queued" for state in states):
+            campaign.status = "queued"
+        elif any(state == "failed" for state in states):
+            campaign.status = "completed_with_errors"
+        else:
+            campaign.status = "completed"
 
 
 class OutboundWorker:

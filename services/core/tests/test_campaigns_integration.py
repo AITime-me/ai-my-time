@@ -10,9 +10,9 @@ import pytest
 from sqlalchemy import select, text
 
 from app.db.session import create_session_factory, session_scope
-from app.models import AdminSegment, AdminUser, CampaignRecipient, OutboundMessage, User, UserIdentity
+from app.models import AdminSegment, AdminUser, BroadcastCampaign, CampaignRecipient, OutboundMessage, User, UserIdentity
 from app.services.admin_broadcasts import AdminCampaignService
-from app.services.outbox_delivery import OutboundDeliveryService
+from app.services.outbox_delivery import MAX_DELIVERY_ATTEMPTS, OutboundDeliveryService
 
 
 def _test_database_url() -> str:
@@ -71,8 +71,31 @@ async def _run(database_url: str) -> None:
             user = await session.get(User, subscribed.id)
             assert message is not None and message.status == "skipped" and message.last_error_code == "content_unsubscribed"
             assert recipient is not None and recipient.state == "skipped"
+            campaign = await session.get(BroadcastCampaign, recipient.campaign_id)
+            assert campaign is not None and campaign.status == "completed"
             # /stop for content leaves unrelated communication consent alone.
             assert user is not None and user.communication_status == "subscribed"
+
+        async with session_scope(factory) as session:
+            user = await session.get(User, subscribed.id)
+            assert user is not None
+            user.content_subscription_status = "subscribed"
+            service = AdminCampaignService(session)
+            failed_draft = await service.create(
+                actor_id=owner.id, segment_id=audience.id,
+                title="Useful material failure", body="A local terminal-failure proof.",
+            )
+            assert failed_draft is not None
+            assert await service.confirm(actor_id=owner.id, campaign_id=failed_draft.id) is not None
+            delivery = (await OutboundDeliveryService(session).claim(limit=1))[0]
+            message = await session.get(OutboundMessage, delivery.message_id)
+            assert message is not None
+            message.attempt_count = MAX_DELIVERY_ATTEMPTS
+            await OutboundDeliveryService(session).mark_retry(delivery, error_code="TelegramDeliveryError")
+            recipient = await session.scalar(select(CampaignRecipient).where(CampaignRecipient.campaign_id == failed_draft.id))
+            campaign = await session.get(BroadcastCampaign, failed_draft.id)
+            assert recipient is not None and recipient.state == "failed"
+            assert campaign is not None and campaign.status == "completed_with_errors"
     finally:
         try:
             async with session_scope(factory) as session:
@@ -83,9 +106,9 @@ async def _run(database_url: str) -> None:
 
 async def _cleanup_campaign_test_data(session) -> None:
     """Do not erase migration-owned system audiences from the shared test DB."""
-    await session.execute(text("DELETE FROM campaign_recipients WHERE campaign_id IN (SELECT id FROM broadcast_campaigns WHERE title = 'Useful material')"))
+    await session.execute(text("DELETE FROM campaign_recipients WHERE campaign_id IN (SELECT id FROM broadcast_campaigns WHERE title LIKE 'Useful material%')"))
     await session.execute(text("DELETE FROM outbound_messages WHERE dedupe_key LIKE 'campaign:%'"))
-    await session.execute(text("DELETE FROM broadcast_campaigns WHERE title = 'Useful material'"))
+    await session.execute(text("DELETE FROM broadcast_campaigns WHERE title LIKE 'Useful material%'"))
     await session.execute(text("DELETE FROM admin_segments WHERE key = 'campaign-test-audience'"))
     await session.execute(text("DELETE FROM user_identities WHERE external_id IN ('campaign-test-1', 'campaign-test-2')"))
     await session.execute(text("DELETE FROM users WHERE display_name IN ('Subscribed', 'Stopped')"))

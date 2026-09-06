@@ -27,7 +27,10 @@ def telegram_send_payload(message: OutboundDelivery) -> dict[str, object]:
         raise TelegramDeliveryError("unsupported outbound channel")
     if not message.recipient_id or not message.recipient_id.isdecimal():
         raise TelegramDeliveryError("missing Telegram recipient")
-    if message.payload.get("kind") != "message":
+    # Campaigns retain their own durable kind so the worker can re-check the
+    # content subscription. They render through the same Telegram sendMessage
+    # contract as an ordinary lead-bot message.
+    if message.payload.get("kind") not in {"message", "content_campaign"}:
         raise TelegramDeliveryError("unsupported Telegram payload kind")
     text = message.payload.get("text")
     if not isinstance(text, str) or not text.strip() or len(text) > 4096:
