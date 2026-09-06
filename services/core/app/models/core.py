@@ -571,7 +571,7 @@ class AdminSegment(Timestamped, Base):
 
 
 class BroadcastCampaign(Timestamped, Base):
-    """A reviewable broadcast draft. MVP has no send executor by design."""
+    """A content-campaign draft; a confirmed campaign is immutable."""
 
     __tablename__ = "broadcast_campaigns"
     __table_args__ = (Index("ix_broadcast_campaigns_status_created", "status", "created_at"),)
@@ -582,6 +582,25 @@ class BroadcastCampaign(Timestamped, Base):
     status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="draft")
     created_by_actor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("admin_users.id", ondelete="RESTRICT"), nullable=False)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    snapshot_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    audience_snapshot_json: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    audience_count_snapshot: Mapped[int | None] = mapped_column(nullable=True)
+    excluded_count_snapshot: Mapped[int | None] = mapped_column(nullable=True)
+
+
+class CampaignRecipient(Timestamped, Base):
+    """Frozen recipient snapshot and one-delivery guard for one campaign/user."""
+
+    __tablename__ = "campaign_recipients"
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "user_id", name="uq_campaign_recipients_campaign_user"),
+        Index("ix_campaign_recipients_campaign_state", "campaign_id", "state"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    campaign_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("broadcast_campaigns.id", ondelete="RESTRICT"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    state: Mapped[str] = mapped_column(String(24), nullable=False, server_default="queued")
+    outbox_message_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("outbound_messages.id", ondelete="RESTRICT"), nullable=True)
 
 
 class ConferenceEntry(Timestamped, Base):

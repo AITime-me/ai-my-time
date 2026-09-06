@@ -14,7 +14,7 @@ from typing import Protocol
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.models import OutboundMessage, User, UserIdentity
+from app.models import CampaignRecipient, OutboundMessage, User, UserIdentity
 from app.db.session import session_scope
 
 MAX_DELIVERY_ATTEMPTS = 5
@@ -67,6 +67,17 @@ class OutboundDeliveryService:
         )
         deliveries: list[OutboundDelivery] = []
         for row in rows:
+            if row.payload_json.get("kind") == "content_campaign":
+                subscribed = await self._session.scalar(select(User.content_subscription_status).where(User.id == row.user_id))
+                if subscribed != "subscribed":
+                    row.status, row.last_error_code = "skipped", "content_unsubscribed"
+                    recipient_id = row.payload_json.get("recipient_id")
+                    if isinstance(recipient_id, str):
+                        try:
+                            recipient = await self._session.get(CampaignRecipient, uuid.UUID(recipient_id))
+                            if recipient is not None: recipient.state = "skipped"
+                        except ValueError: pass
+                    continue
             lease_token = uuid.uuid4()
             row.status = "processing"
             row.lease_token = lease_token

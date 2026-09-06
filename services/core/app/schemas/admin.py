@@ -246,6 +246,10 @@ class AdminBroadcastDraftCreate(BaseModel):
     body: str = Field(min_length=2, max_length=4000)
 
 
+class AdminBroadcastDraftUpdate(AdminBroadcastDraftCreate):
+    pass
+
+
 class AdminBroadcastView(BaseModel):
     broadcast_id: uuid.UUID
     segment_id: uuid.UUID
@@ -256,6 +260,10 @@ class AdminBroadcastView(BaseModel):
     queued_count: int = Field(ge=0)
     sent_count: int = Field(ge=0)
     failed_count: int = Field(ge=0)
+    audience_count: int = Field(ge=0)
+    excluded_count: int = Field(ge=0)
+    skipped_count: int = Field(ge=0)
+    snapshot_at: datetime | None = None
     created_at: datetime
 
 
