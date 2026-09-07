@@ -18,9 +18,13 @@ from app.models import (
     IntakeRequest,
     SiteLegalDocument,
     SiteLegalDocumentVersion,
+    SiteCase,
+    SiteFaq,
+    SiteService,
     User,
 )
 from app.models.core import AttentionItem, ConsultationRequest
+from app.services.public_knowledge import PublicKnowledgeReader
 
 
 def _database_url() -> str:
@@ -46,6 +50,11 @@ async def _run(database_url: str) -> None:
                 document = SiteLegalDocument(key="schema-test", title="Schema test")
                 profile = AssistantProfile(key="schema-test", title="Schema test assistant")
                 session.add_all([user, document, profile])
+                session.add_all([
+                    SiteService(slug="schema-test-service", title="Schema test service", is_active=True),
+                    SiteCase(title="Schema test case", is_active=True),
+                    SiteFaq(question="Schema test question?", answer="Schema test answer.", is_active=True),
+                ])
                 await session.flush()
 
                 legal_version = SiteLegalDocumentVersion(
@@ -120,6 +129,10 @@ async def _run(database_url: str) -> None:
                 assert consultation.intake_request_id == intake.id
                 assert attention.intake_request_id == intake.id
                 assert run.profile_version_id == profile_version.id
+                public_knowledge = await PublicKnowledgeReader(session).snapshot()
+                assert [item["slug"] for item in public_knowledge["services"]] == ["schema-test-service"]
+                assert [item["title"] for item in public_knowledge["cases"]] == ["Schema test case"]
+                assert [item["question"] for item in public_knowledge["faq"]] == ["Schema test question?"]
             finally:
                 await transaction.rollback()
     finally:
