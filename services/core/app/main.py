@@ -8,6 +8,10 @@ from app.api.routes.admin_leads import router as admin_leads_router
 from app.api.routes.admin_knowledge import router as admin_knowledge_router
 from app.api.routes.admin_logs import router as admin_logs_router
 from app.api.routes.admin_ui import router as admin_ui_router
+from app.api.routes.admin_site import router as admin_site_router
+from app.api.routes.admin_assistant import router as admin_assistant_router
+from app.api.routes.assistant import router as assistant_router
+from app.api.routes.public_site import router as public_site_router
 from app.api.routes.health import router as health_router
 from app.api.routes.telegram_lead import router as telegram_lead_router
 from app.core.settings import get_settings
@@ -43,6 +47,10 @@ def create_app() -> FastAPI:
     app.include_router(admin_knowledge_router)
     app.include_router(admin_logs_router)
     app.include_router(admin_ui_router)
+    app.include_router(admin_site_router)
+    app.include_router(admin_assistant_router)
+    app.include_router(public_site_router)
+    app.include_router(assistant_router)
     app.include_router(telegram_lead_router)
     return app
 
