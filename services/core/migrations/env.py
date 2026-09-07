@@ -26,6 +26,20 @@ from app.models import (  # noqa: F401
     Touchpoint,
     User,
     UserIdentity,
+    AssistantChannelBinding,
+    AssistantConversation,
+    AssistantMessage,
+    AssistantProfile,
+    AssistantProfileVersion,
+    AssistantRun,
+    ConsentRecord,
+    IntakeRequest,
+    SiteCase,
+    SiteFaq,
+    SiteLegalDocument,
+    SiteLegalDocumentVersion,
+    SiteService,
+    SiteSettings,
 )
 
 config = context.config

@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -376,21 +376,234 @@ class Event(Base):
     )
 
 
+class SiteSettings(Base):
+    """The one public-site configuration row, managed only through Core Admin."""
+
+    __tablename__ = "site_settings"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_site_settings_singleton"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    site_title: Mapped[str] = mapped_column(String(256), nullable=False)
+    site_description: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    og_image: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    contacts_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    social_links_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    cta_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    analytics_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class SiteService(Timestamped, Base):
+    __tablename__ = "site_services"
+    __table_args__ = (UniqueConstraint("slug", name="uq_site_services_slug"), Index("ix_site_services_public_order", "is_active", "sort_order"))
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    slug: Mapped[str] = mapped_column(String(160), nullable=False)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    h1: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    seo_title: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    seo_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    short_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    full_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    audience: Mapped[str | None] = mapped_column(Text, nullable=True)
+    includes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cta_text: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    is_active: Mapped[bool] = mapped_column(nullable=False, server_default="true")
+    legacy_source_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, unique=True)
+
+
+class SiteCase(Timestamped, Base):
+    __tablename__ = "site_cases"
+    __table_args__ = (Index("ix_site_cases_public_order", "is_active", "sort_order"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    category: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    status: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    task: Mapped[str | None] = mapped_column(Text, nullable=True)
+    solution: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result: Mapped[str | None] = mapped_column(Text, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    seo_title: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    seo_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    is_active: Mapped[bool] = mapped_column(nullable=False, server_default="true")
+    legacy_source_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, unique=True)
+
+
+class SiteFaq(Timestamped, Base):
+    __tablename__ = "site_faq"
+    __table_args__ = (Index("ix_site_faq_public_order", "is_active", "sort_order"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    is_active: Mapped[bool] = mapped_column(nullable=False, server_default="true")
+    legacy_source_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, unique=True)
+
+
+class SiteLegalDocument(Timestamped, Base):
+    __tablename__ = "site_legal_documents"
+    __table_args__ = (UniqueConstraint("key", name="uq_site_legal_documents_key"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    key: Mapped[str] = mapped_column(String(80), nullable=False)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    published_version_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    legacy_source_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, unique=True)
+
+
+class SiteLegalDocumentVersion(Base):
+    __tablename__ = "site_legal_document_versions"
+    __table_args__ = (UniqueConstraint("document_id", "version", name="uq_site_legal_document_versions_document_version"), Index("ix_site_legal_document_versions_document_status", "document_id", "status", "created_at"))
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("site_legal_documents.id", ondelete="RESTRICT"), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="draft")
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by_actor_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("admin_users.id", ondelete="RESTRICT"), nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class AssistantProfile(Timestamped, Base):
+    __tablename__ = "assistant_profiles"
+    __table_args__ = (UniqueConstraint("key", name="uq_assistant_profiles_key"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    key: Mapped[str] = mapped_column(String(80), nullable=False)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    published_version_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+
+class AssistantProfileVersion(Base):
+    __tablename__ = "assistant_profile_versions"
+    __table_args__ = (UniqueConstraint("profile_id", "version", name="uq_assistant_profile_versions_profile_version"), Index("ix_assistant_profile_versions_profile_status", "profile_id", "status", "created_at"))
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    profile_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assistant_profiles.id", ondelete="RESTRICT"), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="draft")
+    config_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    created_by_actor_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("admin_users.id", ondelete="RESTRICT"), nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class AssistantChannelBinding(Timestamped, Base):
+    __tablename__ = "assistant_channel_bindings"
+    __table_args__ = (UniqueConstraint("channel", name="uq_assistant_channel_bindings_channel"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    channel: Mapped[str] = mapped_column(String(48), nullable=False)
+    profile_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assistant_profiles.id", ondelete="RESTRICT"), nullable=False)
+    is_active: Mapped[bool] = mapped_column(nullable=False, server_default="false")
+    settings_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+
+
+class AssistantConversation(Base):
+    __tablename__ = "assistant_conversations"
+    __table_args__ = (UniqueConstraint("channel", "session_key_hash", name="uq_assistant_conversations_channel_session"), Index("ix_assistant_conversations_user_activity", "user_id", "last_activity_at"))
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True)
+    channel: Mapped[str] = mapped_column(String(48), nullable=False)
+    session_key_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="open")
+    attribution_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    last_activity_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    retention_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class AssistantMessage(Base):
+    __tablename__ = "assistant_messages"
+    __table_args__ = (Index("ix_assistant_messages_conversation_created", "conversation_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    conversation_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assistant_conversations.id", ondelete="RESTRICT"), nullable=False)
+    actor: Mapped[str] = mapped_column(String(16), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class AssistantRun(Base):
+    __tablename__ = "assistant_runs"
+    __table_args__ = (Index("ix_assistant_runs_conversation_created", "conversation_id", "created_at"), Index("ix_assistant_runs_status_created", "status", "created_at"))
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    conversation_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assistant_conversations.id", ondelete="RESTRICT"), nullable=False)
+    input_message_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("assistant_messages.id", ondelete="RESTRICT"), nullable=True)
+    profile_version_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assistant_profile_versions.id", ondelete="RESTRICT"), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="started")
+    outcome: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    knowledge_snapshot_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    error_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class ConsentRecord(Base):
+    __tablename__ = "consent_records"
+    __table_args__ = (Index("ix_consent_records_user_purpose_captured", "user_id", "purpose", "captured_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True)
+    purpose: Mapped[str] = mapped_column(String(80), nullable=False)
+    decision: Mapped[str] = mapped_column(String(24), nullable=False)
+    legal_document_version_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("site_legal_document_versions.id", ondelete="RESTRICT"), nullable=True)
+    channel: Mapped[str] = mapped_column(String(48), nullable=False)
+    evidence_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class IntakeRequest(Timestamped, Base):
+    __tablename__ = "intake_requests"
+    __table_args__ = (UniqueConstraint("dedupe_key", name="uq_intake_requests_dedupe_key"), Index("ix_intake_requests_state_created", "state", "created_at"), Index("ix_intake_requests_user_created", "user_id", "created_at"))
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True)
+    assistant_conversation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("assistant_conversations.id", ondelete="RESTRICT"), nullable=True)
+    consent_record_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("consent_records.id", ondelete="RESTRICT"), nullable=True)
+    channel: Mapped[str] = mapped_column(String(48), nullable=False)
+    kind: Mapped[str] = mapped_column(String(80), nullable=False)
+    state: Mapped[str] = mapped_column(String(24), nullable=False, server_default="new")
+    summary: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    details_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    attribution_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    dedupe_key: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    retention_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class ConsultationRequest(Timestamped, Base):
-    """Human follow-up request, idempotent for one completed diagnostic result."""
+    """Human consultation work created from a diagnostic or an explicit public intake."""
 
     __tablename__ = "consultation_requests"
     __table_args__ = (
         Index("ix_consultation_requests_status_created", "status", "created_at"),
         Index("ix_consultation_requests_user_created", "user_id", "created_at"),
+        UniqueConstraint("intake_request_id", name="uq_consultation_requests_intake_request"),
+        CheckConstraint(
+            "diagnostic_session_id IS NOT NULL OR intake_request_id IS NOT NULL",
+            name="ck_consultation_requests_origin",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
-    diagnostic_session_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("diagnostic_sessions.id", ondelete="RESTRICT"), nullable=False
+    diagnostic_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("diagnostic_sessions.id", ondelete="RESTRICT"), nullable=True
+    )
+    intake_request_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("intake_requests.id", ondelete="RESTRICT"), nullable=True
     )
     status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="new")
     appointment_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -416,6 +629,7 @@ class AttentionItem(Timestamped, Base):
     __table_args__ = (
         Index("ix_attention_items_status_priority_created", "status", "priority", "created_at"),
         Index("ix_attention_items_user_status", "user_id", "status"),
+        Index("ix_attention_items_intake_request", "intake_request_id"),
         UniqueConstraint("consultation_request_id", name="uq_attention_items_consultation_request"),
     )
 
@@ -428,6 +642,9 @@ class AttentionItem(Timestamped, Base):
     )
     diagnostic_session_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("diagnostic_sessions.id", ondelete="RESTRICT"), nullable=True
+    )
+    intake_request_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("intake_requests.id", ondelete="RESTRICT"), nullable=True
     )
     kind: Mapped[str] = mapped_column(String(80), nullable=False)
     reason: Mapped[str] = mapped_column(String(320), nullable=False)
