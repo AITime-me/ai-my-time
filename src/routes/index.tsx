@@ -7,18 +7,32 @@ import { Eyebrow, H2, Lead, GlassCard } from "@/components/SectionHeading";
 import { HeroSchema } from "@/components/HeroSchema";
 
 import {
-  Users, Clock, Boxes, BarChart3, Globe, Bot, Headphones, Workflow, Database, Search,
-  Building2, UserCircle, ShoppingBag, TrendingUp, Rocket, Layers, ChevronDown,
+  Database,
+  MessagesSquare,
+  Shuffle,
+  Eye,
+  Inbox,
+  Workflow,
+  Bot,
+  Settings2,
+  Cable,
+  AppWindow,
+  BarChart3,
+  ChevronDown,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+
+const SEO_TITLE = "Автоматизация бизнес-процессов, CRM и AI для бизнеса | AI My Time";
+const SEO_DESCRIPTION =
+  "AI My Time проектирует и автоматизирует бизнес-процессы: CRM, AI-сотрудники, интеграции, сайты и цифровые сервисы для работы с клиентами, продажами и аналитикой.";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "AI My Time — сайты и AI для бизнеса" },
-      { name: "description", content: "Светлана Кузнецова, проект AI My Time: сайты, AI-помощники, боты и автоматизация для малого бизнеса, которому не хватает людей, времени и порядка." },
-      { property: "og:title", content: "AI My Time — сайты и AI для бизнеса" },
-      { property: "og:description", content: "Сайты, AI-помощники, боты и автоматизация для малого бизнеса" },
+      { title: SEO_TITLE },
+      { name: "description", content: SEO_DESCRIPTION },
+      { property: "og:title", content: SEO_TITLE },
+      { property: "og:description", content: SEO_DESCRIPTION },
       { property: "og:url", content: "/" },
     ],
     links: [{ rel: "canonical", href: "/" }],
@@ -27,319 +41,209 @@ export const Route = createFileRoute("/")({
 });
 
 const pains = [
-  { icon: Users, title: "Не хватает людей", text: "Хороший сотрудник не может быть везде и всегда." },
-  { icon: Clock, title: "Не хватает времени", text: "Повторяющиеся вопросы и ручные действия съедают день." },
-  { icon: Boxes, title: "Не хватает порядка", text: "Данные живут в разных местах, а собственник собирает картину по кусочкам." },
-  { icon: BarChart3, title: "Не хватает аналитики", text: "Решения принимаются по ощущениям, а не по цифрам." },
-];
-
-const offers = [
-  { icon: Globe, title: "Сайт с AI-помощником", text: "Не просто страница, а место, где клиент может понять предложение, задать вопрос и сделать следующий шаг." },
-  { icon: Bot, title: "AI-консультант", text: "Отвечает на частые вопросы, уточняет запрос и помогает клиенту выбрать услугу или продукт." },
-  { icon: Headphones, title: "AI-администратор", text: "Принимает обращения, собирает данные, помогает с записью, напоминает и передаёт информацию человеку." },
-  { icon: Workflow, title: "Автоматизация процесса", text: "Берём повторяющуюся задачу и выводим её из ручного режима." },
-  { icon: Database, title: "Мини-CRM или админка", text: "Место, где видны клиенты, заявки, статусы, доходы, расходы и история общения." },
-  { icon: Search, title: "AI/digital-разбор", text: "Смотрим, где не хватает людей, времени и порядка, и составляем понятную карту внедрения." },
+  {
+    icon: Database,
+    title: "«CRM есть, а легче не стало»",
+    text: "Часть работы идёт в CRM, часть — в чатах, таблицах и заметках. Чтобы понять, что происходит с клиентом, всё равно приходится проверять вручную.",
+  },
+  {
+    icon: MessagesSquare,
+    title: "«Пока я с клиентом, мне пишут ещё»",
+    text: "Обращения приходят одновременно из разных каналов. Скорость ответа зависит от того, кто сейчас свободен и где заметили сообщение.",
+  },
+  {
+    icon: Shuffle,
+    title: "«Систем много, а люди всё равно между ними бегают»",
+    text: "Данные переносят вручную, статусы сверяют, а сотрудник фактически становится связующим звеном между сервисами.",
+  },
+  {
+    icon: Eye,
+    title: "«Хочу утром понимать, где моё внимание действительно нужно»",
+    text: "Но вместо исключений собственнику приходится проверять обычную операционку: ответили ли, перезвонили ли, поставили ли задачу, что произошло со сделкой.",
+  },
 ];
 
 const steps = [
-  { n: "01", title: "Разбираем процесс", text: "Где клиент приходит, где спрашивает, где теряется, где человек не успевает." },
-  { n: "02", title: "Находим узкое место", text: "Что сейчас висит на собственнике, администраторе или менеджере." },
-  { n: "03", title: "Собираем решение", text: "Сайт, помощник, бот, форма, таблица, CRM, уведомления или связка сервисов." },
-  { n: "04", title: "Проверяем и донастраиваем", text: "AI не должен фантазировать. Он работает по базе знаний, сценарию и правилам." },
+  {
+    n: "01",
+    title: "Восстанавливаем реальный путь процесса",
+    text: "Не тот, который описан в регламенте, а тот, по которому работа идёт на самом деле: чаты, звонки, таблицы, CRM, ручные действия сотрудников, контроль собственника.",
+  },
+  {
+    n: "02",
+    title: "Находим разрывы и лишнюю ручную работу",
+    text: "Где данные переносят вручную, следующий шаг нужно помнить, статус приходится уточнять, клиент ждёт или собственнику приходится вмешиваться.",
+  },
+  {
+    n: "03",
+    title: "Разделяем работу человека и системы",
+    text: "Переговоры, нестандартные ситуации и решения остаются человеку. Повторяемые действия — зафиксировать, передать, напомнить, проверить, запустить следующий шаг — можно передать системе.",
+  },
+  {
+    n: "04",
+    title: "Собираем решение под конкретный процесс",
+    text: "Это может быть CRM, автоматизация, интеграции, AI, сайт, бот, аналитика или специализированный цифровой сервис. Иногда нужен целый контур. Иногда достаточно исправить один участок, который постоянно создаёт потери.",
+  },
 ];
 
-const audience = [
-  { icon: Building2, title: "Локальный бизнес", text: "Салоны, студии, школы, сервисы, офлайн-точки." },
-  { icon: UserCircle, title: "Эксперты и самозанятые", text: "Когда нужно упаковать услуги, ответы, запись и путь до заявки." },
-  { icon: ShoppingBag, title: "Онлайн-магазины и товарный бизнес", text: "Когда клиенту нужна консультация, подбор и быстрый ответ." },
-  { icon: TrendingUp, title: "Малый бизнес на потолке роста", text: "Когда есть команда, но процессы держатся на людях и ручном контроле." },
-  { icon: Rocket, title: "Стартапы и новые идеи", text: "Когда нужно быстро собрать понятную первую версию продукта и проверить спрос." },
-  { icon: Layers, title: "Услуги и сервисы", text: "Когда вы продаёте не товар, а заботу, экспертизу и время." },
+const solutions: Array<{
+  icon: typeof Inbox;
+  title: string;
+  text: string;
+  /** Internal route — card becomes a link only when set and route exists. */
+  to?: string;
+  /** External/published URL — used only when set. */
+  href?: string;
+}> = [
+  {
+    icon: Inbox,
+    title: "Собрать обращения и работу с клиентами в единый контур",
+    text: "Когда заявки, история, статусы и следующие действия разбросаны между CRM, чатами и другими сервисами.",
+  },
+  {
+    icon: Workflow,
+    title: "Автоматизировать повторяющиеся действия",
+    text: "Когда сотрудники вручную переносят данные, ставят задачи, отправляют типовые сообщения, проверяют статусы или готовят однотипные отчёты.",
+  },
+  {
+    icon: Bot,
+    title: "Подключить AI к бизнес-процессу",
+    text: "Для консультаций, квалификации, сопровождения клиента, работы с информацией, регулярных операций и других задач, где AI может действовать по заданным правилам.",
+  },
+  {
+    icon: Settings2,
+    title: "Настроить и автоматизировать CRM",
+    text: "Когда CRM уже есть или нужна бизнесу, но процессы внутри неё ещё не отражают реальную работу сотрудников и клиента.",
+  },
+  {
+    icon: Cable,
+    title: "Связать сервисы между собой",
+    text: "Сайт, CRM, мессенджеры, телефония, формы, AI и другие системы — чтобы данные передавались автоматически, а человеку не приходилось быть «интеграцией» между ними.",
+  },
+  {
+    icon: AppWindow,
+    title: "Создать специализированный цифровой сервис",
+    text: "Когда готовых инструментов недостаточно для конкретной функции бизнеса: личный кабинет, онлайн-сервис, внутренний интерфейс, аналитическая панель или другой инструмент под конкретную задачу.",
+  },
+  {
+    icon: BarChart3,
+    title: "Сделать процесс видимым для собственника",
+    text: "Чтобы понимать не только, сколько заявок пришло, но и что произошло дальше: кто ответил, где остановилась сделка, что привело к продаже и где сейчас требуется внимание.",
+  },
 ];
 
-const examples = [
-  { title: "Сайты для бизнеса с заявками и SEO", text: "Создание сайтов, которые приводят клиентов, а не просто представляют компанию. Структура под SEO-запросы, продуманная логика конверсии, формы заявок, аналитика и возможность интеграции AI-решений." },
-  { title: "AI-администратор для бизнеса", text: "AI-ассистент, который отвечает клиентам, обрабатывает входящие заявки, ведёт диалог и выполняет роль цифрового сотрудника 24/7." },
-  { title: "Чат-боты и AI-боты для бизнеса", text: "Разработка чат-ботов для сайтов, Telegram и мессенджеров. Автоматизация общения, сбор заявок, запись клиентов и первичная обработка обращений." },
-  { title: "Автоматизация бизнеса на n8n", text: "Настройка автоматизации между сервисами: заявки, CRM, таблицы, уведомления, почта и аналитика. Снижение ручной работы и объединение всех процессов в единую цифровую систему." },
-  { title: "Приложения и цифровые продукты для бизнеса", text: "Разработка внутренних инструментов: мини-CRM, дашборды, системы учёта заявок, клиентские панели и бизнес-приложения под конкретные задачи." },
-  { title: "AI-разбор и диагностика бизнеса", text: "Анализ бизнес-процессов: где теряются заявки, где не хватает автоматизации, какие процессы требуют улучшения и цифровизации." },
-  { title: "OpenClaw Bot", text: "Разработка мощного AI-ассистента для собственника бизнеса: работает локально, интегрируется с сервисами и мессенджерами, автоматизирует рутину, работает с почтой, календарём, задачами, сообщениями и мониторингом сайтов." },
-  { title: "Настройка аналитики и Яндекс.Метрики", text: "Подключение аналитики, отслеживание заявок, источников трафика и поведения пользователей. Помогает бизнесу понимать, откуда приходят клиенты и где теряются заявки." },
+const articleCards: Array<{
+  title: string;
+  text: string;
+  /** Published article URL/route — card is clickable only when set. */
+  to?: string;
+  href?: string;
+}> = [
+  {
+    title: "CRM есть, а легче не стало",
+    text: "Почему наличие CRM не гарантирует порядок в работе с клиентами и где обычно остаются разрывы.",
+  },
+  {
+    title: "Заявка пришла. А что произошло с ней дальше?",
+    text: "Разбор того, как теряется следующий шаг после первого обращения и что делает процесс управляемее.",
+  },
+  {
+    title: "Что стоит автоматизировать, а что лучше оставить человеку",
+    text: "Как отделить повторяемые действия от переговоров, решений и ситуаций, где нужен человек.",
+  },
 ];
 
-const tools = ["ChatGPT","OpenAI","Lovable","Cursor","Cloud Code","React","Tailwind","Supabase","Telegram","n8n","Google Sheets","CRM","AI tools","Яндекс.Метрика","сайты","боты","автоматизации"];
-
-function HomePage() {
-  return (
-    <SiteLayout>
-      {/* HERO */}
-      <section className="relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 bg-grid opacity-30" />
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 pb-20 pt-14 sm:px-6 lg:grid-cols-12 lg:gap-12 lg:px-8 lg:pt-20">
-          <div className="lg:col-span-7">
-            <Eyebrow>Светлана Кузнецова · проект AI My Time</Eyebrow>
-            <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
-              Сайты и <span className="text-gradient">AI-помощники</span> для малого бизнеса, которому тесно в ручном управлении
-            </h1>
-            <p className="mt-5 max-w-2xl text-lg text-muted-foreground">
-              Я создаю сайты, AI-помощников, ботов и автоматизации для предпринимателей, которым не хватает людей, времени и порядка. Помогаю переложить повторяющиеся задачи из ручного режима в понятный digital-механизм.
-            </p>
-            <p className="mt-4 max-w-2xl text-sm text-muted-foreground/80">
-              AI My Time — мой проект о технологиях, которые объясняются человеческим языком и работают на реальные процессы бизнеса.
-            </p>
-            <div className="mt-8 flex flex-col gap-3">
-              <div className="flex flex-wrap gap-3">
-                <CTAButton event="click_bot_hero" size="lg">Обсудить задачу</CTAButton>
-                <Link to="/cases" className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-base glass hover:border-[color:var(--lime)]/40">
-                  Посмотреть решения
-                </Link>
-              </div>
-            </div>
-          </div>
-          <div className="lg:col-span-5">
-            <HeroSchema />
-          </div>
-        </div>
-      </section>
-
-      {/* PAIN */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <Reveal>
-          <Eyebrow>Главная боль</Eyebrow>
-          <H2 className="mt-4 max-w-3xl">
-            Когда бизнес держится на одном человеке, это не система. Это героизм на тонком льду.
-          </H2>
-          <Lead>
-            Клиенты пишут вечером. Администратор не всегда успевает. Собственник снова контролирует всё руками. Заявки, вопросы, записи и отчёты расползаются по чатам, таблицам и памяти сотрудников. Я помогаю собрать из этого понятный рабочий механизм.
-          </Lead>
-        </Reveal>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {pains.map((p, i) => (
-            <Reveal key={p.title} delay={i * 0.05}>
-              <GlassCard>
-                <p.icon className="size-6 text-[color:var(--lime)]" />
-                <h3 className="mt-4 text-lg font-semibold">{p.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{p.text}</p>
-              </GlassCard>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* OFFERS */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <Reveal>
-          <Eyebrow>Что я создаю</Eyebrow>
-          <H2 className="mt-4">Что можно собрать для вашего бизнеса</H2>
-        </Reveal>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {offers.map((o, i) => (
-            <Reveal key={o.title} delay={i * 0.04}>
-              <GlassCard>
-                <div className="flex items-center gap-3">
-                  <span className="grid size-10 place-items-center rounded-lg bg-[image:var(--gradient-primary)] text-[color:var(--lime-foreground)]">
-                    <o.icon className="size-5" />
-                  </span>
-                  <h3 className="text-lg font-semibold">{o.title}</h3>
-                </div>
-                <p className="mt-3 text-sm text-muted-foreground">{o.text}</p>
-              </GlassCard>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* HOW */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <Reveal>
-          <Eyebrow>Как это работает</Eyebrow>
-          <H2 className="mt-4">Не начинаю с инструмента. Начинаю с задачи.</H2>
-        </Reveal>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {steps.map((s, i) => (
-            <Reveal key={s.n} delay={i * 0.05}>
-              <GlassCard>
-                <span className="font-mono text-sm text-[color:var(--lime)]">{s.n}</span>
-                <h3 className="mt-3 text-lg font-semibold">{s.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{s.text}</p>
-              </GlassCard>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* NOT BOT FOR BOT */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <Reveal>
-          <Eyebrow>Не «бот ради бота»</Eyebrow>
-          <H2 className="mt-4 max-w-3xl">AI не заменяет хорошего сотрудника. Он убирает слой рутины до человека.</H2>
-          <Lead>
-            Сложные вопросы, эмоции, претензии и нестандартные ситуации остаются человеку. AI берёт повторяющееся: частые вопросы, первичный сбор данных, напоминания, заявки, простые консультации.
-          </Lead>
-        </Reveal>
-        <div className="mt-10 grid gap-4 lg:grid-cols-2">
-          <GlassCard className="border-destructive/30">
-            <p className="text-xs uppercase tracking-wider text-destructive/80">Плохой бот</p>
-            <p className="mt-3 text-base text-foreground/80">
-              «Здравствуйте. Ваш запрос принят. Мы предоставляем качественные услуги.»
-            </p>
-          </GlassCard>
-          <GlassCard className="border-[color:var(--lime)]/40">
-            <p className="text-xs uppercase tracking-wider text-[color:var(--lime)]">Хороший AI-помощник</p>
-            <p className="mt-3 text-base text-foreground/90">
-              «Здравствуйте! Похоже, у вас есть задача, в которой хочется навести больше порядка или найти более удобное решение. Подскажите, что сейчас вызывает больше всего вопросов?»
-            </p>
-          </GlassCard>
-        </div>
-      </section>
-
-      {/* AUDIENCE */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <Reveal>
-          <Eyebrow>Для кого</Eyebrow>
-          <H2 className="mt-4">Кому это подойдёт</H2>
-        </Reveal>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {audience.map((a, i) => (
-            <Reveal key={a.title} delay={i * 0.04}>
-              <GlassCard>
-                <a.icon className="size-6 text-[color:var(--lime)]" />
-                <h3 className="mt-4 text-lg font-semibold">{a.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{a.text}</p>
-              </GlassCard>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* EXAMPLES */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <Reveal>
-          <Eyebrow>Цифровые решения</Eyebrow>
-          <H2 className="mt-4">Сайты, AI и автоматизация для бизнеса</H2>
-        </Reveal>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {examples.map((e, i) => (
-            <Reveal key={e.title} delay={i * 0.04}>
-              <GlassCard>
-                <h3 className="text-lg font-semibold">{e.title}</h3>
-                <p className="mt-3 text-sm text-muted-foreground">{e.text}</p>
-              </GlassCard>
-            </Reveal>
-          ))}
-        </div>
-        <div className="mt-8">
-          <Link to="/cases" className="inline-flex items-center gap-2 text-sm text-[color:var(--lime)] hover:underline">
-            Все решения →
-          </Link>
-        </div>
-      </section>
-
-      {/* WHY ME */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <Reveal>
-          <Eyebrow>Почему со мной</Eyebrow>
-          <H2 className="mt-4 max-w-3xl">Почему ко мне идут не просто за сайтом</H2>
-          <Lead className="max-w-3xl">
-            Я смотрю на проект не как на набор блоков. Я смотрю на путь клиента, задачу бизнеса, слабые места процесса и ощущение от интерфейса.
-          </Lead>
-        </Reveal>
-        <div className="mt-8 flex flex-wrap gap-2">
-          {["предпринимательский опыт", "маркетинг", "SMM", "реклама", "визуал", "UX", "AI", "автоматизация", "веб-разработка"].map((t) => (
-            <span key={t} className="rounded-full border border-border/60 bg-white/5 px-3.5 py-1.5 text-sm text-foreground/80">{t}</span>
-          ))}
-        </div>
-        <p className="mt-6 max-w-3xl text-base text-foreground/80">
-          Именно поэтому сайт не просто красиво висит в интернете. Он становится рабочей точкой: объясняет, ведёт, собирает заявки и помогает собственнику видеть картину.
-        </p>
-      </section>
-
-      {/* AI MY TIME */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <Reveal>
-          <div className="glass overflow-hidden rounded-3xl p-8 sm:p-12">
-            <Eyebrow>AI My Time</Eyebrow>
-            <H2 className="mt-4 max-w-3xl">AI My Time — мой проект о технологиях без цифровой каши</H2>
-            <Lead className="max-w-3xl">
-              Это направление, в котором я собираю понятные digital-решения для малого бизнеса: сайты, AI-помощники, боты, автоматизация, мини-CRM, аналитика, приложения и рабочие инструменты.
-            </Lead>
-            <p className="mt-4 max-w-3xl text-base text-foreground/80">
-              Главная идея — помочь бизнесу не держать всё на одном человеке, одной таблице и надежде, что клиент сам разберётся.
-            </p>
-          </div>
-        </Reveal>
-      </section>
-
-      {/* TOOLS */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <Reveal>
-          <Eyebrow>Инструменты</Eyebrow>
-          <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
-            Не инструменты ради инструментов — а связка, которая помогает бизнесу работать проще.
-          </p>
-          <H2 className="mt-4">Инструменты</H2>
-          <div className="mt-8 flex flex-wrap gap-2">
-            {tools.map((t) => (
-              <span key={t} className="rounded-full border border-border/60 bg-white/5 px-3.5 py-1.5 text-sm">{t}</span>
-            ))}
-          </div>
-          <p className="mt-6 max-w-2xl text-sm text-muted-foreground">
-            Но если честно, главный инструмент не стек. Главный инструмент — понять, где у бизнеса болит, и не лечить это красивой кнопкой.
-          </p>
-        </Reveal>
-      </section>
-
-      {/* FAQ */}
-      <FaqSection />
-
-      {/* MANIFESTO */}
-      <section className="mx-auto max-w-5xl px-4 py-20 text-center sm:px-6 lg:px-8">
-        <Reveal>
-          <p className="text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
-            Хороший сайт не просто висит в интернете. Он объясняет, ведёт, отвечает, собирает заявки и помогает бизнесу не жить на ручнике.
-          </p>
-          <p className="mt-6 text-muted-foreground">
-            AI не должен притворяться человеком. Он должен быть полезным, быстрым и понятным помощником.
-          </p>
-        </Reveal>
-      </section>
-
-      {/* FINAL CTA */}
-      <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
-        <div className="glass overflow-hidden rounded-3xl p-8 sm:p-14 text-center relative">
-          <div className="pointer-events-none absolute -top-32 left-1/2 size-80 -translate-x-1/2 rounded-full bg-[color:var(--lime)]/20 blur-3xl" />
-          <Eyebrow>Старт</Eyebrow>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Хотите понять, что можно снять с ручного режима в вашем бизнесе?
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-            Начнём с короткого разбора. Посмотрим, где теряется время, где не хватает людей и какой первый digital-механизм можно собрать без цифрового ремонта на полгода.
-          </p>
-          <div className="mt-8 flex flex-col items-center gap-3">
-            <div className="flex flex-wrap justify-center gap-3">
-              <CTAButton event="click_bot_cases" size="lg">Обсудить задачу</CTAButton>
-              <CTAButton event="click_bot_cases" size="lg" variant="secondary">Записаться на разбор</CTAButton>
-            </div>
-          </div>
-        </div>
-      </section>
-    </SiteLayout>
-  );
+/** Makes a card clickable only when a real destination is provided — no placeholder URLs. */
+function LinkableCard({
+  to,
+  href,
+  className,
+  children,
+}: {
+  to?: string;
+  href?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  const card = <GlassCard className={className}>{children}</GlassCard>;
+  if (to) {
+    return (
+      <Link
+        to={to}
+        className="block h-full rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--lime)]/50"
+      >
+        {card}
+      </Link>
+    );
+  }
+  if (href) {
+    return (
+      <a
+        href={href}
+        className="block h-full rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--lime)]/50"
+      >
+        {card}
+      </a>
+    );
+  }
+  return card;
 }
 
+const diagnosticSteps = [
+  {
+    n: "1",
+    title: "Несколько вопросов о бизнесе",
+    text: "Как приходят клиенты, как устроена работа с обращениями, продажами и текущими системами.",
+  },
+  {
+    n: "2",
+    title: "Уточнение ситуации",
+    text: "AI задаёт дополнительные вопросы только там, где информации недостаточно для понимания процесса.",
+  },
+  {
+    n: "3",
+    title: "Первичный результат",
+    text: "Вы получаете краткий разбор основной проблемы и понимаете, что имеет смысл обсуждать дальше.",
+  },
+];
+
 const faqItems = [
-  { id: "1", question: "Нужен ли AI для бизнеса или это просто тренд?", answer: "AI — это инструмент автоматизации бизнеса. Он нужен там, где есть заявки, клиенты и рутинные процессы: ответы, консультации, запись и обработка обращений." },
-  { id: "2", question: "Что делает AI-администратор для бизнеса?", answer: "AI-администратор для бизнеса не только отвечает на сообщения. Он может вести клиентскую базу, обрабатывать входящие заявки, консультировать клиентов и работать как цифровой сотрудник 24/7." },
-  { id: "3", question: "Можно ли автоматизировать обработку заявок в бизнесе?", answer: "Да. Заявки с сайта, мессенджеров и рекламы можно объединить в одну систему, чтобы они не терялись и обрабатывались без ручного контроля." },
-  { id: "4", question: "Чем сайт-визитка отличается от сайта для бизнеса?", answer: "Сайт-визитка — это просто информационная страница, которая редко приводит клиентов. Сайт для бизнеса — это инструмент с SEO-структурой, заявками, маркетингом и возможностью подключить AI и аналитику." },
-  { id: "5", question: "Нужен ли бизнесу чат-бот?", answer: "Чат-бот нужен при наличии потока клиентов. Он помогает отвечать 24/7, собирать заявки и снижать потерю клиентов вне рабочего времени." },
-  { id: "6", question: "Что делать, если бизнес теряет заявки?", answer: "Это значит, что нет выстроенной обработки заявок или автоматизации. Решается через сайт, AI-администратора или CRM-логику, где все обращения собираются в один поток." },
-  { id: "7", question: "Можно ли заменить менеджера AI-решением?", answer: "Частично да. AI может заменить первичную обработку заявок, ответы и запись клиентов. В бизнесах, где менеджер в основном принимает и распределяет заявки, это особенно эффективно." },
-  { id: "8", question: "Что входит в создание сайта для бизнеса с AI?", answer: "Это не только визуальная часть и SEO-структура. Это также маркетинговая логика, конверсионный сценарий, формы заявок, аналитика и возможность подключения AI-ассистента." },
-  { id: "9", question: "Подходит ли автоматизация для малого бизнеса?", answer: "Да. Особенно для малого бизнеса, где важно не терять заявки, ускорять обработку клиентов и снижать ручную нагрузку на сотрудников." },
-  { id: "10", question: "Что даёт внедрение AI и автоматизации в бизнес?", answer: "Бизнес перестаёт терять заявки с сайта и из мессенджеров, а работа с ними становится стабильной и управляемой даже при росте клиентов или нехватке сотрудников." },
+  {
+    id: "1",
+    question: "Нужна ли растущему бизнесу CRM-система?",
+    answer:
+      "Когда растут обращения, каналы и команда, без единого контура работы с клиентами сложно сохранять скорость и контроль. CRM не создаёт спрос из воздуха, но помогает доводить больше обращений до продажи, возвращать клиентов и системно работать с повторными продажами — если отражает реальный процесс, а не существует отдельно от него.",
+  },
+  {
+    id: "2",
+    question: "Можно автоматизировать только один участок, а не весь бизнес сразу?",
+    answer:
+      "Да. Не всегда нужен большой проект. Иногда достаточно убрать один разрыв, который постоянно съедает время, деньги или контроль. Решение может затрагивать один участок или несколько связанных процессов — технологии выбираются под задачу.",
+  },
+  {
+    id: "3",
+    question: "Что можно передать AI-сотруднику?",
+    answer:
+      "AI-сотрудник может вести определённый участок процесса целиком: консультировать по базе знаний, задавать уточняющие вопросы, квалифицировать обращение, подбирать подходящие варианты, сопровождать клиента по заданному сценарию, напоминать о следующем действии, возвращаться к диалогу после паузы, фиксировать информацию и передавать данные в другие системы.\n\nОн может работать и внутри бизнеса: собирать и проверять информацию, готовить сводки и отчёты, отслеживать заданные события, выполнять регулярные операции и запускать следующие действия по правилам процесса.\n\nГраницы его работы задаются заранее: что он может делать самостоятельно, где требуется подтверждение и в какой момент задача или коммуникация должны перейти человеку.",
+  },
+  {
+    id: "4",
+    question: "Можно подключить AI и автоматизацию к уже существующим системам?",
+    answer:
+      "Да. Часто задача как раз в том, чтобы связать уже работающие сервисы — сайт, CRM, мессенджеры, формы, телефонию и другие системы — так, чтобы данные передавались автоматически, а человеку не приходилось быть «интеграцией» между ними.",
+  },
+  {
+    id: "5",
+    question: "Вы работаете только с продажами и CRM?",
+    answer:
+      "Нет. Продажи и CRM — частый контур, но не единственный. AI My Time проектирует и автоматизирует бизнес-процессы шире: AI-сотрудники, интеграции, сайты, цифровые сервисы, аналитика и специализированные инструменты под конкретную функцию бизнеса.",
+  },
+  {
+    id: "6",
+    question: "С чего начинается работа?",
+    answer:
+      "С разбора процесса, а не с выбора технологии. Сначала смотрим, как работа устроена сейчас, где возникают разрывы и лишняя ручная работа. Удобная точка старта — диагностика бизнеса: несколько вопросов о ситуации, уточнения там, где нужно, и первичный результат с понятным следующим шагом.",
+  },
 ];
 
 const faqJsonLd = {
@@ -352,13 +256,380 @@ const faqJsonLd = {
   })),
 };
 
+function HomePage() {
+  return (
+    <SiteLayout>
+      <HeroSection />
+      <ProblemSection />
+      <HowSection />
+      <SolutionsSection />
+      <AmoCrmSection />
+      <ArticlesSection />
+      <FounderSection />
+      <DiagnosticsSection />
+      <FaqSection />
+      <FinalCtaSection />
+    </SiteLayout>
+  );
+}
+
+function HeroSection() {
+  return (
+    <section className="relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 bg-grid opacity-30" />
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 pb-20 pt-14 sm:px-6 lg:grid-cols-12 lg:gap-12 lg:px-8 lg:pt-20">
+        <div className="lg:col-span-7">
+          <Eyebrow>AI My Time</Eyebrow>
+          <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
+            Проектирование и <span className="text-gradient">автоматизация</span> бизнес-процессов
+          </h1>
+          <p className="mt-5 max-w-2xl text-lg text-muted-foreground">
+            AI My Time проектирует работу бизнеса с клиентами — от первого обращения до продажи,
+            повторного контакта и аналитики.
+          </p>
+          <p className="mt-4 max-w-2xl text-base text-muted-foreground">
+            Настраиваем CRM, связываем сайт, мессенджеры, AI и другие сервисы, автоматизируем
+            повторяющиеся действия и оставляем человеку те участки, где действительно нужны его
+            решения.
+          </p>
+          <div className="mt-8 flex flex-col gap-3">
+            <div className="flex flex-wrap gap-3">
+              <CTAButton event="click_bot_hero" size="lg">
+                Пройти диагностику бизнеса
+              </CTAButton>
+              <a
+                href="#how"
+                className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-base glass hover:border-[color:var(--lime)]/40"
+              >
+                Как мы работаем
+              </a>
+            </div>
+          </div>
+        </div>
+        <div className="lg:col-span-5">
+          <HeroSchema />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProblemSection() {
+  return (
+    <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <Reveal>
+        <Eyebrow>Проблема</Eyebrow>
+        <H2 className="mt-4 max-w-3xl">
+          Когда бизнес держится на одном человеке, это не система. Это героизм на тонком льду.
+        </H2>
+      </Reveal>
+      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {pains.map((p, i) => (
+          <Reveal key={p.title} delay={i * 0.05}>
+            <GlassCard>
+              <p.icon className="size-6 text-[color:var(--lime)]" />
+              <h3 className="mt-4 text-lg font-semibold">{p.title}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{p.text}</p>
+            </GlassCard>
+          </Reveal>
+        ))}
+      </div>
+      <Reveal>
+        <div className="mt-10 max-w-3xl space-y-4 text-base text-muted-foreground sm:text-lg">
+          <p>
+            Ручная работа сама по себе не проблема. Проблема начинается там, где от памяти, внимания
+            и присутствия конкретного человека зависит, сработает процесс или нет.
+          </p>
+          <p>
+            Когда таких точек становится много, бизнес теряет не только время. Теряются обращения,
+            следующие контакты, повторные продажи — а вместе с ними и нормальная управляемость.
+          </p>
+        </div>
+      </Reveal>
+    </section>
+  );
+}
+
+function HowSection() {
+  return (
+    <section id="how" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8">
+      <Reveal>
+        <Eyebrow>Как мы работаем</Eyebrow>
+        <H2 className="mt-4 max-w-3xl">Сначала разбираем процесс. Потом выбираем технологию.</H2>
+        <Lead className="max-w-3xl">
+          Мы не начинаем с вопроса, какую CRM поставить, какого бота подключить или куда добавить
+          AI. Сначала смотрим, как работа устроена сейчас: откуда приходит клиент, кто и когда
+          отвечает, куда попадают данные, что должно произойти дальше, где возникает продажа и что
+          происходит после неё.
+        </Lead>
+      </Reveal>
+      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {steps.map((s, i) => (
+          <Reveal key={s.n} delay={i * 0.05}>
+            <GlassCard>
+              <span className="font-mono text-sm text-[color:var(--lime)]">{s.n}</span>
+              <h3 className="mt-3 text-lg font-semibold">{s.title}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{s.text}</p>
+            </GlassCard>
+          </Reveal>
+        ))}
+      </div>
+      <Reveal>
+        <div className="mt-12 glass overflow-hidden rounded-3xl p-8 sm:p-10">
+          <p className="text-lg font-semibold tracking-tight sm:text-xl">
+            Не бот ради бота. Не CRM ради CRM. Не AI ради AI.
+          </p>
+          <p className="mt-4 max-w-3xl text-base text-muted-foreground">
+            Технология имеет смысл только тогда, когда делает процесс надёжнее, снимает лишнюю
+            ручную работу или даёт бизнесу больше управляемости.
+          </p>
+        </div>
+      </Reveal>
+    </section>
+  );
+}
+
+function SolutionsSection() {
+  return (
+    <section id="solutions" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8">
+      <Reveal>
+        <Eyebrow>Решения</Eyebrow>
+        <H2 className="mt-4 max-w-3xl">Что можно изменить в работе бизнеса</H2>
+        <Lead className="max-w-3xl">
+          Не всегда нужен большой проект. Иногда достаточно убрать один разрыв, который постоянно
+          съедает время, деньги или контроль.
+        </Lead>
+      </Reveal>
+      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {solutions.map((o, i) => (
+          <Reveal key={o.title} delay={i * 0.04}>
+            <LinkableCard to={o.to} href={o.href}>
+              <div className="flex items-start gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[image:var(--gradient-primary)] text-[color:var(--lime-foreground)]">
+                  <o.icon className="size-5" />
+                </span>
+                <h3 className="text-lg font-semibold leading-snug">{o.title}</h3>
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">{o.text}</p>
+            </LinkableCard>
+          </Reveal>
+        ))}
+      </div>
+      <Reveal>
+        <p className="mt-10 max-w-3xl text-base text-muted-foreground">
+          Решение может затрагивать один участок или несколько связанных процессов. Технологии
+          выбираются под задачу, а не наоборот.
+        </p>
+      </Reveal>
+    </section>
+  );
+}
+
+function AmoCrmSection() {
+  return (
+    <section
+      id="amocrm"
+      aria-labelledby="amocrm-heading"
+      className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8"
+    >
+      <Reveal>
+        <div className="glass overflow-hidden rounded-3xl p-8 sm:p-12">
+          <Eyebrow>amoCRM</Eyebrow>
+          <H2 id="amocrm-heading" className="mt-4 max-w-3xl">
+            Когда рынок становится сложнее, больше значения имеет то, что происходит после обращения
+          </H2>
+          <Lead className="max-w-3xl">
+            На объём спроса бизнес может влиять не всегда. А вот то, какая часть обращений доходит
+            до продажи, как ведётся клиент после первого контакта и возвращается ли он снова, — уже
+            зона управления.
+          </Lead>
+          <p className="mt-6 max-w-3xl text-base font-medium text-foreground/90">
+            CRM не создаёт спрос из воздуха. Но помогает бизнесу получать больше из того спроса и
+            клиентской базы, которые уже есть: доводить больше обращений до продажи, возвращать
+            клиентов и системно работать с повторными продажами.
+          </p>
+          <h3 className="mt-10 text-xl font-semibold tracking-tight sm:text-2xl">
+            amoCRM — от точечной настройки до сложной автоматизации
+          </h3>
+          <p className="mt-4 max-w-3xl text-base text-muted-foreground">
+            Поля, карточки, воронки, права, шаблоны, виджеты, автоматические действия, интеграции с
+            сайтом, мессенджерами и другими сервисами, работа с клиентской базой и аналитикой.
+          </p>
+          <p className="mt-4 max-w-3xl text-base text-muted-foreground">
+            Это не закрытый перечень возможностей. Задача может начинаться с одной настройки или
+            затрагивать несколько связанных участков клиентского процесса.
+          </p>
+          <p className="mt-8 max-w-3xl text-base font-medium text-foreground/90">
+            amoCRM должна поддерживать работу бизнеса, а не становиться ещё одной системой, которую
+            сотрудники вынуждены обслуживать.
+          </p>
+        </div>
+      </Reveal>
+    </section>
+  );
+}
+
+function ArticlesSection() {
+  return (
+    <section
+      id="articles"
+      aria-labelledby="articles-heading"
+      className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8"
+    >
+      <Reveal>
+        <Eyebrow>Статьи и разборы AI My Time</Eyebrow>
+        <H2 id="articles-heading" className="mt-4 max-w-3xl">
+          Разбираем, как на самом деле работают бизнес-процессы
+        </H2>
+        <Lead className="max-w-3xl">
+          Без абстрактных советов про цифровизацию. Показываем, где возникает проблема, почему она
+          появляется и что в процессе можно изменить.
+        </Lead>
+      </Reveal>
+      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {articleCards.map((a, i) => (
+          <Reveal key={a.title} delay={i * 0.04}>
+            <LinkableCard to={a.to} href={a.href} className="h-full">
+              <h3 className="text-lg font-semibold">{a.title}</h3>
+              <p className="mt-3 text-sm text-muted-foreground">{a.text}</p>
+            </LinkableCard>
+          </Reveal>
+        ))}
+      </div>
+      <div className="mt-8">
+        {/* Route for articles hub is not ready yet — avoid broken links */}
+        <span
+          className="inline-flex cursor-default items-center gap-2 text-sm text-muted-foreground/70"
+          title="Раздел статей появится позже"
+        >
+          Все статьи →
+        </span>
+      </div>
+    </section>
+  );
+}
+
+function FounderSection() {
+  return (
+    <section
+      id="founder"
+      aria-labelledby="founder-heading"
+      className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8"
+    >
+      <Reveal>
+        <div className="glass overflow-hidden rounded-3xl p-8 sm:p-12">
+          <Eyebrow>О проекте</Eyebrow>
+          <H2 id="founder-heading" className="mt-4 max-w-3xl">
+            Бизнес-процессы — не только про технологии
+          </H2>
+          <p className="mt-4 text-lg font-medium text-foreground/90">
+            Светлана Кузнецова — основатель AI My Time.
+          </p>
+          <div className="mt-6 max-w-3xl space-y-4 text-base text-muted-foreground">
+            <p>
+              В основе AI My Time — практический опыт управления бизнесом, маркетинга, работы с
+              клиентским путём и цифровыми инструментами.
+            </p>
+            <p>
+              Поэтому здесь не рассматривают CRM, AI, сайт или автоматизацию как отдельные продукты.
+              Важно увидеть весь процесс целиком: как бизнес получает клиента, как с ним работает,
+              где возникают потери, что можно передать системе и где решение должен принимать
+              человек.
+            </p>
+            <p>
+              Опыт в предпринимательстве, маркетинге и продвижении, UX, CRM, автоматизации, AI и
+              веб-разработке позволяет смотреть на задачу не только со стороны технологии, а со
+              стороны того, как она повлияет на работу бизнеса и результат.
+            </p>
+            <p className="font-medium text-foreground/90">
+              Поэтому задача оценивается не только с точки зрения того, можно ли её технически
+              реализовать, но и с точки зрения того, как решение будет работать для бизнеса,
+              сотрудников и клиентов.
+            </p>
+          </div>
+        </div>
+      </Reveal>
+    </section>
+  );
+}
+
+function DiagnosticsSection() {
+  return (
+    <section
+      id="diagnostics"
+      aria-labelledby="diagnostics-heading"
+      className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8"
+    >
+      <Reveal>
+        <div className="glass overflow-hidden rounded-3xl p-8 sm:p-12">
+          <Eyebrow>Диагностика</Eyebrow>
+          <H2 id="diagnostics-heading" className="mt-4 max-w-3xl">
+            Найти участок, который действительно стоит менять
+          </H2>
+          <Lead className="max-w-3xl">
+            Диагностика AI My Time помогает разобраться, где в текущем процессе возникает разрыв и
+            какую задачу имеет смысл решать в первую очередь.
+          </Lead>
+          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+            {diagnosticSteps.map((s) => (
+              <div key={s.n} className="rounded-2xl border border-border/50 bg-background/30 p-5">
+                <span className="font-mono text-sm text-[color:var(--lime)]">{s.n}</span>
+                <h3 className="mt-3 text-lg font-semibold">{s.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{s.text}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-8 max-w-3xl text-base font-medium text-foreground/90">
+            Это не длинная анкета и не бесконечная консультация с AI. Цель — быстро понять контекст
+            и выйти на конкретную бизнес-задачу.
+          </p>
+          <div className="mt-8 flex flex-col items-start gap-2">
+            <CTAButton event="click_bot_cases" size="lg">
+              Пройти диагностику бизнеса
+            </CTAButton>
+            <p className="text-sm text-muted-foreground">Диагностика проходит в Telegram.</p>
+          </div>
+        </div>
+      </Reveal>
+    </section>
+  );
+}
+
+function FinalCtaSection() {
+  return (
+    <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
+      <div className="glass relative overflow-hidden rounded-3xl p-8 text-center sm:p-14">
+        <div className="pointer-events-none absolute -top-32 left-1/2 size-80 -translate-x-1/2 rounded-full bg-[color:var(--lime)]/20 blur-3xl" />
+        <Eyebrow>Следующий шаг</Eyebrow>
+        <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+          Не обязательно знать, какое решение вам нужно
+        </h2>
+        <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
+          Достаточно понимать, что текущий процесс можно сделать лучше. Разберём ситуацию и
+          определим, какой следующий шаг имеет смысл именно для вашего бизнеса.
+        </p>
+        <div className="mt-8 flex flex-col items-center gap-3">
+          <div className="flex flex-wrap justify-center gap-3">
+            <CTAButton event="click_bot_cases" size="lg">
+              Пройти диагностику бизнеса
+            </CTAButton>
+            <CTAButton event="click_bot_cases" size="lg" variant="secondary">
+              Обсудить задачу
+            </CTAButton>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function FaqSection() {
   const [open, setOpen] = useState<string | null>(null);
   return (
     <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
       <Reveal>
         <Eyebrow>FAQ</Eyebrow>
-        <H2 className="mt-4">Частые вопросы перед внедрением</H2>
+        <H2 className="mt-4">Частые вопросы</H2>
       </Reveal>
       <div className="mt-8 space-y-2">
         {faqItems.map((q) => {
@@ -370,16 +641,23 @@ function FaqSection() {
                 className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
               >
                 <span className="text-base font-medium">{q.question}</span>
-                <ChevronDown className={`size-5 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                <ChevronDown
+                  className={`size-5 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                />
               </button>
               {isOpen && (
-                <div className="border-t border-border/40 px-5 py-4 text-sm text-muted-foreground">{q.answer}</div>
+                <div className="space-y-3 border-t border-border/40 px-5 py-4 text-sm text-muted-foreground whitespace-pre-line">
+                  {q.answer}
+                </div>
               )}
             </div>
           );
         })}
       </div>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
     </section>
   );
 }

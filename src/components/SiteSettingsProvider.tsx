@@ -13,8 +13,9 @@ const defaults: Settings = {
   email: "",
   phone: "",
   social_links: {},
-  site_title: "Светлана Кузнецова — AI My Time",
-  site_description: "Сайты, AI-помощники, боты и автоматизация для малого бизнеса",
+  site_title: "Автоматизация бизнес-процессов, CRM и AI для бизнеса | AI My Time",
+  site_description:
+    "AI My Time проектирует и автоматизирует бизнес-процессы: CRM, AI-сотрудники, интеграции, сайты и цифровые сервисы для работы с клиентами, продажами и аналитикой.",
   og_image: "",
 };
 
