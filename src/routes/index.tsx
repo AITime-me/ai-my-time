@@ -5,6 +5,7 @@ import { CTAButton } from "@/components/CTAButton";
 import { Reveal } from "@/components/Reveal";
 import { Eyebrow, H2, Lead, GlassCard } from "@/components/SectionHeading";
 import { HeroSchema } from "@/components/HeroSchema";
+import { ScenariosSection } from "@/components/ScenariosSection";
 
 import {
   Database,
@@ -263,6 +264,7 @@ function HomePage() {
       <ProblemSection />
       <HowSection />
       <SolutionsSection />
+      <ScenariosSection />
       <AmoCrmSection />
       <ArticlesSection />
       <FounderSection />

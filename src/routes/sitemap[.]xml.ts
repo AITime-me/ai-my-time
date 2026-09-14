@@ -11,6 +11,9 @@ export const Route = createFileRoute("/sitemap.xml")({
           "/", "/services",
           "/services/ai-audit", "/services/site-with-ai", "/services/ai-assistant",
           "/services/automation", "/services/mini-crm",
+          "/solutions/online-booking", "/solutions/detailing-booking",
+          "/solutions/ai-consultant", "/solutions/avito-leads",
+          "/solutions/service-orders", "/solutions/online-orders",
           "/cases", "/about", "/contacts", "/privacy", "/offer",
         ];
         const xml = [
