@@ -20,6 +20,8 @@ export type SolutionStep = {
 export type SolutionScenario = {
   slug: SolutionSlug;
   type: string;
+  /** Short label for header/navigation menus. */
+  navLabel: string;
   title: string;
   h1: string;
   seoTitle: string;
@@ -43,6 +45,7 @@ export const solutions: SolutionScenario[] = [
   {
     slug: "online-booking",
     type: "Онлайн-запись",
+    navLabel: "Онлайн-запись и расписание",
     title: "Онлайн-запись и расписание для бизнеса",
     h1: "Онлайн-запись и расписание для бизнеса",
     seoTitle: "Онлайн-запись для бизнеса: свободные слоты и расписание | AI My Time",
@@ -89,6 +92,7 @@ export const solutions: SolutionScenario[] = [
   {
     slug: "detailing-booking",
     type: "Онлайн-запись",
+    navLabel: "Онлайн-запись со сбором данных",
     title: "Онлайн-запись со сбором данных",
     h1: "Онлайн-запись со сбором данных",
     seoTitle: "Автоматизация записи клиентов со сбором данных | AI My Time",
@@ -135,6 +139,7 @@ export const solutions: SolutionScenario[] = [
   {
     slug: "ai-consultant",
     type: "AI-консультант",
+    navLabel: "AI-консультант с передачей сотруднику",
     title: "AI-консультант с записью и передачей сотруднику",
     h1: "AI-консультант с записью и передачей сотруднику",
     seoTitle: "AI-консультант для бизнеса: подбор, запись и передача сотруднику | AI My Time",
@@ -181,6 +186,7 @@ export const solutions: SolutionScenario[] = [
   {
     slug: "avito-leads",
     type: "Обработка заявки",
+    navLabel: "Обработка заявок из Авито",
     title: "Автоматизация обработки заявок из Авито",
     h1: "Автоматизация обработки заявок из Авито",
     seoTitle: "Автоматизация обработки заявок из Авито | AI My Time",
@@ -227,6 +233,7 @@ export const solutions: SolutionScenario[] = [
   {
     slug: "service-orders",
     type: "Управление заказом",
+    navLabel: "Управление заказами и выездными услугами",
     title: "Управление заказами и выездными услугами",
     h1: "Управление заказами и выездными услугами",
     seoTitle: "Автоматизация заказов и выездных услуг | AI My Time",
@@ -273,6 +280,7 @@ export const solutions: SolutionScenario[] = [
   {
     slug: "online-orders",
     type: "Онлайн-заказ",
+    navLabel: "Онлайн-заказ с передачей в CRM",
     title: "Онлайн-заказ с передачей в CRM",
     h1: "Онлайн-заказ с передачей в CRM",
     seoTitle: "Онлайн-заказ с передачей в CRM | AI My Time",
@@ -330,4 +338,8 @@ export function isSolutionSlug(value: string): value is SolutionSlug {
 export function getSolutionBySlug(slug: string): SolutionScenario | undefined {
   if (!isSolutionSlug(slug)) return undefined;
   return solutionsBySlug[slug];
+}
+
+export function getOtherSolutions(slug: string): SolutionScenario[] {
+  return solutions.filter((item) => item.slug !== slug);
 }

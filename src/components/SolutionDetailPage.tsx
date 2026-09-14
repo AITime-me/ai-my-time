@@ -1,22 +1,28 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
-import { SOLUTION_IMAGE_SIZE, type SolutionScenario } from "@/data/solutions";
+import {
+  SOLUTION_IMAGE_SIZE,
+  getOtherSolutions,
+  type SolutionScenario,
+} from "@/data/solutions";
 import { SiteLayout } from "@/components/SiteLayout";
 import { CTAButton } from "@/components/CTAButton";
 import { Reveal } from "@/components/Reveal";
-import { Eyebrow, H2, Lead } from "@/components/SectionHeading";
+import { Eyebrow, GlassCard, H2, Lead } from "@/components/SectionHeading";
 
 export function SolutionDetailPage({ solution }: { solution: SolutionScenario }) {
+  const otherSolutions = getOtherSolutions(solution.slug);
+
   return (
     <SiteLayout>
       <section className="mx-auto max-w-7xl px-4 pt-14 sm:px-6 lg:px-8">
         <Link
           to="/"
           hash="scenarios"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-2 rounded-full border border-[color:var(--lime)]/35 bg-[color:var(--lime)]/10 px-4 py-2 text-sm font-medium text-[color:var(--lime)] transition-colors hover:border-[color:var(--lime)]/55 hover:bg-[color:var(--lime)]/15"
         >
-          <ArrowLeft className="size-4" /> К сценариям на главной
+          <ArrowLeft className="size-4" /> Все решения
         </Link>
         <Eyebrow className="mt-6">{solution.type}</Eyebrow>
         <h1 className="mt-5 max-w-4xl text-4xl font-semibold tracking-tight sm:text-5xl">
@@ -73,6 +79,43 @@ export function SolutionDetailPage({ solution }: { solution: SolutionScenario })
                 </li>
               ))}
             </ul>
+          </div>
+        </Reveal>
+      </section>
+
+      <section
+        aria-labelledby="other-solutions-heading"
+        className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8"
+      >
+        <Reveal>
+          <Eyebrow>Навигация</Eyebrow>
+          <H2 id="other-solutions-heading" className="mt-4 max-w-3xl">
+            Другие решения
+          </H2>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {otherSolutions.map((item) => (
+              <Link
+                key={item.slug}
+                to="/solutions/$slug"
+                params={{ slug: item.slug }}
+                className="block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--lime)]/50"
+              >
+                <GlassCard className="flex h-full items-center justify-between gap-3 py-5">
+                  <span className="text-base font-semibold leading-snug">{item.navLabel}</span>
+                  <ArrowRight className="size-4 shrink-0 text-[color:var(--lime)]" />
+                </GlassCard>
+              </Link>
+            ))}
+          </div>
+          <div className="mt-8">
+            <Link
+              to="/"
+              hash="scenarios"
+              className="inline-flex items-center gap-2 rounded-full border border-[color:var(--lime)]/40 bg-[color:var(--lime)]/10 px-5 py-2.5 text-sm font-medium text-[color:var(--lime)] transition-colors hover:border-[color:var(--lime)]/60 hover:bg-[color:var(--lime)]/15"
+            >
+              Посмотреть все решения
+              <ArrowRight className="size-4" />
+            </Link>
           </div>
         </Reveal>
       </section>
