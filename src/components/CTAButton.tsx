@@ -3,7 +3,6 @@ import { useSiteSettings } from "./SiteSettingsProvider";
 import { trackEvent } from "@/lib/analytics";
 import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
-import { BotLegalNote } from "./BotLegalNote";
 
 type Props = {
   children?: ReactNode;
@@ -13,20 +12,16 @@ type Props = {
   className?: string;
   arrow?: boolean;
   label?: string;
-  /** Show the small legal note under the button. Defaults to true because
-   *  every CTAButton leads to the bot / opens an AI-assistant dialog. */
-  withLegal?: boolean;
-  /** Wrapper class for the button + legal note column. */
-  wrapperClassName?: string;
-  legalAlign?: "left" | "center";
-  /** Extra className for the legal note itself (e.g. max-width for wrapping). */
-  legalClassName?: string;
 };
 
 export function CTAButton({
-  children, event = "click_bot_generic", variant = "primary", size = "md",
-  className, arrow = true, label,
-  withLegal = true, wrapperClassName, legalAlign = "center", legalClassName,
+  children,
+  event = "click_bot_generic",
+  variant = "primary",
+  size = "md",
+  className,
+  arrow = true,
+  label,
 }: Props) {
   const s = useSiteSettings();
   const text = children ?? label ?? s.main_cta_text;
@@ -42,7 +37,7 @@ export function CTAButton({
   } as const;
   const href = s.bot_link || s.telegram || "#";
   const isExternal = href !== "#";
-  const button = (
+  return (
     <a
       href={href}
       target={isExternal ? "_blank" : undefined}
@@ -53,12 +48,5 @@ export function CTAButton({
       <span>{text}</span>
       {arrow && <ArrowRight className="size-4" />}
     </a>
-  );
-  if (!withLegal) return button;
-  return (
-    <span className={cn("inline-flex max-w-full flex-col", legalAlign === "center" ? "items-center" : "items-start", wrapperClassName)}>
-      {button}
-      <BotLegalNote align={legalAlign} className={cn("max-w-[22rem]", legalClassName)} />
-    </span>
   );
 }

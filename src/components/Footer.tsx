@@ -22,8 +22,9 @@ const futureSeoLinks = [
 ] as const;
 
 const legalLinks = [
-  { to: "/privacy", label: "Политика конфиденциальности" },
-  { to: "/offer", label: "Договор оферты" },
+  { to: "/privacy", label: "Политика обработки персональных данных" },
+  { to: "/personal-data-consent", label: "Согласие на обработку персональных данных" },
+  { to: "/offer", label: "Публичная оферта" },
 ] as const;
 
 export function Footer() {

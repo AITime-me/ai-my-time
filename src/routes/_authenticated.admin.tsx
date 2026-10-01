@@ -6,13 +6,13 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, GlassCard } from "@/components/SectionHeading";
 import {
   checkIsAdmin, adminListLeads, adminUpdateLead, adminDeleteLead,
-  adminUpdateSettings, adminGetSettings, adminUpdateLegal, adminUpsertService,
+  adminUpdateSettings, adminGetSettings, adminUpsertService,
   adminUpsertCase, adminDeleteCase, adminUpsertFaq, adminDeleteFaq,
   adminListConversations, adminGetConversation, adminUpdateConversation,
   adminDeleteConversation, adminCreateLeadFromConversation,
 } from "@/lib/admin.functions";
 import { adminDiagnostics } from "@/lib/admin-diag.functions";
-import { getServices, getCases, getFaq, getLegalPage } from "@/lib/site.functions";
+import { getServices, getCases, getFaq } from "@/lib/site.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { LogOut, Trash2, Save, MessageSquare, ArrowLeft } from "lucide-react";
 
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
 });
 
-const TABS = ["Дашборд","Заявки","Диалоги","Услуги","Кейсы","FAQ","Контакты","Бот","Аналитика","Юр.страницы","SEO","Диагностика"] as const;
+const TABS = ["Дашборд","Заявки","Диалоги","Услуги","Кейсы","FAQ","Контакты","Бот","Аналитика","SEO","Диагностика"] as const;
 type Tab = typeof TABS[number];
 
 function AdminPage() {
@@ -82,7 +82,6 @@ function AdminPage() {
         {tab === "Контакты" && <SettingsTab kind="contacts" />}
         {tab === "Бот" && <SettingsTab kind="bot" />}
         {tab === "Аналитика" && <SettingsTab kind="analytics" />}
-        {tab === "Юр.страницы" && <LegalTab />}
         {tab === "SEO" && <SettingsTab kind="seo" />}
         {tab === "Диагностика" && <DiagnosticsTab />}
       </section>
@@ -349,15 +348,6 @@ function SettingsTab({ kind }: { kind: "contacts" | "bot" | "analytics" | "seo" 
   );
 }
 
-function LegalTab() {
-  return (
-    <div className="space-y-4">
-      <LegalEditor type="privacy" />
-      <LegalEditor type="offer" />
-    </div>
-  );
-}
-
 function DiagnosticsTab() {
   const run = useServerFn(adminDiagnostics);
   const { data, isLoading, isFetching, refetch, error } = useQuery({
@@ -473,31 +463,6 @@ function DiagnosticsTab() {
         </ul>
       </GlassCard>
     </div>
-  );
-}
-
-function LegalEditor({ type }: { type: "privacy" | "offer" }) {
-  const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["legal", type], queryFn: () => getLegalPage({ data: { type } }) });
-  const update = useServerFn(adminUpdateLegal);
-  if (!data) return null;
-  return (
-    <GlassCard>
-      <form className="grid gap-3" onSubmit={async (e) => {
-        e.preventDefault();
-        const f = new FormData(e.currentTarget);
-        await update({ data: { type, title: String(f.get("title")), content: String(f.get("content")) } });
-        qc.invalidateQueries({ queryKey: ["legal", type] }); alert("Сохранено");
-      }}>
-        <AdminInput name="title" label={type === "privacy" ? "Политика конфиденциальности" : "Договор оферты"} defaultValue={data.title} />
-        <div>
-          <label className="text-sm text-muted-foreground">Текст</label>
-          <textarea name="content" rows={16} defaultValue={data.content} className="mt-1 w-full rounded-lg border border-border/60 bg-background/40 px-3 py-2 font-mono text-xs" />
-        </div>
-        <button className="rounded-full bg-[image:var(--gradient-primary)] px-4 py-2 text-sm text-[color:var(--lime-foreground)] self-start">Сохранить</button>
-        <p className="text-xs text-muted-foreground">Адаптируйте под реальные реквизиты и условия работы.</p>
-      </form>
-    </GlassCard>
   );
 }
 

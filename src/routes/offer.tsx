@@ -1,34 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { SiteLayout } from "@/components/SiteLayout";
-import { Eyebrow } from "@/components/SectionHeading";
-import { getLegalPage } from "@/lib/site.functions";
-import { LegalContent } from "@/components/LegalContent";
+
+import { LegalDocumentPage } from "@/components/LegalDocumentPage";
+import { legalDocuments } from "@/data/legal";
+
+const doc = legalDocuments.offer;
 
 export const Route = createFileRoute("/offer")({
   head: () => ({
     meta: [
-      { title: "Договор оферты — AI My Time" },
-      { name: "description", content: "Договор оферты на digital-услуги проекта AI My Time." },
-      { property: "og:title", content: "Договор оферты — AI My Time" },
-      { property: "og:description", content: "Договор оферты на digital-услуги проекта AI My Time." },
+      { title: doc.seoTitle },
+      { name: "description", content: doc.seoDescription },
+      { property: "og:title", content: doc.seoTitle },
+      { property: "og:description", content: doc.seoDescription },
       { property: "og:url", content: "/offer" },
     ],
     links: [{ rel: "canonical", href: "/offer" }],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData({ queryKey: ["legal","offer"], queryFn: () => getLegalPage({ data: { type: "offer" } }) }),
   component: OfferPage,
 });
 
 function OfferPage() {
-  const { data } = useSuspenseQuery({ queryKey: ["legal","offer"], queryFn: () => getLegalPage({ data: { type: "offer" } }) });
-  return (
-    <SiteLayout>
-      <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-        <Eyebrow>Юридическое</Eyebrow>
-        <h1 className="mt-5 text-4xl font-semibold tracking-tight">{data?.title}</h1>
-        <LegalContent content={data?.content} />
-      </section>
-    </SiteLayout>
-  );
+  return <LegalDocumentPage content={doc.content} />;
 }

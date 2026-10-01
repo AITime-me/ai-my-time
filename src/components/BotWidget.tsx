@@ -3,7 +3,6 @@ import { MessageCircle, X } from "lucide-react";
 import { useSiteSettings } from "./SiteSettingsProvider";
 import { trackEvent } from "@/lib/analytics";
 import { motion, AnimatePresence } from "framer-motion";
-import { BotLegalNote } from "./BotLegalNote";
 
 export function BotWidget() {
   const s = useSiteSettings();
@@ -40,7 +39,6 @@ export function BotWidget() {
             >
               Открыть помощника
             </a>
-            <BotLegalNote align="left" />
           </motion.div>
         )}
       </AnimatePresence>

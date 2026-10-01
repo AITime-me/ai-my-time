@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PersonalDataConsentRouteImport } from './routes/personal-data-consent'
 import { Route as OfferRouteImport } from './routes/offer'
 import { Route as ContactsRouteImport } from './routes/contacts'
 import { Route as CasesRouteImport } from './routes/cases'
@@ -37,6 +38,11 @@ const ServicesRoute = ServicesRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PersonalDataConsentRoute = PersonalDataConsentRouteImport.update({
+  id: '/personal-data-consent',
+  path: '/personal-data-consent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OfferRoute = OfferRouteImport.update({
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/cases': typeof CasesRoute
   '/contacts': typeof ContactsRoute
   '/offer': typeof OfferRoute
+  '/personal-data-consent': typeof PersonalDataConsentRoute
   '/privacy': typeof PrivacyRoute
   '/services': typeof ServicesRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/cases': typeof CasesRoute
   '/contacts': typeof ContactsRoute
   '/offer': typeof OfferRoute
+  '/personal-data-consent': typeof PersonalDataConsentRoute
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/cases': typeof CasesRoute
   '/contacts': typeof ContactsRoute
   '/offer': typeof OfferRoute
+  '/personal-data-consent': typeof PersonalDataConsentRoute
   '/privacy': typeof PrivacyRoute
   '/services': typeof ServicesRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
     | '/cases'
     | '/contacts'
     | '/offer'
+    | '/personal-data-consent'
     | '/privacy'
     | '/services'
     | '/sitemap.xml'
@@ -164,6 +174,7 @@ export interface FileRouteTypes {
     | '/cases'
     | '/contacts'
     | '/offer'
+    | '/personal-data-consent'
     | '/privacy'
     | '/sitemap.xml'
     | '/admin'
@@ -179,6 +190,7 @@ export interface FileRouteTypes {
     | '/cases'
     | '/contacts'
     | '/offer'
+    | '/personal-data-consent'
     | '/privacy'
     | '/services'
     | '/sitemap.xml'
@@ -196,6 +208,7 @@ export interface RootRouteChildren {
   CasesRoute: typeof CasesRoute
   ContactsRoute: typeof ContactsRoute
   OfferRoute: typeof OfferRoute
+  PersonalDataConsentRoute: typeof PersonalDataConsentRoute
   PrivacyRoute: typeof PrivacyRoute
   ServicesRoute: typeof ServicesRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -223,6 +236,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/personal-data-consent': {
+      id: '/personal-data-consent'
+      path: '/personal-data-consent'
+      fullPath: '/personal-data-consent'
+      preLoaderRoute: typeof PersonalDataConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/offer': {
@@ -339,6 +359,7 @@ const rootRouteChildren: RootRouteChildren = {
   CasesRoute: CasesRoute,
   ContactsRoute: ContactsRoute,
   OfferRoute: OfferRoute,
+  PersonalDataConsentRoute: PersonalDataConsentRoute,
   PrivacyRoute: PrivacyRoute,
   ServicesRoute: ServicesRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,

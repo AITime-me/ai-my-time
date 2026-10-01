@@ -111,7 +111,7 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center md:flex">
-          <CTAButton event="click_bot_header" size="md" withLegal={false}>
+          <CTAButton event="click_bot_header" size="md">
             Пройти диагностику
           </CTAButton>
         </div>
@@ -173,7 +173,7 @@ export function Header() {
               ),
             )}
             <div className="mt-3">
-              <CTAButton event="click_bot_header" size="lg" className="w-full" withLegal={false}>
+              <CTAButton event="click_bot_header" size="lg" className="w-full">
                 Пройти диагностику
               </CTAButton>
             </div>
