@@ -465,6 +465,37 @@ function AmoCrmSection() {
             amoCRM должна поддерживать работу бизнеса, а не становиться ещё одной системой, которую
             сотрудники вынуждены обслуживать.
           </p>
+
+          <div className="mt-10 border-t border-border/40 pt-10">
+            <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-10">
+              <div>
+                <h3 className="text-xl font-semibold tracking-tight sm:text-2xl">
+                  Официальный партнёр программы amoSTART компании amoCRM
+                </h3>
+                <p className="mt-4 text-base text-muted-foreground">
+                  AI My Time участвует в партнёрской программе amoSTART компании amoCRM. Сертификат
+                  подтверждает официальный партнёрский статус.
+                </p>
+              </div>
+              <a
+                href="/images/amocrm-amostart-partner-certificate.jpg"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block overflow-hidden rounded-2xl border border-border/40 bg-background/20 shadow-[var(--shadow-soft)] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--lime)]/50"
+                aria-label="Открыть сертификат партнёра amoSTART в полном размере"
+              >
+                <img
+                  src="/images/amocrm-amostart-partner-certificate.jpg"
+                  alt="Сертификат официального партнёра программы amoSTART компании amoCRM — Светлана Кузнецова"
+                  width={1024}
+                  height={791}
+                  className="block h-auto w-full"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </a>
+            </div>
+          </div>
         </div>
       </Reveal>
     </section>
