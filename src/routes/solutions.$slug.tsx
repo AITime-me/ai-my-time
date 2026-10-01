@@ -1,11 +1,23 @@
-import { createFileRoute, notFound, Link } from "@tanstack/react-router";
+import { createFileRoute, notFound, Link, redirect } from "@tanstack/react-router";
 
 import { SiteLayout } from "@/components/SiteLayout";
 import { SolutionDetailPage } from "@/components/SolutionDetailPage";
-import { getSolutionBySlug, isSolutionSlug } from "@/data/solutions";
+import {
+  AI_AGENT_LEGACY_SLUG,
+  getSolutionBySlug,
+  isSolutionSlug,
+} from "@/data/solutions";
 
 export const Route = createFileRoute("/solutions/$slug")({
   beforeLoad: ({ params }) => {
+    if (params.slug === AI_AGENT_LEGACY_SLUG) {
+      throw redirect({
+        to: "/solutions/$slug",
+        params: { slug: "ai-agent" },
+        replace: true,
+        statusCode: 301,
+      });
+    }
     if (!isSolutionSlug(params.slug)) throw notFound();
   },
   head: ({ params }) => {
@@ -13,15 +25,25 @@ export const Route = createFileRoute("/solutions/$slug")({
     if (!solution) return {};
     const url = `/solutions/${solution.slug}`;
     const image = solution.steps[0]?.src;
+    const ogTitle = solution.ogTitle ?? solution.seoTitle;
+    const ogDescription = solution.ogDescription ?? solution.seoDescription;
     return {
       meta: [
         { title: solution.seoTitle },
         { name: "description", content: solution.seoDescription },
-        { property: "og:title", content: solution.seoTitle },
-        { property: "og:description", content: solution.seoDescription },
+        { property: "og:title", content: ogTitle },
+        { property: "og:description", content: ogDescription },
         { property: "og:url", content: url },
         { property: "og:type", content: "website" },
-        ...(image ? [{ property: "og:image", content: image }] : []),
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: ogTitle },
+        { name: "twitter:description", content: ogDescription },
+        ...(image
+          ? [
+              { property: "og:image", content: image },
+              { name: "twitter:image", content: image },
+            ]
+          : []),
       ],
       links: [{ rel: "canonical", href: url }],
       scripts: [
