@@ -19,16 +19,16 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Страница не найдена</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+          Запрашиваемая страница не существует или была перемещена.
         </p>
         <div className="mt-6">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            На главную
           </Link>
         </div>
       </div>
@@ -47,10 +47,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+          Не удалось загрузить страницу
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Что-то пошло не так. Попробуйте обновить страницу или вернуться на главную.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -60,13 +60,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            Попробовать снова
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            На главную
           </a>
         </div>
       </div>
@@ -74,21 +74,25 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+const ROOT_TITLE = "Автоматизация бизнес-процессов, CRM и AI для бизнеса | AI My Time";
+const ROOT_DESCRIPTION =
+  "AI My Time проектирует и автоматизирует бизнес-процессы: CRM, AI-агенты, интеграции, сайты и цифровые сервисы для работы с клиентами, продажами и аналитикой.";
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Светлана Кузнецова — AI My Time" },
-      { name: "description", content: "Сайты и AI-помощники для малого бизнеса" },
+      { title: ROOT_TITLE },
+      { name: "description", content: ROOT_DESCRIPTION },
       { name: "author", content: "Светлана Кузнецова" },
-      { property: "og:site_name", content: "AI MY TIME" },
-      { property: "og:title", content: "Светлана Кузнецова" },
-      { property: "og:description", content: "Сайты и AI-помощники для малого бизнеса" },
+      { property: "og:site_name", content: "AI My Time" },
+      { property: "og:title", content: ROOT_TITLE },
+      { property: "og:description", content: ROOT_DESCRIPTION },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Светлана Кузнецова" },
-      { name: "twitter:description", content: "Сайты и AI-помощники для малого бизнеса" },
+      { name: "twitter:title", content: ROOT_TITLE },
+      { name: "twitter:description", content: ROOT_DESCRIPTION },
       { property: "og:image", content: "https://ai-my-time.lovable.app/og-cover.jpg" },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
@@ -121,7 +125,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="ru">
       <head>
         <HeadContent />
       </head>
