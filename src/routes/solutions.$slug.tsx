@@ -2,11 +2,8 @@ import { createFileRoute, notFound, Link, redirect } from "@tanstack/react-route
 
 import { SiteLayout } from "@/components/SiteLayout";
 import { SolutionDetailPage } from "@/components/SolutionDetailPage";
-import {
-  AI_AGENT_LEGACY_SLUG,
-  getSolutionBySlug,
-  isSolutionSlug,
-} from "@/data/solutions";
+import { AI_AGENT_LEGACY_SLUG, getSolutionBySlug, isSolutionSlug } from "@/data/solutions";
+import { absoluteUrl } from "@/lib/site-url";
 
 export const Route = createFileRoute("/solutions/$slug")({
   beforeLoad: ({ params }) => {
@@ -23,8 +20,9 @@ export const Route = createFileRoute("/solutions/$slug")({
   head: ({ params }) => {
     const solution = getSolutionBySlug(params.slug);
     if (!solution) return {};
-    const url = `/solutions/${solution.slug}`;
-    const image = solution.steps[0]?.src;
+    const path = `/solutions/${solution.slug}`;
+    const url = absoluteUrl(path);
+    const image = solution.steps[0]?.src ? absoluteUrl(solution.steps[0].src) : undefined;
     const ogTitle = solution.ogTitle ?? solution.seoTitle;
     const ogDescription = solution.ogDescription ?? solution.seoDescription;
     return {
@@ -55,7 +53,8 @@ export const Route = createFileRoute("/solutions/$slug")({
             name: solution.h1,
             description: solution.seoDescription,
             url,
-            isPartOf: { "@type": "WebSite", name: "AI My Time" },
+            ...(image ? { image } : {}),
+            isPartOf: { "@type": "WebSite", name: "AI My Time", url: absoluteUrl("/") },
           }),
         },
       ],

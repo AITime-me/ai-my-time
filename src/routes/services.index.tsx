@@ -4,9 +4,11 @@ import { Eyebrow, H2, Lead, GlassCard } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
 import { Reveal } from "@/components/Reveal";
 import { Check } from "lucide-react";
+import { absoluteUrl } from "@/lib/site-url";
 
 const TITLE = "Услуги AI My Time — сайты, боты и AI";
-const DESCRIPTION = "Сайты для бизнеса с SEO, AI-администраторы, чат-боты, автоматизация на n8n, приложения для бизнеса, OpenClaw Bot и аналитика для малого бизнеса.";
+const DESCRIPTION =
+  "Сайты для бизнеса с SEO, AI-администраторы, чат-боты, автоматизация на n8n, приложения для бизнеса, OpenClaw Bot и аналитика для малого бизнеса.";
 
 export const Route = createFileRoute("/services/")({
   head: () => ({
@@ -16,11 +18,11 @@ export const Route = createFileRoute("/services/")({
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESCRIPTION },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/services" },
+      { property: "og:url", content: absoluteUrl("/services") },
       { name: "twitter:title", content: TITLE },
       { name: "twitter:description", content: DESCRIPTION },
     ],
-    links: [{ rel: "canonical", href: "/services" }],
+    links: [{ rel: "canonical", href: absoluteUrl("/services") }],
     scripts: [
       {
         type: "application/ld+json",
@@ -29,7 +31,7 @@ export const Route = createFileRoute("/services/")({
           "@type": "CollectionPage",
           name: "Услуги AI My Time",
           description: DESCRIPTION,
-          url: "/services",
+          url: absoluteUrl("/services"),
           hasPart: services.map((s) => ({
             "@type": "Service",
             name: s.title,
@@ -208,16 +210,14 @@ function ServicesIndex() {
           Сайты, AI и автоматизация для бизнеса
         </h1>
         <Lead className="max-w-3xl">
-          Я создаю digital-решения для малого бизнеса: сайты с заявками и SEO,
-          AI-помощников, чат-ботов, автоматизацию на n8n, приложения и
-          инструменты, которые помогают не терять заявки, быстрее работать с
-          клиентами и снижать ручную нагрузку.
+          Я создаю digital-решения для малого бизнеса: сайты с заявками и SEO, AI-помощников,
+          чат-ботов, автоматизацию на n8n, приложения и инструменты, которые помогают не терять
+          заявки, быстрее работать с клиентами и снижать ручную нагрузку.
         </Lead>
         <p className="mt-6 max-w-3xl text-base text-muted-foreground">
-          Не начинаю с вопроса «какой инструмент вам поставить». Сначала смотрю,
-          где бизнес теряет заявки, клиентов, время или деньги. А потом подбираю
-          решение: сайт, AI-администратор, чат-бот, автоматизацию, приложение
-          или OpenClaw Bot.
+          Не начинаю с вопроса «какой инструмент вам поставить». Сначала смотрю, где бизнес теряет
+          заявки, клиентов, время или деньги. А потом подбираю решение: сайт, AI-администратор,
+          чат-бот, автоматизацию, приложение или OpenClaw Bot.
         </p>
         <div className="mt-8 flex flex-col items-start gap-2">
           <CTAButton event="click_bot_services_hero" size="lg">
@@ -235,9 +235,7 @@ function ServicesIndex() {
             <Reveal key={s.title} delay={i * 0.04}>
               <GlassCard className="flex h-full flex-col">
                 <h3 className="text-xl font-semibold sm:text-2xl">{s.title}</h3>
-                <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-                  {s.description}
-                </p>
+                <p className="mt-3 text-sm text-muted-foreground sm:text-base">{s.description}</p>
                 <div className="mt-5">
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">
                     Что входит
@@ -265,10 +263,9 @@ function ServicesIndex() {
         <Eyebrow>Как понять, что вам нужно</Eyebrow>
         <H2 className="mt-5">Не обязательно сразу знать, какое решение вам нужно</H2>
         <Lead className="max-w-3xl">
-          Иногда бизнесу нужен не новый сайт, а нормальная обработка заявок.
-          Иногда нужен AI-администратор. Иногда — автоматизация на n8n. А иногда
-          достаточно разобрать текущий процесс и найти одно слабое место,
-          которое мешает росту.
+          Иногда бизнесу нужен не новый сайт, а нормальная обработка заявок. Иногда нужен
+          AI-администратор. Иногда — автоматизация на n8n. А иногда достаточно разобрать текущий
+          процесс и найти одно слабое место, которое мешает росту.
         </Lead>
         <div className="mt-10 grid gap-4 sm:grid-cols-2">
           {choosers.map((c, i) => (
@@ -287,8 +284,8 @@ function ServicesIndex() {
         <GlassCard className="text-center">
           <H2>Хотите понять, что подойдёт вашему бизнесу?</H2>
           <Lead className="mx-auto">
-            Опишите задачу в двух словах. Я посмотрю, что лучше выбрать: сайт,
-            AI-помощника, автоматизацию, приложение или разбор.
+            Опишите задачу в двух словах. Я посмотрю, что лучше выбрать: сайт, AI-помощника,
+            автоматизацию, приложение или разбор.
           </Lead>
           <div className="mt-8 flex flex-col items-center gap-2">
             <CTAButton event="click_bot_services_final" size="lg">

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { LegalDocumentPage } from "@/components/LegalDocumentPage";
 import { legalDocuments } from "@/data/legal";
+import { absoluteUrl } from "@/lib/site-url";
 
 const doc = legalDocuments.offer;
 
@@ -12,9 +13,9 @@ export const Route = createFileRoute("/offer")({
       { name: "description", content: doc.seoDescription },
       { property: "og:title", content: doc.seoTitle },
       { property: "og:description", content: doc.seoDescription },
-      { property: "og:url", content: "/offer" },
+      { property: "og:url", content: absoluteUrl("/offer") },
     ],
-    links: [{ rel: "canonical", href: "/offer" }],
+    links: [{ rel: "canonical", href: absoluteUrl("/offer") }],
   }),
   component: OfferPage,
 });

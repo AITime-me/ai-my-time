@@ -6,6 +6,7 @@ import { useSiteSettings } from "@/components/SiteSettingsProvider";
 import { BookOpen, Send, Sparkles } from "lucide-react";
 import { CTAButton } from "@/components/CTAButton";
 import { isRealBotUrl } from "@/lib/bot-url";
+import { absoluteUrl } from "@/lib/site-url";
 
 const SEO_TITLE = "Контакты AI My Time — диагностика и каналы проекта";
 const SEO_DESCRIPTION =
@@ -18,9 +19,9 @@ export const Route = createFileRoute("/contacts")({
       { name: "description", content: SEO_DESCRIPTION },
       { property: "og:title", content: SEO_TITLE },
       { property: "og:description", content: SEO_DESCRIPTION },
-      { property: "og:url", content: "/contacts" },
+      { property: "og:url", content: absoluteUrl("/contacts") },
     ],
-    links: [{ rel: "canonical", href: "/contacts" }],
+    links: [{ rel: "canonical", href: absoluteUrl("/contacts") }],
   }),
   component: ContactsPage,
 });

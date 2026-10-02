@@ -5,6 +5,7 @@ import { Eyebrow, Lead, GlassCard } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
 import { Reveal } from "@/components/Reveal";
 import { getCases } from "@/lib/site.functions";
+import { absoluteUrl } from "@/lib/site-url";
 import { ArrowRight } from "lucide-react";
 
 type CaseItem = {
@@ -24,12 +25,20 @@ export const Route = createFileRoute("/cases")({
     return {
       meta: [
         { title: "B2B-проекты: сайты, AI и автоматизация | AI My Time" },
-        { name: "description", content: "Примеры B2B-проектов AI My Time: сайты с SEO-логикой, AI-помощники, онлайн-запись, CRM, аналитика и AI-ассистенты владельца." },
+        {
+          name: "description",
+          content:
+            "Примеры B2B-проектов AI My Time: сайты с SEO-логикой, AI-помощники, онлайн-запись, CRM, аналитика и AI-ассистенты владельца.",
+        },
         { property: "og:title", content: "B2B-проекты: сайты, AI и автоматизация" },
-        { property: "og:description", content: "Примеры B2B-проектов AI My Time: сайты с SEO-логикой, AI-помощники, онлайн-запись, CRM, аналитика и AI-ассистенты владельца." },
-        { property: "og:url", content: "/cases" },
+        {
+          property: "og:description",
+          content:
+            "Примеры B2B-проектов AI My Time: сайты с SEO-логикой, AI-помощники, онлайн-запись, CRM, аналитика и AI-ассистенты владельца.",
+        },
+        { property: "og:url", content: absoluteUrl("/cases") },
       ],
-      links: [{ rel: "canonical", href: "/cases" }],
+      links: [{ rel: "canonical", href: absoluteUrl("/cases") }],
       scripts: [
         {
           type: "application/ld+json",
@@ -37,8 +46,9 @@ export const Route = createFileRoute("/cases")({
             "@context": "https://schema.org",
             "@type": "CollectionPage",
             name: "B2B-проекты AI My Time",
-            description: "Примеры цифровых систем для малого и сервисного бизнеса: сайты, AI-администраторы, онлайн-запись, CRM, аналитика и AI-ассистенты владельца.",
-            url: "/cases",
+            description:
+              "Примеры цифровых систем для малого и сервисного бизнеса: сайты, AI-администраторы, онлайн-запись, CRM, аналитика и AI-ассистенты владельца.",
+            url: absoluteUrl("/cases"),
             hasPart: cases.map((c) => ({
               "@type": "CreativeWork",
               name: c.title,
@@ -50,7 +60,8 @@ export const Route = createFileRoute("/cases")({
       ],
     };
   },
-  loader: ({ context }) => context.queryClient.ensureQueryData({ queryKey: ["cases"], queryFn: () => getCases() }),
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({ queryKey: ["cases"], queryFn: () => getCases() }),
   component: CasesPage,
 });
 
@@ -69,7 +80,9 @@ function CasesPage() {
     <SiteLayout>
       <section className="mx-auto max-w-7xl px-4 pt-14 sm:px-6 lg:px-8">
         <Eyebrow>B2B-портфолио</Eyebrow>
-        <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">Цифровые системы для бизнеса</h1>
+        <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">
+          Цифровые системы для бизнеса
+        </h1>
         <Lead className="max-w-3xl">
           AI My Time создаёт цифровые системы для малого и сервисного бизнеса: сайты, AI-помощников,
           автоматизацию, онлайн-запись, CRM, аналитику и внутренние инструменты управления. Ниже —
@@ -102,7 +115,9 @@ function CasesPage() {
             ))}
           </ol>
           <p className="mt-4 max-w-3xl text-sm text-muted-foreground">
-            OpenClaw — надсистемный AI-слой управления для проектов руководителя: объединяет аналитику, контроль процессов, технический мониторинг и поддержку управленческих решений.
+            OpenClaw — надсистемный AI-слой управления для проектов руководителя: объединяет
+            аналитику, контроль процессов, технический мониторинг и поддержку управленческих
+            решений.
           </p>
         </GlassCard>
       </section>
@@ -111,9 +126,7 @@ function CasesPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((c, i) => (
             <Reveal key={c.id} delay={i * 0.04}>
-              <GlassCard
-                className="flex h-full cursor-default flex-col"
-              >
+              <GlassCard className="flex h-full cursor-default flex-col">
                 <div className="flex flex-wrap items-center gap-2">
                   {c.category && (
                     <span className="rounded-full border border-border/60 bg-white/5 px-2.5 py-1 text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -122,10 +135,29 @@ function CasesPage() {
                   )}
                 </div>
                 <h3 className="mt-3 text-lg font-semibold">{c.title}</h3>
-                {c.task && <p className="mt-3 text-sm"><span className="text-muted-foreground">Задача: </span>{c.task}</p>}
-                {c.solution && <p className="mt-2 text-sm"><span className="text-muted-foreground">Что создаётся: </span>{c.solution}</p>}
-                {c.ecosystem_role && <p className="mt-2 text-sm"><span className="text-muted-foreground">Роль в экосистеме: </span>{c.ecosystem_role}</p>}
-                {c.note && <p className="mt-3 text-xs leading-relaxed text-muted-foreground/80 border-l-2 border-[color:var(--lime)]/40 pl-3">{c.note}</p>}
+                {c.task && (
+                  <p className="mt-3 text-sm">
+                    <span className="text-muted-foreground">Задача: </span>
+                    {c.task}
+                  </p>
+                )}
+                {c.solution && (
+                  <p className="mt-2 text-sm">
+                    <span className="text-muted-foreground">Что создаётся: </span>
+                    {c.solution}
+                  </p>
+                )}
+                {c.ecosystem_role && (
+                  <p className="mt-2 text-sm">
+                    <span className="text-muted-foreground">Роль в экосистеме: </span>
+                    {c.ecosystem_role}
+                  </p>
+                )}
+                {c.note && (
+                  <p className="mt-3 text-xs leading-relaxed text-muted-foreground/80 border-l-2 border-[color:var(--lime)]/40 pl-3">
+                    {c.note}
+                  </p>
+                )}
                 <div className="mt-6 flex flex-col gap-2">
                   <CTAButton event="click_bot_cases" variant="secondary" arrow />
                 </div>

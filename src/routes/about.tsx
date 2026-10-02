@@ -3,6 +3,7 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, GlassCard, H2, Lead } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
 import aboutPhotoAsset from "@/assets/about-photo.png.asset.json";
+import { absoluteUrl, SITE_URL } from "@/lib/site-url";
 
 const SEO_TITLE = "О проекте AI My Time — проектирование и автоматизация бизнес-процессов";
 const SEO_DESCRIPTION =
@@ -15,9 +16,9 @@ export const Route = createFileRoute("/about")({
       { name: "description", content: SEO_DESCRIPTION },
       { property: "og:title", content: SEO_TITLE },
       { property: "og:description", content: SEO_DESCRIPTION },
-      { property: "og:url", content: "/about" },
+      { property: "og:url", content: absoluteUrl("/about") },
     ],
-    links: [{ rel: "canonical", href: "/about" }],
+    links: [{ rel: "canonical", href: absoluteUrl("/about") }],
     scripts: [
       {
         type: "application/ld+json",
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/about")({
           "@context": "https://schema.org",
           "@type": "Organization",
           name: "AI My Time",
-          url: "/about",
+          url: SITE_URL,
           description: SEO_DESCRIPTION,
           founder: {
             "@type": "Person",

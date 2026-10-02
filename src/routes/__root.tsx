@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SiteSettingsProvider } from "@/components/SiteSettingsProvider";
 import { Analytics } from "@/components/Analytics";
+import { absoluteUrl, SITE_DESCRIPTION, SITE_URL } from "@/lib/site-url";
 
 function NotFoundComponent() {
   return (
@@ -75,8 +76,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 const ROOT_TITLE = "Автоматизация бизнес-процессов, CRM и AI для бизнеса | AI My Time";
-const ROOT_DESCRIPTION =
-  "AI My Time проектирует и автоматизирует бизнес-процессы: CRM, AI-агенты, интеграции, сайты и цифровые сервисы для работы с клиентами, продажами и аналитикой.";
+const OG_IMAGE = absoluteUrl("/og-cover.jpg");
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -84,25 +84,28 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: ROOT_TITLE },
-      { name: "description", content: ROOT_DESCRIPTION },
+      { name: "description", content: SITE_DESCRIPTION },
       { name: "author", content: "Светлана Кузнецова" },
       { property: "og:site_name", content: "AI My Time" },
       { property: "og:title", content: ROOT_TITLE },
-      { property: "og:description", content: ROOT_DESCRIPTION },
+      { property: "og:description", content: SITE_DESCRIPTION },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: ROOT_TITLE },
-      { name: "twitter:description", content: ROOT_DESCRIPTION },
-      { property: "og:image", content: "https://ai-my-time.lovable.app/og-cover.jpg" },
+      { name: "twitter:description", content: SITE_DESCRIPTION },
+      { property: "og:image", content: OG_IMAGE },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
-      { name: "twitter:image", content: "https://ai-my-time.lovable.app/og-cover.jpg" },
+      { name: "twitter:image", content: OG_IMAGE },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap",
+      },
     ],
     scripts: [
       {
@@ -111,8 +114,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@context": "https://schema.org",
           "@type": "Organization",
           name: "AI My Time",
+          url: SITE_URL,
           founder: { "@type": "Person", name: "Светлана Кузнецова" },
-          description: "Сайты, AI-помощники, боты и автоматизация для малого бизнеса",
+          description: SITE_DESCRIPTION,
         }),
       },
     ],

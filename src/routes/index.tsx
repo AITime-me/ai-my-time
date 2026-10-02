@@ -22,21 +22,20 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { absoluteUrl, SITE_DESCRIPTION } from "@/lib/site-url";
 
 const SEO_TITLE = "Автоматизация бизнес-процессов, CRM и AI для бизнеса | AI My Time";
-const SEO_DESCRIPTION =
-  "AI My Time проектирует и автоматизирует бизнес-процессы: CRM, AI-сотрудники, интеграции, сайты и цифровые сервисы для работы с клиентами, продажами и аналитикой.";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: SEO_TITLE },
-      { name: "description", content: SEO_DESCRIPTION },
+      { name: "description", content: SITE_DESCRIPTION },
       { property: "og:title", content: SEO_TITLE },
-      { property: "og:description", content: SEO_DESCRIPTION },
-      { property: "og:url", content: "/" },
+      { property: "og:description", content: SITE_DESCRIPTION },
+      { property: "og:url", content: absoluteUrl("/") },
     ],
-    links: [{ rel: "canonical", href: "/" }],
+    links: [{ rel: "canonical", href: absoluteUrl("/") }],
   }),
   component: HomePage,
 });
