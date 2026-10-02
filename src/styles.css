@@ -166,3 +166,139 @@
     linear-gradient(90deg, oklch(0.4 0.04 155 / 0.08) 1px, transparent 1px);
   background-size: 48px 48px;
 }
+
+/* —— Target cursor (desktop fine pointer only) —— */
+html.has-target-cursor,
+html.has-target-cursor body {
+  cursor: none;
+}
+
+html.has-target-cursor a,
+html.has-target-cursor button,
+html.has-target-cursor [role="button"],
+html.has-target-cursor label[for],
+html.has-target-cursor summary {
+  cursor: none;
+}
+
+html.has-target-cursor input,
+html.has-target-cursor textarea,
+html.has-target-cursor select,
+html.has-target-cursor [contenteditable="true"] {
+  cursor: text;
+}
+
+.target-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform;
+}
+
+.target-cursor__frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 1px solid color-mix(in oklch, var(--lime) 55%, transparent);
+  border-radius: 2px;
+  background: color-mix(in oklch, var(--lime) 6%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lime) 12%, transparent);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease,
+    opacity 160ms ease;
+}
+
+.target-cursor__frame::before,
+.target-cursor__frame::after {
+  content: "";
+  position: absolute;
+  background: color-mix(in oklch, var(--lime) 70%, transparent);
+}
+
+.target-cursor__frame::before {
+  top: 50%;
+  left: -3px;
+  right: -3px;
+  height: 1px;
+  transform: translateY(-50%);
+  opacity: 0.45;
+}
+
+.target-cursor__frame::after {
+  left: 50%;
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  transform: translateX(-50%);
+  opacity: 0.45;
+}
+
+.target-cursor[data-mode="interactive"] .target-cursor__frame {
+  transform: scale(1.28);
+  border-color: color-mix(in oklch, var(--lime) 85%, transparent);
+  background: color-mix(in oklch, var(--lime) 12%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .target-cursor__frame {
+    transition: none;
+  }
+}
+
+/* —— Digital rain (AI sections) —— */
+.digital-rain__col {
+  color: var(--lime);
+  white-space: pre;
+  animation-name: digital-rain-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  text-shadow: 0 0 10px color-mix(in oklch, var(--lime) 25%, transparent);
+}
+
+.digital-rain {
+  z-index: 0;
+  mask-image:
+    linear-gradient(to bottom, transparent 0%, black 16%, black 78%, transparent 100%),
+    linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
+  mask-composite: intersect;
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent 0%, black 16%, black 78%, transparent 100%),
+    linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
+  -webkit-mask-composite: source-in;
+}
+
+.digital-rain__fade {
+  display: none;
+}
+
+@keyframes digital-rain-fall {
+  from {
+    transform: translate3d(-50%, -40%, 0);
+  }
+  to {
+    transform: translate3d(-50%, 70%, 0);
+  }
+}
+
+@media (max-width: 639px) {
+  .digital-rain {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .digital-rain__col {
+    animation: none;
+    transform: translate3d(-50%, 0, 0);
+    opacity: 0.06 !important;
+  }
+}
+

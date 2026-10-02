@@ -1,5 +1,16 @@
 import { motion } from "framer-motion";
-import { Globe, Bot, Inbox, Headset, UserCheck, UserPlus, ArrowRight, ArrowDown, ArrowDownLeft } from "lucide-react";
+import {
+  Globe,
+  Bot,
+  Inbox,
+  Headset,
+  UserCheck,
+  UserPlus,
+  ArrowRight,
+  ArrowDown,
+  ArrowDownLeft,
+} from "lucide-react";
+import { DigitalRain } from "./DigitalRain";
 
 const nodes = [
   { icon: UserPlus, label: "Потенциальный клиент", hint: "человек с задачей" },
@@ -40,9 +51,10 @@ function MobileArrow({ index }: { index: number }) {
 export function HeroSchema() {
   return (
     <div className="glass relative overflow-hidden rounded-3xl p-6 sm:p-8">
-      <div className="absolute inset-0 bg-grid opacity-30" />
-      <div className="absolute -top-20 right-0 size-64 rounded-full bg-[color:var(--lime)]/20 blur-3xl" />
-      <div className="relative">
+      <DigitalRain />
+      <div className="absolute inset-0 z-[1] bg-grid opacity-30" />
+      <div className="absolute -top-20 right-0 z-[1] size-64 rounded-full bg-[color:var(--lime)]/20 blur-3xl" />
+      <div className="relative z-[2]">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">Путь клиента</p>
         <p className="mt-1 text-sm text-foreground/80">Как сайт + AI становится одним механизмом</p>
         <div className="relative mt-6 grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2">
@@ -59,7 +71,9 @@ export function HeroSchema() {
               </span>
               <div className="flex w-full min-w-0 flex-col gap-1">
                 <span className="break-words text-sm font-medium leading-snug">{n.label}</span>
-                <span className="break-words text-[11px] leading-snug text-muted-foreground">{n.hint}</span>
+                <span className="break-words text-[11px] leading-snug text-muted-foreground">
+                  {n.hint}
+                </span>
               </div>
               <span className="absolute -top-1 right-2 text-[10px] tabular-nums tracking-normal text-muted-foreground">{`0${i + 1}`}</span>
               <DesktopArrow index={i} />
