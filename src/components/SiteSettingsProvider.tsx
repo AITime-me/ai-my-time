@@ -8,7 +8,7 @@ type Settings = NonNullable<Awaited<ReturnType<typeof getSiteSettings>>>;
 export const OFFICIAL_TELEGRAM_CHANNEL = "https://t.me/AIautomationsales";
 
 const defaults: Settings = {
-  bot_link: "#",
+  bot_link: "",
   bot_widget_enabled: true,
   bot_widget_text: "Задать вопрос AI-помощнику",
   main_cta_text: "Обсудить задачу",
@@ -35,7 +35,9 @@ function resolveSettings(data: Settings | null | undefined): Settings {
   }
 
   const rawSocial =
-    merged.social_links && typeof merged.social_links === "object" && !Array.isArray(merged.social_links)
+    merged.social_links &&
+    typeof merged.social_links === "object" &&
+    !Array.isArray(merged.social_links)
       ? { ...(merged.social_links as Record<string, unknown>) }
       : {};
   if (!isFilledUrl(rawSocial.telegram_channel) && !isFilledUrl(rawSocial.telegram)) {

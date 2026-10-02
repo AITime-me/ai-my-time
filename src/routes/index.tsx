@@ -620,7 +620,7 @@ function DiagnosticsSection() {
             <CTAButton event="click_bot_cases" size="lg">
               Пройти диагностику бизнеса
             </CTAButton>
-            <p className="text-sm text-muted-foreground">Диагностика проходит в Telegram.</p>
+            <p className="text-sm text-muted-foreground">Начните со страницы контактов.</p>
           </div>
         </div>
       </Reveal>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { MessageCircle, X } from "lucide-react";
 import { useSiteSettings } from "./SiteSettingsProvider";
+import { isRealBotUrl } from "@/lib/bot-url";
 import { trackEvent } from "@/lib/analytics";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -9,7 +10,9 @@ export function BotWidget() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  if (!mounted || !s.bot_widget_enabled) return null;
+
+  const botUrl = isRealBotUrl(s.bot_link) ? s.bot_link.trim() : "";
+  if (!mounted || !s.bot_widget_enabled || !botUrl) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 sm:bottom-6 sm:right-6">
@@ -23,16 +26,21 @@ export function BotWidget() {
           >
             <div className="mb-2 flex items-center justify-between">
               <p className="text-sm font-medium">AI-помощник AI My Time</p>
-              <button onClick={() => setOpen(false)} aria-label="Закрыть" className="text-muted-foreground hover:text-foreground">
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Закрыть"
+                className="text-muted-foreground hover:text-foreground"
+              >
                 <X className="size-4" />
               </button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Помогу разобраться, какой digital-инструмент подойдёт вашему бизнесу: сайт, AI-помощник, CRM, автоматизация, аналитика или внутренний сервис.
+              Помогу разобраться, какой digital-инструмент подойдёт вашему бизнесу: сайт,
+              AI-помощник, CRM, автоматизация, аналитика или внутренний сервис.
             </p>
             <a
-              href={s.bot_link || "#"}
-              target={s.bot_link && s.bot_link !== "#" ? "_blank" : undefined}
+              href={botUrl}
+              target="_blank"
               rel="noopener noreferrer"
               onClick={() => trackEvent("open_bot_widget")}
               className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-medium text-[color:var(--lime-foreground)]"
@@ -52,7 +60,9 @@ export function BotWidget() {
         aria-label={s.bot_widget_text || "Задать вопрос AI-помощнику"}
       >
         <MessageCircle className="size-5" />
-        <span className="hidden sm:inline">{s.bot_widget_text || "Задать вопрос AI-помощнику"}</span>
+        <span className="hidden sm:inline">
+          {s.bot_widget_text || "Задать вопрос AI-помощнику"}
+        </span>
       </button>
     </div>
   );

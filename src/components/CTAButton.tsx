@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { isRealBotUrl } from "@/lib/bot-url";
 import { useSiteSettings } from "./SiteSettingsProvider";
 import { trackEvent } from "@/lib/analytics";
 import { ArrowRight } from "lucide-react";
@@ -13,6 +14,8 @@ type Props = {
   arrow?: boolean;
   label?: string;
 };
+
+const CONTACTS_FALLBACK = "/contacts";
 
 export function CTAButton({
   children,
@@ -31,17 +34,19 @@ export function CTAButton({
   const variants = {
     primary:
       "bg-[image:var(--gradient-primary)] text-[color:var(--lime-foreground)] shadow-[var(--shadow-glow)] hover:brightness-110",
-    secondary:
-      "glass text-foreground hover:border-[color:var(--lime)]/40",
+    secondary: "glass text-foreground hover:border-[color:var(--lime)]/40",
     ghost: "text-foreground/80 hover:text-foreground hover:bg-white/5",
   } as const;
-  const href = s.bot_link || s.telegram || "#";
-  const isExternal = href !== "#";
+
+  const botUrl = isRealBotUrl(s.bot_link) ? s.bot_link.trim() : "";
+  const href = botUrl || CONTACTS_FALLBACK;
+  const isExternal = Boolean(botUrl);
+
   return (
     <a
       href={href}
       target={isExternal ? "_blank" : undefined}
-      rel="noopener noreferrer"
+      rel={isExternal ? "noopener noreferrer" : undefined}
       onClick={() => trackEvent(event)}
       className={cn(base, sizes, variants[variant], className)}
     >

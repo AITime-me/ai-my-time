@@ -5,6 +5,7 @@ import { trackEvent } from "@/lib/analytics";
 import { useSiteSettings } from "@/components/SiteSettingsProvider";
 import { BookOpen, Send, Sparkles } from "lucide-react";
 import { CTAButton } from "@/components/CTAButton";
+import { isRealBotUrl } from "@/lib/bot-url";
 
 const SEO_TITLE = "Контакты AI My Time — диагностика и каналы проекта";
 const SEO_DESCRIPTION =
@@ -46,29 +47,25 @@ function readSocialLinks(value: unknown): SocialLinks {
   };
 }
 
-function isRealUrl(value?: string | null): value is string {
-  if (!value) return false;
-  const v = value.trim();
-  return v !== "" && v !== "#";
-}
-
 function ContactsPage() {
   const s = useSiteSettings();
   const social = readSocialLinks(s.social_links);
 
   // Diagnostic bot only — never fall back to personal/channel Telegram.
-  const botUrl = isRealUrl(s.bot_link) ? s.bot_link.trim() : "";
+  const botUrl = isRealBotUrl(s.bot_link) ? s.bot_link.trim() : "";
 
   // Channel from social_links or project telegram setting.
   const channelUrl =
-    social.telegram_channel || social.telegram || (isRealUrl(s.telegram) ? s.telegram.trim() : "");
+    social.telegram_channel ||
+    social.telegram ||
+    (isRealBotUrl(s.telegram) ? s.telegram.trim() : "");
 
   const platforms = [
     { label: "VC.ru", href: social.vcru },
     { label: "Дзен", href: social.dzen },
-  ].filter((p): p is { label: string; href: string } => isRealUrl(p.href));
+  ].filter((p): p is { label: string; href: string } => isRealBotUrl(p.href));
 
-  const projectEmail = isRealUrl(s.email) ? s.email.trim() : "";
+  const projectEmail = isRealBotUrl(s.email) ? s.email.trim() : "";
   const hasExtras = platforms.length > 0 || !!projectEmail;
 
   return (
