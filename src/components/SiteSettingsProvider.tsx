@@ -55,6 +55,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
     queryKey: ["site_settings"],
     queryFn: () => getSiteSettings(),
     staleTime: 60_000,
+    retry: false,
   });
   const value = resolveSettings(data);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

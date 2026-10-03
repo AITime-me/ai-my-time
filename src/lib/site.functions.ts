@@ -4,25 +4,60 @@ import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 
 function publicClient() {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } },
-  );
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) {
+    throw new Error("Missing SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY");
+  }
+  return createClient<Database>(url, key, {
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
+}
+
+/** Log public RPC failures once per process — expected until SQL GRANT step. */
+const publicRpcWarned = new Set<string>();
+function warnPublicRpcOnce(rpc: string, message: string) {
+  if (publicRpcWarned.has(rpc)) return;
+  publicRpcWarned.add(rpc);
+  console.warn(`[site] ${rpc} unavailable (${message}); using safe defaults`);
 }
 
 export const getSiteSettings = createServerFn({ method: "GET" }).handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin.rpc("get_public_site_settings");
-  const row = Array.isArray(data) ? data[0] : data;
-  return row ?? null;
+  try {
+    const sb = publicClient();
+    const { data, error } = await sb.rpc("get_public_site_settings");
+    if (error) {
+      warnPublicRpcOnce("get_public_site_settings", error.message);
+      return null;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return row ?? null;
+  } catch (e) {
+    warnPublicRpcOnce(
+      "get_public_site_settings",
+      e instanceof Error ? e.message : "unknown error",
+    );
+    return null;
+  }
 });
 
 export const getAnalyticsConfig = createServerFn({ method: "GET" }).handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin.rpc("get_public_analytics");
-  const row = Array.isArray(data) ? data[0] : data;
-  return row ?? null;
+  try {
+    const sb = publicClient();
+    const { data, error } = await sb.rpc("get_public_analytics");
+    if (error) {
+      warnPublicRpcOnce("get_public_analytics", error.message);
+      return null;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return row ?? null;
+  } catch (e) {
+    warnPublicRpcOnce(
+      "get_public_analytics",
+      e instanceof Error ? e.message : "unknown error",
+    );
+    return null;
+  }
 });
 
 export const getServices = createServerFn({ method: "GET" }).handler(async () => {

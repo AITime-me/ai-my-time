@@ -7,6 +7,7 @@ export function Analytics() {
     queryKey: ["analytics_config"],
     queryFn: () => getAnalyticsConfig(),
     staleTime: 5 * 60_000,
+    retry: false,
   });
   const s = data ?? { analytics_enabled: false, yandex_metrika_id: "", google_analytics_id: "" };
   useEffect(() => {

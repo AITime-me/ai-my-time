@@ -41,8 +41,6 @@ async function probeWrite(
 export const adminDiagnostics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
     const out: {
       user: { id: string; email: string | null };
       isAdmin: boolean;
@@ -57,34 +55,49 @@ export const adminDiagnostics = createServerFn({ method: "GET" })
       tables: [],
     };
 
-    // env
+    // env — SERVICE_ROLE must stay absent in website runtime (ok:true when absent)
     out.env.push({ name: "SUPABASE_URL", ok: !!process.env.SUPABASE_URL });
     out.env.push({ name: "SUPABASE_PUBLISHABLE_KEY", ok: !!process.env.SUPABASE_PUBLISHABLE_KEY });
-    out.env.push({ name: "SUPABASE_SERVICE_ROLE_KEY", ok: !!process.env.SUPABASE_SERVICE_ROLE_KEY });
+    out.env.push({
+      name: "SUPABASE_SERVICE_ROLE_KEY",
+      ok: !process.env.SUPABASE_SERVICE_ROLE_KEY,
+      detail: process.env.SUPABASE_SERVICE_ROLE_KEY
+        ? "unexpected: present in website runtime"
+        : "absent (expected for website runtime)",
+    });
 
-    // is admin?
-    const { data: adminFlag, error: adminErr } = await supabaseAdmin.rpc("has_role", { _user_id: context.userId, _role: "admin" });
-    out.isAdmin = !!adminFlag;
-    if (adminErr) out.functions.push({ name: "has_role (service_role вызов)", ok: false, error: adminErr.message });
-    else out.functions.push({ name: "has_role (service_role вызов)", ok: true, detail: adminFlag ? "вы admin" : "вы НЕ admin" });
+    // Admin gate via user-scoped JWT (no service role)
+    try {
+      const { data: adminFlag, error: adminErr } = await context.supabase.rpc("has_role", {
+        _user_id: context.userId,
+        _role: "admin",
+      });
+      out.isAdmin = !!adminFlag;
+      if (adminErr) {
+        out.functions.push({
+          name: "has_role (authenticated)",
+          ok: false,
+          error: adminErr.message,
+          detail:
+            "If permission denied — GRANT EXECUTE ON FUNCTION public.has_role(uuid, app_role) TO authenticated.",
+        });
+      } else {
+        out.functions.push({
+          name: "has_role (authenticated)",
+          ok: true,
+          detail: adminFlag ? "вы admin" : "вы НЕ admin",
+        });
+      }
+    } catch (e) {
+      out.functions.push({
+        name: "has_role (authenticated)",
+        ok: false,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
 
     if (!out.isAdmin) {
       return out;
-    }
-
-    // Привилегии через PostgREST недоступны напрямую — проверяем косвенно:
-    // вызовем has_role от имени authenticated через user-scoped клиент.
-    try {
-      const { error } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
-      if (error) out.functions.push({
-        name: "has_role (вызов под authenticated)",
-        ok: false,
-        error: error.message,
-        detail: "Если здесь permission denied — RLS-политики не могут проверить роль и любые UPDATE из админки падают. Нужен GRANT EXECUTE ON FUNCTION public.has_role(uuid, app_role) TO authenticated.",
-      });
-      else out.functions.push({ name: "has_role (вызов под authenticated)", ok: true });
-    } catch (e) {
-      out.functions.push({ name: "has_role (вызов под authenticated)", ok: false, error: e instanceof Error ? e.message : String(e) });
     }
 
     // Каталожная информация по таблицам
