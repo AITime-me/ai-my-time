@@ -1,1 +1,0 @@
-DROP VIEW IF EXISTS public.public_site_settings;

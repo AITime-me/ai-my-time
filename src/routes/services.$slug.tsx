@@ -1,23 +1,16 @@
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, GlassCard } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
-import { getServiceBySlug } from "@/lib/site.functions";
+import { getServiceBySlug } from "@/data/services";
 import { absoluteUrl } from "@/lib/site-url";
 import { ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/services/$slug")({
-  loader: async ({ context, params }) => {
-    try {
-      const data = await context.queryClient.ensureQueryData({
-        queryKey: ["service", params.slug],
-        queryFn: () => getServiceBySlug({ data: { slug: params.slug } }),
-      });
-      return data ?? null;
-    } catch {
-      return null;
-    }
+  loader: ({ params }) => {
+    const data = getServiceBySlug(params.slug);
+    if (!data) throw notFound();
+    return data;
   },
   head: ({ loaderData }) => {
     const path = loaderData ? `/services/${loaderData.slug}` : "";
@@ -80,12 +73,7 @@ export const Route = createFileRoute("/services/$slug")({
 });
 
 function ServiceDetail() {
-  const { slug } = Route.useParams();
-  const { data } = useSuspenseQuery({
-    queryKey: ["service", slug],
-    queryFn: () => getServiceBySlug({ data: { slug } }),
-  });
-  if (!data) return null;
+  const data = Route.useLoaderData();
   return (
     <SiteLayout>
       <section className="mx-auto max-w-4xl px-4 pt-14 sm:px-6 lg:px-8">

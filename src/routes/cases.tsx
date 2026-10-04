@@ -1,27 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import { SiteLayout } from "@/components/SiteLayout";
 import { Eyebrow, Lead, GlassCard } from "@/components/SectionHeading";
 import { CTAButton } from "@/components/CTAButton";
 import { Reveal } from "@/components/Reveal";
-import { getCases } from "@/lib/site.functions";
+import { getActiveCases, type Case } from "@/data/cases";
 import { absoluteUrl } from "@/lib/site-url";
 import { ArrowRight } from "lucide-react";
 
-type CaseItem = {
-  id: string;
-  title: string;
-  category?: string | null;
-  status?: string | null;
-  task?: string | null;
-  solution?: string | null;
-  ecosystem_role?: string | null;
-  note?: string | null;
-};
-
 export const Route = createFileRoute("/cases")({
   head: ({ loaderData }) => {
-    const cases = Array.isArray(loaderData) ? (loaderData as CaseItem[]) : [];
+    const cases = Array.isArray(loaderData) ? (loaderData as Case[]) : [];
     return {
       meta: [
         { title: "B2B-проекты: сайты, AI и автоматизация | AI My Time" },
@@ -60,8 +48,7 @@ export const Route = createFileRoute("/cases")({
       ],
     };
   },
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData({ queryKey: ["cases"], queryFn: () => getCases() }),
+  loader: () => getActiveCases(),
   component: CasesPage,
 });
 
@@ -74,8 +61,7 @@ const ecosystemSteps = [
 ];
 
 function CasesPage() {
-  const { data } = useSuspenseQuery({ queryKey: ["cases"], queryFn: () => getCases() });
-  const items = (data ?? []) as unknown as CaseItem[];
+  const items = Route.useLoaderData();
   return (
     <SiteLayout>
       <section className="mx-auto max-w-7xl px-4 pt-14 sm:px-6 lg:px-8">
