@@ -1,14 +1,25 @@
 import { describe, expect, test } from "bun:test";
 import { ConsultantRateLimiter } from "../../src/consultant/limits.server";
-import { decideCta, sanitizeModelText, userAsksForTeam } from "../../src/consultant/policy.server";
+import {
+  decideCta,
+  decideCtaIntent,
+  sanitizeModelText,
+  userAsksForTeam,
+} from "../../src/consultant/policy.server";
 import { buildKnowledge, RADAR_DEFINITION } from "../../src/consultant/knowledge.server";
 import { buildSystemPrompt } from "../../src/consultant/prompt.server";
+import {
+  DIAGNOSTIC_BOT_BASE_URL,
+  DIAGNOSTIC_SOURCES,
+  getDiagnosticUrl,
+} from "../../src/lib/diagnostic-url";
 
 describe("decideCta", () => {
   test("explicit intent always shows the card", () => {
     expect(decideCta("Сколько стоит?", false)).toBe(true);
     expect(decideCta("Хочу обсудить мой бизнес", false)).toBe(true);
-    expect(userAsksForTeam("Дайте ссылку на Telegram")).toBe(true);
+    expect(userAsksForTeam("Дайте ссылку на Telegram")).toBe(false);
+    expect(decideCtaIntent("Дайте ссылку на Telegram", false)).toBe("content");
   });
 
   test("situational messages never show the card from a model marker alone", () => {
@@ -26,6 +37,48 @@ describe("decideCta", () => {
   test("model marker remains valid for non-situational unknowns", () => {
     expect(decideCta("Подойдёт ли это для клиники?", true)).toBe(true);
     expect(decideCta("Что такое CRM?", false)).toBe(false);
+  });
+
+  test("classifies required consultant messages", () => {
+    expect(decideCtaIntent("Что такое Радар спроса?", true)).toBe("none");
+    expect(decideCtaIntent("Где он ищет?", true)).toBe("none");
+    expect(decideCtaIntent("Подойдёт ли Радар моему бизнесу?", false)).toBe(
+      "radar_diagnostic",
+    );
+    expect(decideCtaIntent("Сколько стоит Радар?", false)).toBe("radar_diagnostic");
+    expect(decideCtaIntent("Сколько стоит ваша работа?", false)).toBe("diagnostic");
+    expect(decideCtaIntent("Хочу обсудить автоматизацию", false)).toBe("diagnostic");
+    expect(decideCtaIntent("Хочу почитать ваши материалы", false)).toBe("content");
+    expect(decideCtaIntent("Мне пишут клиенты вечером", true)).toBe("none");
+  });
+
+  test("commercial intent wins over mixed content intent", () => {
+    expect(
+      decideCtaIntent("Хочу почитать материалы и обсудить автоматизацию", false),
+    ).toBe("diagnostic");
+    expect(decideCtaIntent("Хочу почитать материалы и обсудить Радар", false)).toBe(
+      "radar_diagnostic",
+    );
+  });
+
+  test("recognizes bounded Radar fit variants without promoting informational questions", () => {
+    expect(decideCtaIntent("Мне подойдёт Радар?", false)).toBe("radar_diagnostic");
+    expect(decideCtaIntent("Можно Радар для моего бизнеса?", false)).toBe(
+      "radar_diagnostic",
+    );
+    expect(decideCtaIntent("Что такое Радар?", true)).toBe("none");
+    expect(decideCtaIntent("Где Радар ищет клиентов?", true)).toBe("none");
+  });
+});
+
+describe("diagnostic URL", () => {
+  test("allows only the four known payloads", () => {
+    for (const source of DIAGNOSTIC_SOURCES) {
+      expect(getDiagnosticUrl(source)).toBe(`${DIAGNOSTIC_BOT_BASE_URL}?start=${source}`);
+    }
+    expect(getDiagnosticUrl("site_consultant&start=attacker")).toBeNull();
+    expect(getDiagnosticUrl("unknown")).toBeNull();
+    expect(getDiagnosticUrl(null)).toBeNull();
   });
 });
 

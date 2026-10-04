@@ -52,9 +52,6 @@ function ContactsPage() {
   const s = useSiteSettings();
   const social = readSocialLinks(s.social_links);
 
-  // Diagnostic bot only — never fall back to personal/channel Telegram.
-  const botUrl = isRealBotUrl(s.bot_link) ? s.bot_link.trim() : "";
-
   // Channel from social_links or project telegram setting.
   const channelUrl =
     social.telegram_channel ||
@@ -98,15 +95,14 @@ function ContactsPage() {
               </p>
             </div>
           </div>
-          {botUrl ? (
-            <CTAButton event="click_bot_contacts" size="lg" className="self-start">
-              Пройти диагностику
-            </CTAButton>
-          ) : (
-            <span className="inline-flex self-start rounded-full px-7 py-3.5 text-base text-muted-foreground/70 glass">
-              Пройти диагностику
-            </span>
-          )}
+          <CTAButton
+            event="click_bot_contacts"
+            size="lg"
+            className="self-start"
+            source="site_contacts"
+          >
+            Пройти диагностику
+          </CTAButton>
         </GlassCard>
 
         <GlassCard className="flex h-full flex-col gap-5 sm:p-8">

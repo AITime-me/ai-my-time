@@ -71,6 +71,13 @@ describe("config", () => {
     const response = await handlers.POST(post({ message: "Привет" }));
     expect(response.status).toBe(503);
   });
+
+  test("GET exposes only the enabled flag when configured", async () => {
+    const { handlers } = setup();
+    const response = await handlers.GET();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ enabled: true });
+  });
 });
 
 describe("request validation", () => {
@@ -79,7 +86,11 @@ describe("request validation", () => {
     const response = await handlers.POST(post({ message: "Что такое AI My Time?", history: [] }));
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(await response.json()).toEqual({ text: "AI My Time помогает автоматизировать процессы.", cta: false });
+    expect(await response.json()).toEqual({
+      text: "AI My Time помогает автоматизировать процессы.",
+      cta: false,
+      ctaIntent: "none",
+    });
     expect(calls[0].system).toBe(buildSystemPrompt());
     expect(calls[0].messages).toEqual([{ role: "user", text: "Что такое AI My Time?" }]);
   });
@@ -154,8 +165,13 @@ describe("cta", () => {
     const body = (await (await handlers.POST(post({ message: "Подойдёт ли это для клиники?" }))).json()) as {
       text: string;
       cta: boolean;
+      ctaIntent: string;
     };
-    expect(body).toEqual({ text: "Это лучше обсудить с командой.", cta: true });
+    expect(body).toEqual({
+      text: "Это лучше обсудить с командой.",
+      cta: true,
+      ctaIntent: "diagnostic",
+    });
   });
 
   test("explicit user intent sets cta even without marker", async () => {
@@ -182,6 +198,34 @@ describe("cta", () => {
       const { handlers } = setup("Ответ");
       const body = (await (await handlers.POST(post({ message, history }))).json()) as { cta: boolean };
       expect({ message, cta: body.cta }).toEqual({ message, cta: false });
+    }
+  });
+
+  test("returns safe intent enums for required handoff messages", async () => {
+    const cases = [
+      ["Что такое Радар спроса?", "none", false],
+      ["Где он ищет?", "none", false],
+      ["Подойдёт ли Радар моему бизнесу?", "radar_diagnostic", true],
+      ["Сколько стоит Радар?", "radar_diagnostic", true],
+      ["Сколько стоит ваша работа?", "diagnostic", true],
+      ["Хочу обсудить автоматизацию", "diagnostic", true],
+      ["Хочу почитать ваши материалы", "content", true],
+      ["Хочу почитать материалы и обсудить автоматизацию", "diagnostic", true],
+      ["Хочу почитать материалы и обсудить Радар", "radar_diagnostic", true],
+      ["Мне подойдёт Радар?", "radar_diagnostic", true],
+      ["Можно Радар для моего бизнеса?", "radar_diagnostic", true],
+      ["Что такое Радар?", "none", false],
+      ["Где Радар ищет клиентов?", "none", false],
+      ["Мне пишут клиенты вечером", "none", false],
+    ] as const;
+
+    for (const [message, ctaIntent, cta] of cases) {
+      const { handlers } = setup("Ответ [[TG]]");
+      const response = await handlers.POST(post({ message, history: [] }));
+      const body = (await response.json()) as Record<string, unknown>;
+      expect(response.status).toBe(200);
+      expect(body).toEqual({ text: "Ответ", cta, ctaIntent });
+      expect(body.url).toBeUndefined();
     }
   });
 

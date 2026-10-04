@@ -18,9 +18,13 @@ export type ConsultantRequestBody = {
   history: ConsultantTurn[];
 };
 
+export type ConsultantCtaIntent = "none" | "content" | "diagnostic" | "radar_diagnostic";
+
 export type ConsultantReply = {
   text: string;
+  /** Kept for older clients; use ctaIntent to choose the destination. */
   cta: boolean;
+  ctaIntent: ConsultantCtaIntent;
 };
 
 export type ConsultantErrorCode =

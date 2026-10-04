@@ -3,6 +3,7 @@ import {
   MAX_HISTORY_CHARS,
   MAX_HISTORY_MESSAGES,
   MAX_MESSAGE_CHARS,
+  type ConsultantCtaIntent,
   type ConsultantTurn,
 } from "./shared";
 
@@ -52,20 +53,45 @@ export function normalizeDialogue(input: unknown): NormalizedDialogue | null {
   return { message: cleanMessage, history: turns };
 }
 
-const CTA_PATTERNS: RegExp[] = [
+const CONTENT_PATTERNS: RegExp[] = [
+  /(хочу|можно|где|дайте|покажите).{0,40}(почитать|материал|стать|публикац)/i,
+  /(хочу|как|можно).{0,30}(подписаться|следить\s+за\s+проектом)/i,
+  /(ссылк|канал|подпис).{0,30}(телеграм|telegram|тг)|(телеграм|telegram).{0,30}(ссылк|канал|подпис)/i,
+];
+
+const COMMERCIAL_PATTERNS: RegExp[] = [
   /цен[аыуеой]|стоимост|сколько\s+(это\s+)?(стоит|будет\s+стоить|стоят)|прайс|бюджет|тариф|расценк|по\s+деньгам/i,
   /срок|за\s+сколько|как\s+быстро|сколько\s+(времени|дней|недель|месяцев)|когда\s+(будет\s+)?готов/i,
-  /(хочу|давайте|готов[аы]?|можно)\s+(начать|начн[её]м|приступить)|начать\s+работ|с\s+чего\s+нам\s+начать\s+работ/i,
+  /(хочу|давайте|готов[аы]?|можно)\s+(начать|начн[её]м|приступить)|начать\s+работ|с\s+чего\s+(нам\s+)?начать|как\s+начать/i,
   /заказать|оформить\s+заказ|хочу\s+заказ|сделать\s+заказ/i,
   /связаться|связь\s+с\s+(вами|командой|менеджером)|как\s+(с\s+вами\s+)?связ|контакт|написать\s+вам|позвонить|менеджер/i,
   /консультаци[июяей]/i,
-  /обсудить\s+(мой|мою|моё|мое|мои|наш|нашу|наше|задачу|проект|бизнес|ситуацию|детали)|хочу\s+обсудить/i,
-  /(ссылк|канал|перейти|где\s+вас|ваш)[^.?!\n]{0,30}(телеграм|telegram|тг)|(телеграм|telegram)[^.?!\n]{0,20}(ссылк|канал)/i,
+  /обсудить\s+(мой|мою|моё|мое|мои|наш|нашу|наше|задачу|проект|бизнес|ситуацию|детали|автоматизац)|хочу.{0,60}обсудить/i,
+  /подойд[её]т\s+ли.{0,60}(мо(ему|ей)|нашему)\s+бизнес/i,
+  /(хочу|нужно|можете|давайте|готов[аы]?).{0,80}(внедр|реализ|автоматиз|подключ)/i,
 ];
 
-/** Explicit user intent that deserves the Telegram card, independent of the model. */
+const RADAR_COMMERCIAL_PATTERNS: RegExp[] = [
+  /подойд[её]т(?:\s+ли)?.{0,30}радар(?:.{0,30}(?:мне|бизнес))?|(?:мне|бизнес).{0,30}подойд[её]т(?:\s+ли)?.{0,30}радар/i,
+  /(хочу|нужен|интересует).{0,30}радар|радар.{0,30}(хочу|нужен|интересует)/i,
+  /(цен|стоимост|сколько.{0,15}стоит).{0,40}радар|радар.{0,40}(цен|стоимост|сколько.{0,15}стоит)/i,
+  /(подключ|внедр|заказ).{0,30}радар|радар.{0,30}(подключ|внедр|заказ)/i,
+  /(можно|хочу|нужен|использ|примен).{0,30}радар.{0,30}(бизнес|компани)|радар.{0,30}(бизнес|компани).{0,30}(можно|хочу|нужен|использ|примен)/i,
+  /обсудить.{0,30}радар|радар.{0,30}обсудить/i,
+];
+
+const RADAR_INFORMATIONAL_NO_CTA: RegExp[] = [
+  /что\s+такое\s+радар(\s+спроса)?/i,
+  /где\s+(он|радар)\s+ищет/i,
+];
+
+function matchesAny(message: string, patterns: RegExp[]): boolean {
+  return patterns.some((pattern) => pattern.test(message));
+}
+
+/** Explicit user intent that deserves the diagnostic card, independent of the model. */
 export function userAsksForTeam(message: string): boolean {
-  return CTA_PATTERNS.some((pattern) => pattern.test(message));
+  return matchesAny(message, RADAR_COMMERCIAL_PATTERNS) || matchesAny(message, COMMERCIAL_PATTERNS);
 }
 
 /**
@@ -85,14 +111,21 @@ function isSituationalWithoutIntent(message: string): boolean {
 }
 
 /**
- * CTA card: explicit user intent always wins; model marker is accepted only
- * when the message is not a plain situational description.
+ * The server decides only a small intent enum. URLs and payloads remain
+ * client-owned and allowlisted.
  */
+export function decideCtaIntent(message: string, marker: boolean): ConsultantCtaIntent {
+  if (matchesAny(message, RADAR_COMMERCIAL_PATTERNS)) return "radar_diagnostic";
+  if (matchesAny(message, COMMERCIAL_PATTERNS)) return "diagnostic";
+  if (matchesAny(message, CONTENT_PATTERNS)) return "content";
+  if (matchesAny(message, RADAR_INFORMATIONAL_NO_CTA)) return "none";
+  if (!marker || isSituationalWithoutIntent(message)) return "none";
+  return "diagnostic";
+}
+
+/** Backward-compatible boolean for callers that do not need destination intent. */
 export function decideCta(message: string, marker: boolean): boolean {
-  if (userAsksForTeam(message)) return true;
-  if (!marker) return false;
-  if (isSituationalWithoutIntent(message)) return false;
-  return true;
+  return decideCtaIntent(message, marker) !== "none";
 }
 
 /**

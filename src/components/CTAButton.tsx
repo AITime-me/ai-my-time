@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { isRealBotUrl } from "@/lib/bot-url";
+import { getDiagnosticUrl, type DiagnosticSource } from "@/lib/diagnostic-url";
 import { useSiteSettings } from "./SiteSettingsProvider";
 import { trackEvent } from "@/lib/analytics";
 import { ArrowRight } from "lucide-react";
@@ -13,9 +13,8 @@ type Props = {
   className?: string;
   arrow?: boolean;
   label?: string;
+  source?: DiagnosticSource;
 };
-
-const CONTACTS_FALLBACK = "/contacts";
 
 export function CTAButton({
   children,
@@ -25,6 +24,7 @@ export function CTAButton({
   className,
   arrow = true,
   label,
+  source = "site_contacts",
 }: Props) {
   const s = useSiteSettings();
   const text = children ?? label ?? s.main_cta_text;
@@ -38,15 +38,13 @@ export function CTAButton({
     ghost: "text-foreground/80 hover:text-foreground hover:bg-white/5",
   } as const;
 
-  const botUrl = isRealBotUrl(s.bot_link) ? s.bot_link.trim() : "";
-  const href = botUrl || CONTACTS_FALLBACK;
-  const isExternal = Boolean(botUrl);
+  const href = getDiagnosticUrl(source) ?? getDiagnosticUrl("site_contacts")!;
 
   return (
     <a
       href={href}
-      target={isExternal ? "_blank" : undefined}
-      rel={isExternal ? "noopener noreferrer" : undefined}
+      target="_blank"
+      rel="noopener noreferrer"
       onClick={() => trackEvent(event)}
       className={cn(base, sizes, variants[variant], className)}
     >

@@ -1,5 +1,5 @@
 import { ConsultantRateLimiter } from "./limits.server";
-import { decideCta, normalizeDialogue, sanitizeModelText } from "./policy.server";
+import { decideCtaIntent, normalizeDialogue, sanitizeModelText } from "./policy.server";
 import { buildSystemPrompt } from "./prompt.server";
 import type { ConsultantErrorCode, ConsultantReply, ConsultantTurn } from "./shared";
 
@@ -159,7 +159,8 @@ export function createConsultantHandlers(deps: ConsultantHandlerDeps = {}) {
 
     const { text, marker } = sanitizeModelText(modelText);
     if (!text) return fail("unavailable", 502);
-    return json({ text, cta: decideCta(dialogue.message, marker) });
+    const ctaIntent = decideCtaIntent(dialogue.message, marker);
+    return json({ text, cta: ctaIntent !== "none", ctaIntent });
   }
 
   return { GET, POST };

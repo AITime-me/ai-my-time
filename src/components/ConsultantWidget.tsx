@@ -3,11 +3,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import { MessageCircle, RotateCcw, Send, X } from "lucide-react";
 import { OFFICIAL_TELEGRAM_CHANNEL } from "@/config/site";
 import { trackEvent } from "@/lib/analytics";
+import { getDiagnosticUrl } from "@/lib/diagnostic-url";
 import {
   CONSULTANT_ENDPOINT,
   MAX_HISTORY_CHARS,
   MAX_HISTORY_MESSAGES,
   MAX_MESSAGE_CHARS,
+  type ConsultantCtaIntent,
   type ConsultantErrorBody,
   type ConsultantReply,
   type ConsultantTurn,
@@ -18,8 +20,22 @@ const GREETING =
   "Здравствуйте! Я AI-консультант AI My Time. Могу рассказать об автоматизации, CRM, AI-решениях и Радаре спроса. Что хотите узнать?";
 const QUICK_QUESTIONS = ["Что вы делаете?", "Что такое Радар спроса?", "С чего начать?"];
 
-type StoredTurn = ConsultantTurn & { cta?: boolean };
+type StoredTurn = ConsultantTurn & { cta?: boolean; ctaIntent?: ConsultantCtaIntent };
 type Pending = { text: string; status: "loading" | "error"; error?: "rate_limited" | "unavailable" };
+
+const CTA_INTENTS = new Set<ConsultantCtaIntent>([
+  "none",
+  "content",
+  "diagnostic",
+  "radar_diagnostic",
+]);
+
+function normalizeCtaIntent(value: unknown, legacyCta = false): ConsultantCtaIntent {
+  if (typeof value === "string" && CTA_INTENTS.has(value as ConsultantCtaIntent)) {
+    return value as ConsultantCtaIntent;
+  }
+  return legacyCta ? "diagnostic" : "none";
+}
 
 function loadTurns(): StoredTurn[] {
   try {
@@ -60,18 +76,45 @@ function historyForRequest(turns: StoredTurn[], message: string): ConsultantTurn
   return result;
 }
 
-function TelegramCard() {
+function ConsultantCtaCard({ intent }: { intent: ConsultantCtaIntent }) {
+  if (intent === "content") {
+    return (
+      <div className="rounded-xl border border-white/15 bg-white/5 p-3 text-sm">
+        <p className="font-medium text-foreground">Материалы AI My Time</p>
+        <p className="mt-1 text-muted-foreground">
+          Читайте разборы, кейсы и заметки об автоматизации в Telegram-канале проекта.
+        </p>
+        <a
+          href={OFFICIAL_TELEGRAM_CHANNEL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => trackEvent("consultant_telegram_click", { place: "content_card" })}
+          className="mt-3 inline-flex items-center justify-center rounded-full border border-white/20 px-4 py-2 text-sm font-medium hover:bg-white/5"
+        >
+          Перейти в канал
+        </a>
+      </div>
+    );
+  }
+
+  const source = intent === "radar_diagnostic" ? "site_consultant_radar" : "site_consultant";
+  const href = getDiagnosticUrl(source);
+  if (!href) return null;
+
   return (
     <div className="rounded-xl border border-[color:var(--lime)]/30 bg-[color:var(--lime)]/5 p-3 text-sm">
-      <p className="text-foreground">Обсудить вашу задачу можно с командой AI My Time в Telegram-канале.</p>
+      <p className="font-medium text-foreground">Разобрать вашу задачу</p>
+      <p className="mt-1 text-muted-foreground">
+        Ответьте на несколько вопросов — это поможет уточнить задачу и подготовить предметный разбор.
+      </p>
       <a
-        href={OFFICIAL_TELEGRAM_CHANNEL}
+        href={href}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={() => trackEvent("consultant_telegram_click", { place: "card" })}
-        className="mt-2 inline-flex items-center justify-center rounded-full bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-medium text-[color:var(--lime-foreground)]"
+        onClick={() => trackEvent("consultant_diagnostic_click", { source })}
+        className="mt-3 inline-flex items-center justify-center rounded-full bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-medium text-[color:var(--lime-foreground)]"
       >
-        Перейти в Telegram
+        Пройти диагностику
       </a>
     </div>
   );
@@ -164,10 +207,16 @@ export function ConsultantWidget() {
         }
         const reply = (await response.json()) as ConsultantReply;
         if (typeof reply.text !== "string" || !reply.text) throw new Error("empty reply");
+        const ctaIntent = normalizeCtaIntent(reply.ctaIntent, reply.cta === true);
         const next: StoredTurn[] = [
           ...turns,
           { role: "user", text: message },
-          { role: "assistant", text: reply.text, cta: reply.cta === true },
+          {
+            role: "assistant",
+            text: reply.text,
+            cta: ctaIntent !== "none",
+            ctaIntent,
+          },
         ];
         setTurns(next);
         saveTurns(next);
@@ -269,7 +318,12 @@ export function ConsultantWidget() {
               {turns.map((turn, index) => (
                 <div key={index} className="space-y-2">
                   <Bubble role={turn.role} text={turn.text} />
-                  {turn.role === "assistant" && turn.cta && <TelegramCard />}
+                  {turn.role === "assistant" &&
+                    normalizeCtaIntent(turn.ctaIntent, turn.cta === true) !== "none" && (
+                      <ConsultantCtaCard
+                        intent={normalizeCtaIntent(turn.ctaIntent, turn.cta === true)}
+                      />
+                    )}
                 </div>
               ))}
               {pending && <Bubble role="user" text={pending.text} />}
