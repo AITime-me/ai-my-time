@@ -21,6 +21,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ServicesIndexRouteImport } from './routes/services.index'
 import { Route as SolutionsSlugRouteImport } from './routes/solutions.$slug'
 import { Route as ServicesSlugRouteImport } from './routes/services.$slug'
+import { Route as ApiConsultantRouteImport } from './routes/api.consultant'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -82,6 +83,11 @@ const ServicesSlugRoute = ServicesSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => ServicesRoute,
 } as any)
+const ApiConsultantRoute = ApiConsultantRouteImport.update({
+  id: '/api/consultant',
+  path: '/api/consultant',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/services': typeof ServicesRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/api/consultant': typeof ApiConsultantRoute
   '/services/$slug': typeof ServicesSlugRoute
   '/solutions/$slug': typeof SolutionsSlugRoute
   '/services/': typeof ServicesIndexRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByTo {
   '/personal-data-consent': typeof PersonalDataConsentRoute
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/api/consultant': typeof ApiConsultantRoute
   '/services/$slug': typeof ServicesSlugRoute
   '/solutions/$slug': typeof SolutionsSlugRoute
   '/services': typeof ServicesIndexRoute
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/services': typeof ServicesRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/api/consultant': typeof ApiConsultantRoute
   '/services/$slug': typeof ServicesSlugRoute
   '/solutions/$slug': typeof SolutionsSlugRoute
   '/services/': typeof ServicesIndexRoute
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/services'
     | '/sitemap.xml'
+    | '/api/consultant'
     | '/services/$slug'
     | '/solutions/$slug'
     | '/services/'
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/personal-data-consent'
     | '/privacy'
     | '/sitemap.xml'
+    | '/api/consultant'
     | '/services/$slug'
     | '/solutions/$slug'
     | '/services'
@@ -164,6 +175,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/services'
     | '/sitemap.xml'
+    | '/api/consultant'
     | '/services/$slug'
     | '/solutions/$slug'
     | '/services/'
@@ -179,6 +191,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ServicesRoute: typeof ServicesRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ApiConsultantRoute: typeof ApiConsultantRoute
   SolutionsSlugRoute: typeof SolutionsSlugRoute
 }
 
@@ -268,6 +281,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicesSlugRouteImport
       parentRoute: typeof ServicesRoute
     }
+    '/api/consultant': {
+      id: '/api/consultant'
+      path: '/api/consultant'
+      fullPath: '/api/consultant'
+      preLoaderRoute: typeof ApiConsultantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -295,6 +315,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ServicesRoute: ServicesRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ApiConsultantRoute: ApiConsultantRoute,
   SolutionsSlugRoute: SolutionsSlugRoute,
 }
 export const routeTree = rootRouteImport

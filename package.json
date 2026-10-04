@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "start": "node .output/server/index.mjs",
+    "test": "bun test tests",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
