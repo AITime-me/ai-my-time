@@ -500,7 +500,7 @@ async def _active_repeat_guard_state(database_url: str, diagnostic_id: str) -> t
             ) or 0)
             active_messages = int(await session.scalar(
                 select(func.count()).select_from(OutboundMessage).where(
-                    OutboundMessage.dedupe_key.like("consultation:%:already-accepted")
+                    OutboundMessage.dedupe_key.like("consultation:%:already-accepted%")
                 )
             ) or 0)
             return user.lifecycle_stage, prompts, active_messages

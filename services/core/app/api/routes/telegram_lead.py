@@ -113,9 +113,22 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
             if active is not None:
                 await OutboundQueue(session).enqueue(user_id=start_user_id, channel="telegram_lead", payload={"kind":"message","text":"Диагностика ещё не завершена.","buttons":[{"text":"Продолжить диагностику","callback_data":f"diagnostic:resume:{active.id}"}]}, dedupe_key=f"diagnostic:{active.id}:resume-cta:{update.interaction_id}")
             elif completed is not None:
-                await ConsultationLifecycleService(session).bridge(
-                    user_id=start_user_id, interaction_id=update.interaction_id
-                )
+                lifecycle = ConsultationLifecycleService(session)
+                active_consultation = await lifecycle.active(start_user_id)
+                if active_consultation is not None:
+                    # Explicit /start must still answer when a request is open;
+                    # bridge() intentionally no-ops while a consultation is active.
+                    await _show_active_consultation(
+                        session,
+                        active_consultation=active_consultation,
+                        interaction_id=update.interaction_id,
+                    )
+                else:
+                    await lifecycle.bridge(
+                        user_id=start_user_id,
+                        interaction_id=update.interaction_id,
+                        source="start",
+                    )
             else:
                 await LeadProfileFlow(session).start(user_id=start_user_id)
             return Response(status_code=204)
@@ -218,6 +231,7 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                             session,
                             active_consultation=active,
                             interaction_id="repeat-resubmit",
+                            stable_already_accepted=True,
                         )
                     user.lifecycle_stage = "consultation_requested"
                 return Response(status_code=204)
@@ -237,7 +251,7 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                 ).limit(1)
             )
             if completed is not None:
-                await lifecycle.bridge(user_id=user_id, interaction_id="free-text")
+                await lifecycle.bridge(user_id=user_id, interaction_id="free-text", source="auto")
             return Response(status_code=204)
         if isinstance(update, CommunicationCommand):
             await ContentSubscriptionService(session).set_status(
@@ -295,13 +309,17 @@ async def _show_available_actions(
             interaction_id=interaction_id,
         )
         return
-    if await lifecycle.bridge(user_id=user_id, interaction_id=interaction_id):
+    if await lifecycle.bridge(user_id=user_id, interaction_id=interaction_id, source="menu"):
         return
     await LeadProfileFlow(session).start(user_id=user_id)
 
 
 async def _show_active_consultation(
-    session, *, active_consultation: ConsultationRequestModel, interaction_id: str
+    session,
+    *,
+    active_consultation: ConsultationRequestModel,
+    interaction_id: str,
+    stable_already_accepted: bool = False,
 ) -> None:
     """Show the existing consultation state for an explicit user interaction."""
     if active_consultation.status == "scheduled" and active_consultation.appointment_at is not None:
@@ -315,8 +333,12 @@ async def _show_active_consultation(
             "Эксперт AI My Time свяжется с вами в Telegram в рабочее время."
         )
         buttons = []
-        # Stable key: one "already accepted" card per request, not per update.
-        dedupe_key = f"consultation:{active_consultation.id}:already-accepted"
+        # Explicit /start and /menu are interaction-scoped. Stable key is only
+        # for a repeated submit of the same request (spam guard).
+        if stable_already_accepted:
+            dedupe_key = f"consultation:{active_consultation.id}:already-accepted"
+        else:
+            dedupe_key = f"consultation:{active_consultation.id}:already-accepted:{interaction_id}"
     user = await session.get(User, active_consultation.user_id)
     if user is not None:
         buttons.append(subscription_button(user))

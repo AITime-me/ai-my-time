@@ -127,17 +127,33 @@ async def _run_saved_result_and_repeat() -> None:
             assert replay is not None
             for section in ("Что сейчас происходит", "Где теряется результат", "Как это может работать", "Что может взять на себя система", "Что останется человеку", "Что ещё важно понять"):
                 assert section in str(replay["text"])
-            # Returning-user bridge is shown once per completed diagnostic.
-            for interaction_id in ("menu-1", "menu-2", "menu-3", "menu-3"):
-                assert await lifecycle.bridge(user_id=user.id, interaction_id=interaction_id)
-            bridges = list(
+            # Automatic bridge is shown once; explicit start is interaction-scoped.
+            for interaction_id in ("auto-1", "auto-2", "auto-2"):
+                assert await lifecycle.bridge(
+                    user_id=user.id, interaction_id=interaction_id, source="auto"
+                )
+            auto_bridges = list(
                 (await session.scalars(
                     select(OutboundMessage).where(
-                        OutboundMessage.dedupe_key == f"diagnostic:{diagnostic.id}:bridge"
+                        OutboundMessage.dedupe_key == f"diagnostic:{diagnostic.id}:bridge:auto"
                     )
                 )).all()
             )
-            assert len(bridges) == 1
+            assert len(auto_bridges) == 1
+            for interaction_id in ("start-1", "start-2", "start-2"):
+                assert await lifecycle.bridge(
+                    user_id=user.id, interaction_id=interaction_id, source="start"
+                )
+            start_bridges = list(
+                (await session.scalars(
+                    select(OutboundMessage).where(
+                        OutboundMessage.dedupe_key.like(
+                            f"diagnostic:{diagnostic.id}:bridge:start:%"
+                        )
+                    )
+                )).all()
+            )
+            assert len(start_bridges) == 2
             for interaction_id in ("result-1", "result-2", "result-3", "result-3"):
                 assert await lifecycle.replay_result(
                     user_id=user.id,

@@ -70,11 +70,11 @@ def test_returning_website_radar_new_task_does_not_loop(monkeypatch: pytest.Monk
                 ).status_code
                 == 204
             )
-            # Redeliver /start — bridge must stay single.
+            # Same Telegram update replay must not duplicate the bridge.
             assert (
                 client.post(
                     "/webhooks/telegram/lead",
-                    json=_start_payload(9002, telegram_user_id, "site_consultant_radar"),
+                    json=_start_payload(9001, telegram_user_id, "site_consultant_radar"),
                     headers=headers,
                 ).status_code
                 == 204
@@ -133,7 +133,8 @@ def test_returning_website_radar_new_task_does_not_loop(monkeypatch: pytest.Monk
         # Multiple worker cycles must not invent new semantic lead messages.
         asyncio.run(_drain_worker(database_url, transport, cycles=5))
         counts = asyncio.run(_outbound_counts(database_url, diagnostic_id))
-        assert counts["bridge"] == 1
+        assert counts["bridge_start"] == 1
+        assert counts["bridge_auto"] == 0
         assert counts["repeat_prompt"] == 1
         assert counts["task_confirmation"] == 1
         assert counts["already_accepted"] == 1
@@ -143,6 +144,77 @@ def test_returning_website_radar_new_task_does_not_loop(monkeypatch: pytest.Monk
         assert counts["ops_consultation"] == 1
         assert "Радар спроса" in counts["ops_text"]
         assert counts["touchpoint_intent"] == "radar"
+    finally:
+        get_settings.cache_clear()
+        asyncio.run(_clear(database_url))
+
+
+def test_explicit_start_reshows_bridge_without_loop(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prior bridge must not silence a later explicit /start; updates stay idempotent."""
+    database_url = _test_database_url()
+    asyncio.run(_clear(database_url))
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("TELEGRAM_LEAD_WEBHOOK_SECRET", "test-lead-webhook-secret")
+    get_settings.cache_clear()
+    headers = {"X-Telegram-Bot-Api-Secret-Token": "test-lead-webhook-secret"}
+    telegram_user_id = 99088002
+    diagnostic_id = asyncio.run(_seed_completed_user(database_url, telegram_user_id))
+    transport = _RecordingTransport()
+    try:
+        with TestClient(create_app()) as client:
+            assert (
+                client.post(
+                    "/webhooks/telegram/lead",
+                    json=_start_payload(9101, telegram_user_id, "site_consultant"),
+                    headers=headers,
+                ).status_code
+                == 204
+            )
+            # Replay the same update.
+            assert (
+                client.post(
+                    "/webhooks/telegram/lead",
+                    json=_start_payload(9101, telegram_user_id, "site_consultant"),
+                    headers=headers,
+                ).status_code
+                == 204
+            )
+            # A later explicit /start must earn a fresh bridge.
+            assert (
+                client.post(
+                    "/webhooks/telegram/lead",
+                    json=_start_payload(9102, telegram_user_id, "site_consultant"),
+                    headers=headers,
+                ).status_code
+                == 204
+            )
+            # Free-text automatic path must not keep adding bridges/results.
+            assert (
+                client.post(
+                    "/webhooks/telegram/lead",
+                    json=_text_payload(9103, telegram_user_id, "просто текст"),
+                    headers=headers,
+                ).status_code
+                == 204
+            )
+            assert (
+                client.post(
+                    "/webhooks/telegram/lead",
+                    json=_text_payload(9104, telegram_user_id, "ещё текст"),
+                    headers=headers,
+                ).status_code
+                == 204
+            )
+
+        asyncio.run(_drain_worker(database_url, transport, cycles=5))
+        counts = asyncio.run(_outbound_counts(database_url, diagnostic_id))
+        assert counts["bridge_start"] == 2
+        assert counts["bridge_auto"] == 1
+        assert counts["primary_ready"] == 0
+        assert counts["completed_info"] == 0
+        assert counts["task_confirmation"] == 0
+        assert counts["consultations"] == 0
+        assert counts["ops_website_start"] == 2
     finally:
         get_settings.cache_clear()
         asyncio.run(_clear(database_url))
@@ -240,8 +312,16 @@ async def _outbound_counts(database_url: str, diagnostic_id: str) -> dict[str, o
             intent = None
             if touchpoint and isinstance(touchpoint.metadata_json, dict):
                 intent = touchpoint.metadata_json.get("intent")
+            ops_starts = [
+                r for r in rows if (r.dedupe_key or "").startswith("ops:website-start:")
+            ]
             return {
-                "bridge": sum(1 for k in keys if k == f"diagnostic:{diagnostic_id}:bridge"),
+                "bridge_start": sum(
+                    1 for k in keys if k.startswith(f"diagnostic:{diagnostic_id}:bridge:start:")
+                ),
+                "bridge_auto": sum(
+                    1 for k in keys if k == f"diagnostic:{diagnostic_id}:bridge:auto"
+                ),
                 "repeat_prompt": sum(
                     1 for k in keys if k == f"diagnostic:{diagnostic_id}:repeat-prompt"
                 ),
@@ -249,7 +329,9 @@ async def _outbound_counts(database_url: str, diagnostic_id: str) -> dict[str, o
                     1 for t in texts if t.startswith("Задача получена.")
                 ),
                 "already_accepted": sum(
-                    1 for k in keys if k.endswith(":already-accepted")
+                    1
+                    for k in keys
+                    if k.endswith(":already-accepted") or ":already-accepted:" in k
                 ),
                 "primary_ready": sum(1 for t in texts if "Первичный разбор готов" in t),
                 "completed_info": sum(
@@ -260,6 +342,7 @@ async def _outbound_counts(database_url: str, diagnostic_id: str) -> dict[str, o
                     or 0
                 ),
                 "ops_consultation": 1 if ops is not None else 0,
+                "ops_website_start": len(ops_starts),
                 "ops_text": str((ops.payload_json or {}).get("text") or "") if ops else "",
                 "touchpoint_intent": intent,
             }

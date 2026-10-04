@@ -98,7 +98,7 @@ class ConsultationLifecycleService:
         if status == "completed": await self._outbox.enqueue(user_id=request.user_id, channel="telegram_lead", payload={"kind":"message","text":THANK_YOU,"buttons":[]}, dedupe_key=f"consultation:{request.id}:thank-you")
         return request
 
-    async def bridge(self, *, user_id: uuid.UUID, interaction_id: str) -> bool:
+    async def bridge(self, *, user_id: uuid.UUID, interaction_id: str, source: str = "auto") -> bool:
         diagnostic = await self._session.scalar(select(DiagnosticSession).where(DiagnosticSession.user_id==user_id, DiagnosticSession.status=="diagnostic_completed").order_by(DiagnosticSession.created_at.desc()).limit(1))
         if diagnostic is None or await self.active(user_id): return False
         buttons = [
@@ -110,8 +110,13 @@ class ConsultationLifecycleService:
             buttons.append(subscription_button(user))
         if button := channel_callback_button(diagnostic.id):
             buttons.append(button)
-        # One bridge card per completed diagnostic. Interaction-scoped keys let
-        # every /start or /menu enqueue another copy and amplify Edge retries.
+        # Explicit /start and /menu are scoped to the Telegram interaction so a
+        # new user action can re-show the bridge. Automatic free-text re-entry
+        # keeps a stable key so retries cannot amplify copies.
+        if source == "auto":
+            dedupe_key = f"diagnostic:{diagnostic.id}:bridge:auto"
+        else:
+            dedupe_key = f"diagnostic:{diagnostic.id}:bridge:{source}:{interaction_id}"
         await self._outbox.enqueue(
             user_id=user_id,
             channel="telegram_lead",
@@ -123,7 +128,7 @@ class ConsultationLifecycleService:
                 ),
                 "buttons": buttons,
             },
-            dedupe_key=f"diagnostic:{diagnostic.id}:bridge",
+            dedupe_key=dedupe_key,
         )
         return True
 
