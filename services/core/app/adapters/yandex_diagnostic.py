@@ -30,12 +30,12 @@ class YandexDiagnosticProviderError(RuntimeError):
 HttpSender = Callable[[str, bytes, str], dict[str, Any]]
 
 
-def _post_json(url: str, body: bytes, api_key: str) -> dict[str, Any]:
+def _post_json(url: str, body: bytes, api_key: str, timeout: float = 25) -> dict[str, Any]:
     request = urllib.request.Request(url, data=body, method="POST")
     request.add_header("Authorization", f"Api-Key {api_key}")
     request.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(request, timeout=25) as response:  # noqa: S310 -- fixed YC endpoint
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 -- fixed YC endpoint
             decoded = json.loads(response.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
         raise YandexDiagnosticProviderError("YandexGPT request failed") from error

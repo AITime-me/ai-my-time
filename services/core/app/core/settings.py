@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     yandex_production_folder_id: str | None = None
     yandex_production_api_key_path: str | None = None
     yandex_production_model: str = "yandexgpt/latest"
+    # Website consultant reuses the environment-separated Yandex credentials
+    # above. Its shared secret is a protected file read per request, so a
+    # missing secret disables the endpoint instead of blocking API startup.
+    website_consultant_enabled: bool = False
+    website_consultant_secret_path: str | None = None
 
 
 @lru_cache

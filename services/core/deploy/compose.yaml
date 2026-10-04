@@ -40,11 +40,18 @@ services:
       YANDEX_PRODUCTION_FOLDER_ID: ${YANDEX_PRODUCTION_FOLDER_ID:?YANDEX_PRODUCTION_FOLDER_ID is required}
       YANDEX_PRODUCTION_API_KEY_PATH: /run/secrets/yandex_production_api_key
       YANDEX_PRODUCTION_MODEL: yandexgpt/latest
+      # Website consultant: reachable only from the local website process via
+      # 127.0.0.1:18181; requests carrying nginx forwarding headers get 404.
+      WEBSITE_CONSULTANT_ENABLED: "true"
+      WEBSITE_CONSULTANT_SECRET_PATH: /run/secrets/website_consultant_secret
     volumes:
       - /srv/ai-my-time/secrets/database_url:/run/secrets/database_url:ro
       - /srv/ai-my-time/secrets/telegram_edge_core_secret:/run/secrets/telegram_edge_core_secret:ro
       - /srv/ai-my-time/secrets/telegram_edge_inbound_secret:/run/secrets/telegram_edge_inbound_secret:ro
       - /srv/ai-my-time/secrets/yandex_production_api_key:/run/secrets/yandex_production_api_key:ro
+      # Create this file (mode 0400) before deploying; otherwise Docker creates
+      # a directory here and the consultant endpoint stays at 503.
+      - /srv/ai-my-time/secrets/website_consultant_secret:/run/secrets/website_consultant_secret:ro
     ports:
       - "127.0.0.1:18181:8000"
     healthcheck:
