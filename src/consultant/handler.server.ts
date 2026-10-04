@@ -1,5 +1,5 @@
 import { ConsultantRateLimiter } from "./limits.server";
-import { normalizeDialogue, sanitizeModelText, userAsksForTeam } from "./policy.server";
+import { decideCta, normalizeDialogue, sanitizeModelText } from "./policy.server";
 import { buildSystemPrompt } from "./prompt.server";
 import type { ConsultantErrorCode, ConsultantReply, ConsultantTurn } from "./shared";
 
@@ -159,7 +159,7 @@ export function createConsultantHandlers(deps: ConsultantHandlerDeps = {}) {
 
     const { text, marker } = sanitizeModelText(modelText);
     if (!text) return fail("unavailable", 502);
-    return json({ text, cta: marker || userAsksForTeam(dialogue.message) });
+    return json({ text, cta: decideCta(dialogue.message, marker) });
   }
 
   return { GET, POST };

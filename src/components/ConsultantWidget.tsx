@@ -328,7 +328,10 @@ export function ConsultantWidget() {
                 </button>
               </div>
               <p className="mt-2 flex justify-between text-[11px] text-muted-foreground">
-                <span>AI может ошибаться. Не отправляйте персональные данные.</span>
+                <span>
+                  AI может ошибаться. Не отправляйте в чат конфиденциальные или чувствительные
+                  персональные данные.
+                </span>
                 {input.length > MAX_MESSAGE_CHARS - 100 && (
                   <span>
                     {input.length}/{MAX_MESSAGE_CHARS}

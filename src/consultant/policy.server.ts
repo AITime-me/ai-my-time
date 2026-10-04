@@ -69,6 +69,33 @@ export function userAsksForTeam(message: string): boolean {
 }
 
 /**
+ * Ordinary problem statements. The model sometimes appends [[TG]] for these;
+ * the card must not appear unless the user also expresses explicit team intent.
+ */
+const SITUATIONAL_NO_CTA: RegExp[] = [
+  /пишут\s+(клиенты|люди)|клиенты\s+пишут|вечером|в\s+нерабоч/i,
+  /заявк[аиуе].{0,40}(теря|теряют|теряются|в\s+telegram|в\s+телеграм)/i,
+  /вс[её]\s+делаю\s+сам[ао]?|нет\s+сотрудник|без\s+сотрудник|один[ао]?\s+работаю/i,
+  /много\s+(сообщений|обращений|заявок)|не\s+успеваю\s+отвечать/i,
+];
+
+function isSituationalWithoutIntent(message: string): boolean {
+  if (userAsksForTeam(message)) return false;
+  return SITUATIONAL_NO_CTA.some((pattern) => pattern.test(message));
+}
+
+/**
+ * CTA card: explicit user intent always wins; model marker is accepted only
+ * when the message is not a plain situational description.
+ */
+export function decideCta(message: string, marker: boolean): boolean {
+  if (userAsksForTeam(message)) return true;
+  if (!marker) return false;
+  if (isSituationalWithoutIntent(message)) return false;
+  return true;
+}
+
+/**
  * Removes service markers and anything the UI must never receive from the
  * model as actionable content (links, markdown control syntax).
  */

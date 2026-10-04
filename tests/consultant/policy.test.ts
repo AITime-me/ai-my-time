@@ -1,8 +1,33 @@
 import { describe, expect, test } from "bun:test";
 import { ConsultantRateLimiter } from "../../src/consultant/limits.server";
-import { sanitizeModelText } from "../../src/consultant/policy.server";
+import { decideCta, sanitizeModelText, userAsksForTeam } from "../../src/consultant/policy.server";
 import { buildKnowledge, RADAR_DEFINITION } from "../../src/consultant/knowledge.server";
 import { buildSystemPrompt } from "../../src/consultant/prompt.server";
+
+describe("decideCta", () => {
+  test("explicit intent always shows the card", () => {
+    expect(decideCta("Сколько стоит?", false)).toBe(true);
+    expect(decideCta("Хочу обсудить мой бизнес", false)).toBe(true);
+    expect(userAsksForTeam("Дайте ссылку на Telegram")).toBe(true);
+  });
+
+  test("situational messages never show the card from a model marker alone", () => {
+    for (const message of [
+      "Мне пишут клиенты вечером",
+      "У меня заявки в Telegram.",
+      "Я всё делаю сама.",
+      "У меня нет сотрудников, мне это подходит?",
+      "Много сообщений, не успеваю отвечать",
+    ]) {
+      expect(decideCta(message, true)).toBe(false);
+    }
+  });
+
+  test("model marker remains valid for non-situational unknowns", () => {
+    expect(decideCta("Подойдёт ли это для клиники?", true)).toBe(true);
+    expect(decideCta("Что такое CRM?", false)).toBe(false);
+  });
+});
 
 describe("sanitizeModelText", () => {
   test("removes markers, links and markdown", () => {
@@ -61,8 +86,9 @@ describe("limiter", () => {
 describe("knowledge", () => {
   const knowledge = buildKnowledge();
 
-  test("contains radar definition and real cases with status", () => {
+  test("contains radar definition, amoCRM partnership and real cases with status", () => {
     expect(knowledge).toContain(RADAR_DEFINITION);
+    expect(knowledge).toContain("официальный партнёр программы amoSTART компании amoCRM");
     expect(knowledge).toContain("OpenClaw — AI-директор и центр управления бизнесом (статус: Проектируется)");
     expect(knowledge).toContain("Отдельного готового автоматического Радар-бота");
   });

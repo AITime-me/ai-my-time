@@ -4,7 +4,7 @@
  *   bun scripts/consultant-eval/report.ts results.json
  */
 import { readFileSync } from "node:fs";
-import { sanitizeModelText, userAsksForTeam } from "../../src/consultant/policy.server";
+import { decideCta, sanitizeModelText, userAsksForTeam } from "../../src/consultant/policy.server";
 import { evalCases } from "./cases";
 
 type Raw = { id: string; text?: string; error?: string; ms: number; usage?: Record<string, string> };
@@ -31,7 +31,7 @@ for (const item of evalCases) {
     continue;
   }
   const { text, marker } = sanitizeModelText(result.text);
-  const cta = marker || userAsksForTeam(item.message);
+  const cta = decideCta(item.message, marker);
   const flags = FORBIDDEN.filter(([, re]) => re.test(text)).map(([name]) => name);
   const ctaMismatch = item.expectCta !== undefined && item.expectCta !== cta;
   if (flags.length || ctaMismatch) failures += 1;

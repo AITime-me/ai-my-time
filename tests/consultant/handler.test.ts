@@ -184,6 +184,21 @@ describe("cta", () => {
       expect({ message, cta: body.cta }).toEqual({ message, cta: false });
     }
   });
+
+  test("situational problems ignore a false model marker", async () => {
+    for (const message of [
+      "Мне пишут клиенты вечером",
+      "У меня заявки в Telegram.",
+      "Я всё делаю сама.",
+      "У меня нет сотрудников",
+      "Заявки теряются между сменами",
+    ]) {
+      const { handlers } = setup("Можем помочь. Обсудите с командой. [[TG]]");
+      const body = (await (await handlers.POST(post({ message }))).json()) as { text: string; cta: boolean };
+      expect({ message, cta: body.cta }).toEqual({ message, cta: false });
+      expect(body.text).not.toContain("[[TG]]");
+    }
+  });
 });
 
 describe("rate limit", () => {
