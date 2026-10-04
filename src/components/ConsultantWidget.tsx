@@ -1,8 +1,16 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { Link } from "@tanstack/react-router";
 import { MessageCircle, RotateCcw, Send, X } from "lucide-react";
 import { OFFICIAL_TELEGRAM_CHANNEL } from "@/config/site";
 import { trackEvent } from "@/lib/analytics";
+import {
+  COOKIE_CONSENT_EVENT,
+  COOKIE_SETTINGS_EVENT,
+  getConsultantPdConsent,
+  getCookieConsent,
+  setConsultantPdConsent,
+} from "@/lib/consent";
 import { getDiagnosticUrl } from "@/lib/diagnostic-url";
 import {
   CONSULTANT_ENDPOINT,
@@ -19,6 +27,8 @@ const STORAGE_KEY = "aimytime.consultant.v1";
 const GREETING =
   "Здравствуйте! Я AI-консультант AI My Time. Могу рассказать об автоматизации, CRM, AI-решениях и Радаре спроса. Что хотите узнать?";
 const QUICK_QUESTIONS = ["Что вы делаете?", "Что такое Радар спроса?", "С чего начать?"];
+const SHORT_PRIVACY_NOTICE =
+  "AI может ошибаться. Не отправляйте конфиденциальные или чувствительные данные.";
 
 type StoredTurn = ConsultantTurn & { cta?: boolean; ctaIntent?: ConsultantCtaIntent };
 type Pending = { text: string; status: "loading" | "error"; error?: "rate_limited" | "unavailable" };
@@ -139,17 +149,27 @@ function Bubble({ role, text }: ConsultantTurn) {
 }
 
 export function ConsultantWidget() {
+  const consentId = useId();
   const [enabled, setEnabled] = useState(false);
   const [open, setOpen] = useState(false);
   const [turns, setTurns] = useState<StoredTurn[]>([]);
   const [pending, setPending] = useState<Pending | null>(null);
   const [input, setInput] = useState("");
+  const [pdConsent, setPdConsent] = useState(false);
+  const [cookieBannerOpen, setCookieBannerOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     let cancelled = false;
     setTurns(loadTurns());
+    setPdConsent(getConsultantPdConsent());
+    const syncCookieBanner = () => setCookieBannerOpen(getCookieConsent() === null);
+    syncCookieBanner();
+    const onCookie = () => syncCookieBanner();
+    const onSettings = () => setCookieBannerOpen(true);
+    window.addEventListener(COOKIE_CONSENT_EVENT, onCookie);
+    window.addEventListener(COOKIE_SETTINGS_EVENT, onSettings);
     fetch(CONSULTANT_ENDPOINT, { method: "GET", headers: { Accept: "application/json" } })
       .then((r) => (r.ok ? (r.json() as Promise<{ enabled?: unknown }>) : { enabled: false }))
       .then((data) => {
@@ -160,6 +180,8 @@ export function ConsultantWidget() {
       });
     return () => {
       cancelled = true;
+      window.removeEventListener(COOKIE_CONSENT_EVENT, onCookie);
+      window.removeEventListener(COOKIE_SETTINGS_EVENT, onSettings);
     };
   }, []);
 
@@ -186,7 +208,7 @@ export function ConsultantWidget() {
   const send = useCallback(
     async (raw: string) => {
       const message = raw.trim().slice(0, MAX_MESSAGE_CHARS);
-      if (!message || pending?.status === "loading") return;
+      if (!message || pending?.status === "loading" || !pdConsent) return;
       setInput("");
       setPending({ text: message, status: "loading" });
       trackEvent("consultant_send");
@@ -225,7 +247,7 @@ export function ConsultantWidget() {
         setPending({ text: message, status: "error", error: "unavailable" });
       }
     },
-    [pending, turns],
+    [pending, pdConsent, turns],
   );
 
   const onSubmit = (e: FormEvent) => {
@@ -251,10 +273,12 @@ export function ConsultantWidget() {
   if (!enabled) return null;
 
   const loading = pending?.status === "loading";
-  const showQuick = turns.length === 0 && !pending;
+  const showQuick = turns.length === 0 && !pending && pdConsent;
+  const canSend = pdConsent && !loading && !!input.trim();
+  const launcherOffset = cookieBannerOpen ? "bottom-36 sm:bottom-6" : "bottom-4 sm:bottom-6";
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 sm:bottom-6 sm:right-6">
+    <div className={`fixed right-4 z-50 sm:right-6 ${launcherOffset}`}>
       <AnimatePresence>
         {open && (
           <motion.section
@@ -360,6 +384,40 @@ export function ConsultantWidget() {
             </div>
 
             <form onSubmit={onSubmit} className="border-t border-white/10 p-3">
+              {!pdConsent && (
+                <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <label htmlFor={consentId} className="flex cursor-pointer items-start gap-2.5 text-xs leading-relaxed text-muted-foreground">
+                    <input
+                      id={consentId}
+                      type="checkbox"
+                      checked={pdConsent}
+                      onChange={(e) => {
+                        const accepted = e.target.checked;
+                        setPdConsent(accepted);
+                        setConsultantPdConsent(accepted);
+                      }}
+                      className="mt-0.5 size-4 shrink-0 rounded border-white/30 bg-transparent accent-[color:var(--lime)]"
+                    />
+                    <span>
+                      Я ознакомился(ась) с{" "}
+                      <Link to="/privacy" className="underline underline-offset-2 hover:text-foreground">
+                        Политикой обработки персональных данных
+                      </Link>{" "}
+                      и даю{" "}
+                      <Link
+                        to="/personal-data-consent"
+                        className="underline underline-offset-2 hover:text-foreground"
+                      >
+                        согласие на обработку персональных данных
+                      </Link>
+                      .
+                    </span>
+                  </label>
+                  <p className="mt-2 text-[11px] text-muted-foreground/80">
+                    Отметьте согласие, чтобы отправить первое сообщение.
+                  </p>
+                </div>
+              )}
               <div className="flex items-end gap-2">
                 <textarea
                   ref={inputRef}
@@ -368,24 +426,23 @@ export function ConsultantWidget() {
                   onKeyDown={onKeyDown}
                   rows={1}
                   maxLength={MAX_MESSAGE_CHARS}
-                  placeholder="Напишите вопрос…"
+                  placeholder={pdConsent ? "Напишите вопрос…" : "Сначала дайте согласие…"}
                   aria-label="Ваш вопрос"
-                  className="max-h-32 min-h-[40px] flex-1 resize-none rounded-xl border border-white/15 bg-transparent px-3 py-2 text-sm outline-none focus:border-[color:var(--lime)]/60"
+                  disabled={!pdConsent}
+                  className="max-h-32 min-h-[40px] flex-1 resize-none rounded-xl border border-white/15 bg-transparent px-3 py-2 text-sm outline-none focus:border-[color:var(--lime)]/60 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <button
                   type="submit"
-                  disabled={loading || !input.trim()}
-                  aria-label="Отправить"
+                  disabled={!canSend}
+                  aria-label={pdConsent ? "Отправить" : "Отправка недоступна без согласия"}
+                  title={pdConsent ? "Отправить" : "Сначала отметьте согласие на обработку данных"}
                   className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[image:var(--gradient-primary)] text-[color:var(--lime-foreground)] disabled:opacity-40"
                 >
                   <Send className="size-4" />
                 </button>
               </div>
-              <p className="mt-2 flex justify-between text-[11px] text-muted-foreground">
-                <span>
-                  AI может ошибаться. Не отправляйте в чат конфиденциальные или чувствительные
-                  персональные данные.
-                </span>
+              <p className="mt-2 flex justify-between gap-2 text-[11px] text-muted-foreground">
+                <span>{SHORT_PRIVACY_NOTICE}</span>
                 {input.length > MAX_MESSAGE_CHARS - 100 && (
                   <span>
                     {input.length}/{MAX_MESSAGE_CHARS}

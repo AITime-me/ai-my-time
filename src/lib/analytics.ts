@@ -1,3 +1,5 @@
+import { hasAnalyticsConsent } from "./consent";
+
 declare global {
   interface Window {
     ym?: (id: number, action: string, ...args: unknown[]) => void;
@@ -5,8 +7,10 @@ declare global {
   }
 }
 
+/** Emits analytics only after cookie consent = accepted. */
 export function trackEvent(name: string, params?: Record<string, unknown>) {
   if (typeof window === "undefined") return;
+  if (!hasAnalyticsConsent()) return;
   try {
     const ymId = (window as unknown as { __YM_ID__?: string }).__YM_ID__;
     if (window.ym && ymId) {

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { CTAButton } from "./CTAButton";
 import { useSiteSettings } from "./SiteSettingsProvider";
 import { trackEvent } from "@/lib/analytics";
+import { openCookieSettings } from "@/lib/consent";
 import { Mail, Send } from "lucide-react";
 
 const navLinks = [
@@ -128,6 +129,15 @@ export function Footer() {
                     </Link>
                   </li>
                 ))}
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => openCookieSettings()}
+                    className="text-left text-sm text-muted-foreground/70 transition-colors hover:text-foreground"
+                  >
+                    Настройки cookies
+                  </button>
+                </li>
               </ul>
             </div>
           </div>
