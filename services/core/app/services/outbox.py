@@ -45,4 +45,15 @@ class OutboundQueue:
         )
         if row is None:
             raise RuntimeError("outbox conflict row missing")
+        # Stable semantic keys must not permanently silence a message after
+        # terminal delivery failure. Reclaim only failed rows; pending/sent stay
+        # idempotent so retries cannot create a second logical copy.
+        if row.status == "failed":
+            row.status = "pending"
+            row.payload_json = payload
+            row.attempt_count = 0
+            row.lease_token = None
+            row.lease_expires_at = None
+            row.last_error_code = None
+            row.sent_at = None
         return row

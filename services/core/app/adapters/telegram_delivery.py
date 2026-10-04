@@ -127,7 +127,11 @@ def _send_edge_json(endpoint: str, secret: str, operation: str, body: bytes) -> 
     parsed = urlsplit(endpoint)
     if parsed.scheme != "https" or not parsed.hostname or parsed.path.rstrip("/"):
         raise TelegramDeliveryError("invalid Telegram Edge URL")
-    connection = http.client.HTTPSConnection(parsed.hostname, parsed.port or 443, timeout=10, context=ssl.create_default_context())
+    # Edge may deliver to Telegram before answering Core. A short read timeout
+    # causes outbox retries and duplicate user-visible messages.
+    connection = http.client.HTTPSConnection(
+        parsed.hostname, parsed.port or 443, timeout=45, context=ssl.create_default_context()
+    )
     try:
         connection.request("POST", f"/v1/telegram/{operation}", body=body, headers={"Content-Type": "application/json", "X-Aimytime-Edge-Auth": secret})
         response = connection.getresponse()

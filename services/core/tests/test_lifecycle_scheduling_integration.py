@@ -127,18 +127,17 @@ async def _run_saved_result_and_repeat() -> None:
             assert replay is not None
             for section in ("Что сейчас происходит", "Где теряется результат", "Как это может работать", "Что может взять на себя система", "Что останется человеку", "Что ещё важно понять"):
                 assert section in str(replay["text"])
-            # A new explicit navigation interaction must receive a new response,
-            # while a re-delivery of the same Telegram interaction remains inert.
+            # Returning-user bridge is shown once per completed diagnostic.
             for interaction_id in ("menu-1", "menu-2", "menu-3", "menu-3"):
                 assert await lifecycle.bridge(user_id=user.id, interaction_id=interaction_id)
             bridges = list(
                 (await session.scalars(
                     select(OutboundMessage).where(
-                        OutboundMessage.dedupe_key.like(f"diagnostic:{diagnostic.id}:bridge:%")
+                        OutboundMessage.dedupe_key == f"diagnostic:{diagnostic.id}:bridge"
                     )
                 )).all()
             )
-            assert len(bridges) == 3
+            assert len(bridges) == 1
             for interaction_id in ("result-1", "result-2", "result-3", "result-3"):
                 assert await lifecycle.replay_result(
                     user_id=user.id,

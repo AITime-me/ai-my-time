@@ -471,7 +471,7 @@ async def _repeat_task_state(database_url: str, diagnostic_id: str) -> tuple[int
                 await session.scalar(
                     select(func.count())
                     .select_from(OutboundMessage)
-                    .where(OutboundMessage.dedupe_key.like(f"diagnostic:{diagnostic_id}:repeat-prompt:%"))
+                    .where(OutboundMessage.dedupe_key == f"diagnostic:{diagnostic_id}:repeat-prompt")
                 )
                 or 0
             )
@@ -495,12 +495,12 @@ async def _active_repeat_guard_state(database_url: str, diagnostic_id: str) -> t
             assert user is not None
             prompts = int(await session.scalar(
                 select(func.count()).select_from(OutboundMessage).where(
-                    OutboundMessage.dedupe_key.like(f"diagnostic:{diagnostic_id}:repeat-prompt:%")
+                    OutboundMessage.dedupe_key == f"diagnostic:{diagnostic_id}:repeat-prompt"
                 )
             ) or 0)
             active_messages = int(await session.scalar(
                 select(func.count()).select_from(OutboundMessage).where(
-                    OutboundMessage.dedupe_key.like("consultation:%:menu:telegram-update:8111")
+                    OutboundMessage.dedupe_key.like("consultation:%:already-accepted")
                 )
             ) or 0)
             return user.lifecycle_stage, prompts, active_messages

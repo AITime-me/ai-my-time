@@ -129,17 +129,21 @@ class OpsNotificationService:
             )
         )
         event_type = "repeat_task" if request.origin_type == "repeat_task" else "primary_consultation"
+        source_code = touchpoint.source_code if touchpoint else None
+        source = website_source_label(source_code) or source_code
+        intent = _intent(touchpoint.metadata_json) if touchpoint else None
         notification = OpsNotification(
             event_type=event_type,
             consultation_id=str(request.id),
             text=_render(
                 event_type=event_type,
                 user=user,
-                source=touchpoint.source_code if touchpoint else None,
+                source=source,
                 campaign=_campaign(touchpoint.metadata_json) if touchpoint else None,
                 segment=_answer_value(segment),
                 summary=report.summary if report else None,
                 repeat_task_text=request.repeat_task_text,
+                intent=intent,
             ),
         )
         await self._outbox.enqueue(
@@ -226,6 +230,7 @@ def _render(
     segment: str | None,
     summary: str | None,
     repeat_task_text: str | None,
+    intent: str | None = None,
 ) -> str:
     lines = [
         "Новая консультация AI My Time",
@@ -234,6 +239,8 @@ def _render(
     ]
     if source:
         lines.append(f"Источник: {source}")
+    if intent == "radar":
+        lines.append(f"Интерес: {website_intent_label(intent)}")
     if campaign:
         lines.append(f"Кампания: {campaign}")
     if segment:

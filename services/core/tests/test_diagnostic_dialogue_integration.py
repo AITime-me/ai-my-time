@@ -75,10 +75,19 @@ async def _run(url: str) -> None:
             assert report.result_version == "v2"
             assert report.result_json["problem_types"] == ["execution_gap", "observability_gap"]
             assert await session.scalar(select(func.count()).select_from(DiagnosticTurn).where(DiagnosticTurn.diagnostic_session_id == diagnostic.id)) == 4
-            assert await DiagnosticDialogueService(session, ScriptedDiagnosticProvider()).receive(user_id=entry.user_id, text="А что ещё можно сделать?")
+            # Free text after completion must not reopen the primary CTA/result path.
+            assert (
+                await DiagnosticDialogueService(session, ScriptedDiagnosticProvider()).receive(
+                    user_id=entry.user_id, text="А что ещё можно сделать?"
+                )
+                is False
+            )
             assert await session.scalar(select(func.count()).select_from(DiagnosticTurn).where(DiagnosticTurn.diagnostic_session_id == diagnostic.id)) == 4
             messages = (await session.scalars(select(OutboundMessage).where(OutboundMessage.user_id == entry.user_id))).all()
             assert len({message.dedupe_key for message in messages}) == len(messages)
+            assert not any(
+                (message.dedupe_key or "").endswith(":completed:info") for message in messages
+            )
             assert any("Стоимость автоматизации" in str(message.payload_json) for message in messages)
             result_payload = next(message.payload_json for message in messages if message.dedupe_key.endswith(":result"))
             result_text = str(result_payload["text"])

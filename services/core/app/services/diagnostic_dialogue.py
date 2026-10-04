@@ -20,7 +20,7 @@ from app.services.consultation_lifecycle import ConsultationLifecycleService
 from app.services.scheduled_events import ScheduledEventService
 from app.services.ops_notifications import OpsNotificationService
 from app.core.telegram_channel import channel_callback_button
-from app.services.diagnostic_result_rendering import CTA_TEXT, render_telegram_diagnostic_result
+from app.services.diagnostic_result_rendering import render_telegram_diagnostic_result
 
 PRICE_REPLY = load_diagnostic_prompt_bundle().price_reply
 CONSULTATION_CONFIRMATION = (
@@ -84,15 +84,9 @@ class DiagnosticDialogueService:
     async def receive(self, *, user_id: uuid.UUID, text: str) -> bool:
         diagnostic = await self._active_or_prepared(user_id)
         if diagnostic is None:
-            completed = await self._session.scalar(
-                select(DiagnosticSession).where(
-                    DiagnosticSession.user_id == user_id,
-                    DiagnosticSession.status == "diagnostic_completed",
-                ).order_by(DiagnosticSession.created_at.desc())
-            )
-            if completed is not None:
-                await self._message(completed, CTA_TEXT, "completed:info", _cta_button(completed.id))
-                return True
+            # A completed diagnostic must not auto-resend the primary CTA/result
+            # on free text. Returning-user navigation belongs to the bridge and
+            # explicit callbacks; otherwise Edge retries amplify duplicates.
             return False
         await ScheduledEventService(self._session).touch_followup(user_id=user_id, diagnostic_id=diagnostic.id, due_at=datetime.now(timezone.utc) + timedelta(hours=24))
         cleaned = text.strip()

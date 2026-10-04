@@ -113,3 +113,24 @@ async def _assert_terminal_failure(factory, user_id) -> None:
         assert row is not None
         assert row.status == "failed"
         assert row.attempt_count == MAX_DELIVERY_ATTEMPTS
+
+    async with session_scope(factory) as session:
+        reclaimed = await OutboundQueue(session).enqueue(
+            user_id=user_id,
+            channel="telegram_lead",
+            payload={"kind": "message", "text": "reclaim after failed", "buttons": []},
+            dedupe_key="test:outbox:terminal",
+        )
+        assert reclaimed.status == "pending"
+        assert reclaimed.attempt_count == 0
+        assert reclaimed.payload_json["text"] == "reclaim after failed"
+
+    async with session_scope(factory) as session:
+        again = await OutboundQueue(session).enqueue(
+            user_id=user_id,
+            channel="telegram_lead",
+            payload={"kind": "message", "text": "idempotent while pending", "buttons": []},
+            dedupe_key="test:outbox:terminal",
+        )
+        assert again.status == "pending"
+        assert again.payload_json["text"] == "reclaim after failed"

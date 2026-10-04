@@ -110,7 +110,21 @@ class ConsultationLifecycleService:
             buttons.append(subscription_button(user))
         if button := channel_callback_button(diagnostic.id):
             buttons.append(button)
-        await self._outbox.enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message", "text":"Вы уже проходили диагностику AI My Time — её результат сохранён. Если с тех пор появилась другая задача, её можно передать эксперту на разбор.", "buttons":buttons}, dedupe_key=f"diagnostic:{diagnostic.id}:bridge:{interaction_id}")
+        # One bridge card per completed diagnostic. Interaction-scoped keys let
+        # every /start or /menu enqueue another copy and amplify Edge retries.
+        await self._outbox.enqueue(
+            user_id=user_id,
+            channel="telegram_lead",
+            payload={
+                "kind": "message",
+                "text": (
+                    "Вы уже проходили диагностику AI My Time — её результат сохранён. "
+                    "Если с тех пор появилась другая задача, её можно передать эксперту на разбор."
+                ),
+                "buttons": buttons,
+            },
+            dedupe_key=f"diagnostic:{diagnostic.id}:bridge",
+        )
         return True
 
     async def replay_result(self, *, user_id: uuid.UUID, diagnostic_id: uuid.UUID, interaction_id: str) -> bool:

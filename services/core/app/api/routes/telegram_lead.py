@@ -174,7 +174,19 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                     )
                     return Response(status_code=204)
                 user.lifecycle_stage = f"repeat_task_input:{entity_id}"
-                await OutboundQueue(session).enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":"Коротко опишите, что сейчас хочется изменить или наладить в работе бизнеса. Достаточно 1–2 предложений — задача будет передана эксперту AI My Time.","buttons":[]}, dedupe_key=f"diagnostic:{entity_id}:repeat-prompt:{update.interaction_id}")
+                await OutboundQueue(session).enqueue(
+                    user_id=user_id,
+                    channel="telegram_lead",
+                    payload={
+                        "kind": "message",
+                        "text": (
+                            "Коротко опишите, что сейчас хочется изменить или наладить в работе бизнеса. "
+                            "Достаточно 1–2 предложений — задача будет передана эксперту AI My Time."
+                        ),
+                        "buttons": [],
+                    },
+                    dedupe_key=f"diagnostic:{entity_id}:repeat-prompt",
+                )
             elif update.action == "diagnostic:channel":
                 session.add(Event(user_id=user_id, kind="channel_clicked", payload_json={"diagnostic_session_id": str(entity_id)}))
             else:
@@ -187,16 +199,45 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                     elif update.action == "consult:cancel_yes": await lifecycle.cancel(request_row)
             return Response(status_code=204)
         if isinstance(update, DiagnosticText):
+            lifecycle = ConsultationLifecycleService(session)
             if user.lifecycle_stage.startswith("repeat_task_input:"):
-                try: diagnostic_id = uuid.UUID(user.lifecycle_stage.split(":", 1)[1])
-                except ValueError: return Response(status_code=204)
-                request = await ConsultationLifecycleService(session).create_repeat(user_id=user_id, diagnostic_id=diagnostic_id, text=update.text)
-                if request is not None:
+                try:
+                    diagnostic_id = uuid.UUID(user.lifecycle_stage.split(":", 1)[1])
+                except ValueError:
+                    return Response(status_code=204)
+                created = await lifecycle.create_repeat(
+                    user_id=user_id, diagnostic_id=diagnostic_id, text=update.text
+                )
+                if created is not None:
                     user.lifecycle_stage = "consultation_requested"
                 else:
-                    await OutboundQueue(session).enqueue(user_id=user_id, channel="telegram_lead", payload={"kind":"message","text":"У вас уже есть активная заявка на разбор. Эксперт AI My Time свяжется с вами в Telegram в рабочее время.","buttons":[]}, dedupe_key=f"repeat-consultation:{diagnostic_id}:active-guard")
+                    active = await lifecycle.active(user_id)
+                    if active is not None:
+                        # Explicit second submit while a request is already active.
+                        await _show_active_consultation(
+                            session,
+                            active_consultation=active,
+                            interaction_id="repeat-resubmit",
+                        )
+                    user.lifecycle_stage = "consultation_requested"
                 return Response(status_code=204)
-            await DiagnosticDialogueService(session, _diagnostic_provider(request)).receive(user_id=user_id, text=update.text)
+            # Prefer an in-progress diagnostic (e.g. acceptance restart) over the
+            # completed-history bridge, otherwise free text never reaches dialogue.
+            if await DiagnosticDialogueService(session, _diagnostic_provider(request)).receive(
+                user_id=user_id, text=update.text
+            ):
+                return Response(status_code=204)
+            if await lifecycle.active(user_id) is not None or user.lifecycle_stage == "consultation_requested":
+                # After a successful handoff, ignore stray free text so the bot stops.
+                return Response(status_code=204)
+            completed = await session.scalar(
+                select(DiagnosticSession).where(
+                    DiagnosticSession.user_id == user_id,
+                    DiagnosticSession.status == "diagnostic_completed",
+                ).limit(1)
+            )
+            if completed is not None:
+                await lifecycle.bridge(user_id=user_id, interaction_id="free-text")
             return Response(status_code=204)
         if isinstance(update, CommunicationCommand):
             await ContentSubscriptionService(session).set_status(
@@ -267,9 +308,15 @@ async def _show_active_consultation(
         text = f"У вас назначена консультация: {format_moscow(active_consultation.appointment_at)}."
         from app.services.scheduled_events import _appointment_buttons
         buttons = _appointment_buttons(active_consultation.id)
+        dedupe_key = f"consultation:{active_consultation.id}:menu:{interaction_id}"
     else:
-        text = "Ваша заявка на консультацию уже принята. Эксперт AI My Time свяжется с вами в Telegram в рабочее время."
+        text = (
+            "Ваша заявка на консультацию уже принята. "
+            "Эксперт AI My Time свяжется с вами в Telegram в рабочее время."
+        )
         buttons = []
+        # Stable key: one "already accepted" card per request, not per update.
+        dedupe_key = f"consultation:{active_consultation.id}:already-accepted"
     user = await session.get(User, active_consultation.user_id)
     if user is not None:
         buttons.append(subscription_button(user))
@@ -277,7 +324,7 @@ async def _show_active_consultation(
         user_id=active_consultation.user_id,
         channel="telegram_lead",
         payload={"kind": "message", "text": text, "buttons": buttons},
-        dedupe_key=f"consultation:{active_consultation.id}:menu:{interaction_id}",
+        dedupe_key=dedupe_key,
     )
 
 

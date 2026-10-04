@@ -28,6 +28,21 @@ def test_ops_message_contains_only_the_operational_consultation_context() -> Non
     assert "consultation_id" not in message and "uuid" not in message
 
 
+def test_ops_repeat_task_includes_radar_interest_when_intent_present() -> None:
+    message = _render(
+        event_type="repeat_task",
+        user=User(display_name="Анна", telegram_username="anna"),
+        source="Сайт · AI-консультант",
+        campaign=None,
+        segment="Услуги",
+        summary=None,
+        repeat_task_text="интересует радар спроса",
+        intent="radar",
+    )
+    assert "Интерес: Радар спроса" in message
+    assert "интересует радар спроса" in message
+
+
 def test_website_radar_start_notification_contains_no_numeric_identity_or_message() -> None:
     message = _render_website_start(
         user=User(
