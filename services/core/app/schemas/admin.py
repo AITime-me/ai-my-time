@@ -13,6 +13,9 @@ class AdminLeadView(BaseModel):
     telegram_username: str | None = None
     lifecycle_stage: str
     source: str | None = None
+    source_label: str | None = None
+    entry_code: str | None = None
+    intent: str | None = None
     conference_code: str | None = None
     diagnostic_status: str | None
     diagnostic_summary: str | None

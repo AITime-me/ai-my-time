@@ -15,6 +15,7 @@ from app.schemas.diagnostic_report import (
 )
 from app.schemas.diagnostic_result_v2 import validate_diagnostic_result_v2_catalog_membership
 from app.diagnostic_assets import load_solution_catalog
+from app.services.ops_notifications import OpsNotificationService
 
 
 class DiagnosticReportService:
@@ -71,6 +72,10 @@ class DiagnosticReportService:
             )
         )
         await self._session.flush()
+        await OpsNotificationService(self._session).enqueue_website_diagnostic_completed(
+            diagnostic=diagnostic,
+            report=report,
+        )
         return RecordDiagnosticReportResult(
             report_id=report.id,
             diagnostic_session_id=diagnostic.id,

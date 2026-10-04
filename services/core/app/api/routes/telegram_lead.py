@@ -34,6 +34,9 @@ from app.services.outbox import OutboundQueue
 from app.adapters.yandex_diagnostic import build_diagnostic_provider
 from app.adapters.telegram_delivery import TelegramCallbackAcknowledger, TelegramDeliveryError, TelegramEdgeCallbackAcknowledger
 from app.core.timezones import format_moscow
+from app.core.website_sources import website_start_attribution
+from app.schemas.website import WebsiteStartCommand
+from app.services.website_intake import WebsiteIntakeService
 
 router = APIRouter(tags=["telegram-lead"])
 _SECRET_HEADER = "X-Telegram-Bot-Api-Secret-Token"
@@ -81,26 +84,40 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                         entry_code=update.entry_code,
                     )
                 return Response(status_code=204)
-            entry = await ConferenceIntakeService(session).start(
-                ConferenceStartCommand(
-                    telegram_user_id=update.telegram_user_id,
-                    qr_code=update.entry_code,
-                    entry_code=update.entry_code,
-                    telegram_first_name=update.telegram_first_name,
-                    telegram_last_name=update.telegram_last_name,
-                    telegram_username=update.telegram_username,
+            if website_start_attribution(update.entry_code) is not None:
+                website_start = await WebsiteIntakeService(session).start(
+                    WebsiteStartCommand(
+                        telegram_user_id=update.telegram_user_id,
+                        entry_code=update.entry_code,
+                        interaction_id=update.interaction_id,
+                        telegram_first_name=update.telegram_first_name,
+                        telegram_last_name=update.telegram_last_name,
+                        telegram_username=update.telegram_username,
+                    )
                 )
-            )
-            completed = await session.scalar(select(DiagnosticSession).where(DiagnosticSession.user_id == entry.user_id, DiagnosticSession.status == "diagnostic_completed").limit(1))
-            active = await session.scalar(select(DiagnosticSession).where(DiagnosticSession.user_id == entry.user_id, DiagnosticSession.status.in_(("prepared", "diagnostic_active"))).limit(1))
+                start_user_id = website_start.user_id
+            else:
+                entry = await ConferenceIntakeService(session).start(
+                    ConferenceStartCommand(
+                        telegram_user_id=update.telegram_user_id,
+                        qr_code=update.entry_code,
+                        entry_code=update.entry_code,
+                        telegram_first_name=update.telegram_first_name,
+                        telegram_last_name=update.telegram_last_name,
+                        telegram_username=update.telegram_username,
+                    )
+                )
+                start_user_id = entry.user_id
+            completed = await session.scalar(select(DiagnosticSession).where(DiagnosticSession.user_id == start_user_id, DiagnosticSession.status == "diagnostic_completed").limit(1))
+            active = await session.scalar(select(DiagnosticSession).where(DiagnosticSession.user_id == start_user_id, DiagnosticSession.status.in_(("prepared", "diagnostic_active"))).limit(1))
             if active is not None:
-                await OutboundQueue(session).enqueue(user_id=entry.user_id, channel="telegram_lead", payload={"kind":"message","text":"Диагностика ещё не завершена.","buttons":[{"text":"Продолжить диагностику","callback_data":f"diagnostic:resume:{active.id}"}]}, dedupe_key=f"diagnostic:{active.id}:resume-cta:{update.interaction_id}")
+                await OutboundQueue(session).enqueue(user_id=start_user_id, channel="telegram_lead", payload={"kind":"message","text":"Диагностика ещё не завершена.","buttons":[{"text":"Продолжить диагностику","callback_data":f"diagnostic:resume:{active.id}"}]}, dedupe_key=f"diagnostic:{active.id}:resume-cta:{update.interaction_id}")
             elif completed is not None:
                 await ConsultationLifecycleService(session).bridge(
-                    user_id=entry.user_id, interaction_id=update.interaction_id
+                    user_id=start_user_id, interaction_id=update.interaction_id
                 )
             else:
-                await LeadProfileFlow(session).start(user_id=entry.user_id)
+                await LeadProfileFlow(session).start(user_id=start_user_id)
             return Response(status_code=204)
 
         user_id = await session.scalar(

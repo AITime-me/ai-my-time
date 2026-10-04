@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.website_sources import website_source_label
 from app.models import (
     AttentionItem,
     ConferenceEntry,
@@ -243,6 +244,9 @@ class AdminLeadReadService:
             telegram_username=user.telegram_username,
             lifecycle_stage=_current_stage(user.lifecycle_stage, consultation),
             source=touchpoint.source_code if touchpoint else None,
+            source_label=_source_label(touchpoint.source_code) if touchpoint else None,
+            entry_code=touchpoint.entry_code if touchpoint else None,
+            intent=_touchpoint_intent(touchpoint),
             conference_code=conference.conference_code if conference else None,
             diagnostic_status=diagnostic.status if diagnostic else None,
             diagnostic_summary=summary,
@@ -331,6 +335,19 @@ def _answer_value(value: object) -> str | None:
         candidate = value.get("value")
         return str(candidate) if candidate is not None else None
     return str(value) if value is not None else None
+
+
+def _source_label(source_code: str) -> str:
+    if source_code == "conference_2026":
+        return "Конференция 2026"
+    return website_source_label(source_code) or source_code
+
+
+def _touchpoint_intent(touchpoint: Touchpoint | None) -> str | None:
+    if touchpoint is None:
+        return None
+    intent = touchpoint.metadata_json.get("intent")
+    return intent if isinstance(intent, str) and intent in {"general", "radar"} else None
 
 
 def _current_stage(stored: str, consultation: ConsultationRequest | None) -> str:
