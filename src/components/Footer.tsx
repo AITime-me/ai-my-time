@@ -34,8 +34,8 @@ export function Footer() {
 
   return (
     <footer className="mt-24 border-t border-border/40">
-      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-        <div className="glass rounded-3xl p-8 sm:p-10 lg:p-12">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
+        <div className="glass rounded-3xl p-6 sm:p-10 lg:p-12">
           <div className="grid gap-10 lg:grid-cols-12 lg:gap-8">
             <div className="lg:col-span-5">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">AI MY TIME</p>

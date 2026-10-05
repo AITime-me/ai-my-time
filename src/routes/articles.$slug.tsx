@@ -124,7 +124,7 @@ function ArticlePage() {
           </ReactMarkdown>
         </div>
 
-        <aside className="glass mt-14 rounded-3xl p-6 sm:p-8">
+        <aside className="glass mt-14 rounded-3xl p-5 sm:mt-16 sm:p-8">
           <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
             Похожая задача есть в вашем бизнесе?
           </h2>

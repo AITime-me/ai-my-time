@@ -92,8 +92,8 @@ function ServiceDetail() {
         )}
       </section>
 
-      <section className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid gap-4 sm:grid-cols-2">
+      <section className="mx-auto max-w-4xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:gap-6">
           {data.audience && (
             <GlassCard>
               <p className="text-xs uppercase tracking-wider text-muted-foreground">

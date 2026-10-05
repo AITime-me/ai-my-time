@@ -29,7 +29,7 @@ export function CTAButton({
   const s = useSiteSettings();
   const text = children ?? label ?? s.main_cta_text;
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all duration-300 will-change-transform hover:-translate-y-0.5 active:translate-y-0";
+    "inline-flex cursor-pointer items-center justify-center gap-2 rounded-full font-medium transition-all duration-300 will-change-transform hover:-translate-y-0.5 active:translate-y-0";
   const sizes = size === "lg" ? "px-7 py-3.5 text-base" : "px-5 py-2.5 text-sm";
   const variants = {
     primary:

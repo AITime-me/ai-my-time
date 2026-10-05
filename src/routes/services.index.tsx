@@ -227,10 +227,10 @@ function ServicesIndex() {
       </section>
 
       {/* Services cards */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
         <Eyebrow>Что можно сделать</Eyebrow>
         <H2 className="mt-5">Список услуг</H2>
-        <div className="mt-10 grid gap-5 lg:grid-cols-2">
+        <div className="mt-8 grid gap-5 sm:mt-10 lg:mt-12 lg:grid-cols-2 lg:gap-6">
           {services.map((s, i) => (
             <Reveal key={s.title} delay={i * 0.04}>
               <GlassCard className="flex h-full flex-col">
@@ -259,7 +259,7 @@ function ServicesIndex() {
       </section>
 
       {/* How to choose */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
         <Eyebrow>Как понять, что вам нужно</Eyebrow>
         <H2 className="mt-5">Не обязательно сразу знать, какое решение вам нужно</H2>
         <Lead className="max-w-3xl">
@@ -267,7 +267,7 @@ function ServicesIndex() {
           AI-администратор. Иногда — автоматизация на n8n. А иногда достаточно разобрать текущий
           процесс и найти одно слабое место, которое мешает росту.
         </Lead>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+        <div className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5 lg:mt-12 lg:gap-6">
           {choosers.map((c, i) => (
             <Reveal key={c.title} delay={i * 0.05}>
               <GlassCard className="h-full">
@@ -280,7 +280,7 @@ function ServicesIndex() {
       </section>
 
       {/* Final CTA */}
-      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
         <GlassCard className="text-center">
           <H2>Хотите понять, что подойдёт вашему бизнесу?</H2>
           <Lead className="mx-auto">

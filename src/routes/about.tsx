@@ -66,7 +66,7 @@ const approachSteps = [
 function AboutPage() {
   return (
     <SiteLayout>
-      <section className="mx-auto max-w-7xl px-4 pb-12 pt-14 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 pb-10 pt-14 sm:px-6 sm:pb-12 lg:px-8 lg:pb-14">
         <Eyebrow>О проекте</Eyebrow>
         <h1 className="mt-5 max-w-4xl text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
           AI My Time — проектирование и автоматизация бизнес-процессов
@@ -94,10 +94,10 @@ function AboutPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
         <Eyebrow>Подход</Eyebrow>
         <H2 className="mt-4 max-w-3xl">Как AI My Time подходит к задачам бизнеса</H2>
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
           {approachSteps.map((step, index) => (
             <GlassCard key={step.title}>
               <span className="text-xs uppercase tabular-nums tracking-normal text-[color:var(--lime)]">
@@ -113,9 +113,9 @@ function AboutPage() {
       <section
         id="founder"
         aria-labelledby="founder-heading"
-        className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8"
+        className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-16"
       >
-        <div className="glass overflow-hidden rounded-3xl p-8 sm:p-10 lg:p-12">
+        <div className="glass overflow-hidden rounded-3xl p-6 sm:p-10 lg:p-12">
           <div className="grid gap-10 lg:grid-cols-12 lg:items-start">
             <div className="lg:col-span-7">
               <Eyebrow>Основатель</Eyebrow>

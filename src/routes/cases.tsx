@@ -108,8 +108,8 @@ function CasesPage() {
         </GlassCard>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
           {items.map((c, i) => (
             <Reveal key={c.id} delay={i * 0.04}>
               <GlassCard className="flex h-full cursor-default flex-col">

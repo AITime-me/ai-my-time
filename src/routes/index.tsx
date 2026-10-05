@@ -274,14 +274,14 @@ function HeroSection() {
 
 function ProblemSection() {
   return (
-    <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+    <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
       <Reveal>
         <Eyebrow>Проблема</Eyebrow>
         <H2 className="mt-4 max-w-3xl">
           Когда бизнес держится на одном человеке, это не система. Это героизм на тонком льду.
         </H2>
       </Reveal>
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5 lg:mt-12 lg:grid-cols-4 lg:gap-6">
         {pains.map((p, i) => (
           <Reveal key={p.title} delay={i * 0.05}>
             <GlassCard>
@@ -310,7 +310,7 @@ function ProblemSection() {
 
 function HowSection() {
   return (
-    <section id="how" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8">
+    <section id="how" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
       <Reveal>
         <Eyebrow>Как мы работаем</Eyebrow>
         <H2 className="mt-4 max-w-3xl">Сначала разбираем процесс. Потом выбираем технологию.</H2>
@@ -321,7 +321,7 @@ function HowSection() {
           происходит после неё.
         </Lead>
       </Reveal>
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5 lg:mt-12 lg:grid-cols-4 lg:gap-6">
         {steps.map((s, i) => (
           <Reveal key={s.n} delay={i * 0.05}>
             <GlassCard>
@@ -333,7 +333,7 @@ function HowSection() {
         ))}
       </div>
       <Reveal>
-        <div className="mt-12 glass overflow-hidden rounded-3xl p-8 sm:p-10">
+        <div className="mt-10 glass overflow-hidden rounded-3xl p-6 sm:mt-12 sm:p-8 md:p-10">
           <p className="text-lg font-semibold tracking-tight sm:text-xl">
             Не бот ради бота. Не CRM ради CRM. Не AI ради AI.
           </p>
@@ -349,7 +349,7 @@ function HowSection() {
 
 function SolutionsSection() {
   return (
-    <section id="solutions" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8">
+    <section id="solutions" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
       <Reveal>
         <Eyebrow>Решения</Eyebrow>
         <H2 className="mt-4 max-w-3xl">Что можно изменить в работе бизнеса</H2>
@@ -358,20 +358,32 @@ function SolutionsSection() {
           съедает время, деньги или контроль.
         </Lead>
       </Reveal>
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {solutions.map((o, i) => (
-          <Reveal key={o.title} delay={i * 0.04}>
-            <LinkableCard to={o.to} href={o.href}>
-              <div className="flex items-start gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[image:var(--gradient-primary)] text-[color:var(--lime-foreground)]">
-                  <o.icon className="size-5" />
-                </span>
-                <h3 className="text-lg font-semibold leading-snug">{o.title}</h3>
-              </div>
-              <p className="mt-3 text-sm text-muted-foreground">{o.text}</p>
-            </LinkableCard>
-          </Reveal>
-        ))}
+      {/*
+        Desktop bento (12-col): 3×4 + 2×6 + 2×6 — filled rows, no orphan card.
+        Tablet: 2-col, last card spans full width. Mobile: single column.
+      */}
+      <div className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5 lg:mt-12 lg:grid-cols-12 lg:gap-6">
+        {solutions.map((o, i) => {
+          const spanClass =
+            i < 3
+              ? "h-full lg:col-span-4"
+              : i === solutions.length - 1
+                ? "h-full lg:col-span-6 sm:max-lg:col-span-2"
+                : "h-full lg:col-span-6";
+          return (
+            <Reveal key={o.title} delay={i * 0.04} className={spanClass}>
+              <LinkableCard to={o.to} href={o.href} className="h-full">
+                <div className="flex items-start gap-3">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[image:var(--gradient-primary)] text-[color:var(--lime-foreground)]">
+                    <o.icon className="size-5" />
+                  </span>
+                  <h3 className="text-lg font-semibold leading-snug">{o.title}</h3>
+                </div>
+                <p className="mt-3 text-sm text-muted-foreground">{o.text}</p>
+              </LinkableCard>
+            </Reveal>
+          );
+        })}
       </div>
       <Reveal>
         <p className="mt-10 max-w-3xl text-base text-muted-foreground">
@@ -388,10 +400,10 @@ function AmoCrmSection() {
     <section
       id="amocrm"
       aria-labelledby="amocrm-heading"
-      className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8"
+      className="mx-auto max-w-7xl scroll-mt-24 px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20"
     >
       <Reveal>
-        <div className="glass overflow-hidden rounded-3xl p-8 sm:p-12">
+        <div className="glass overflow-hidden rounded-3xl p-6 sm:p-10 lg:p-12">
           <Eyebrow>amoCRM</Eyebrow>
           <H2 id="amocrm-heading" className="mt-4 max-w-3xl">
             Когда рынок становится сложнее, больше значения имеет то, что происходит после обращения
@@ -463,7 +475,7 @@ function ArticlesSection() {
     <section
       id="articles"
       aria-labelledby="articles-heading"
-      className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8"
+      className="mx-auto max-w-7xl scroll-mt-24 px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20"
     >
       <Reveal>
         <Eyebrow>Статьи и разборы AI My Time</Eyebrow>
@@ -475,7 +487,7 @@ function ArticlesSection() {
           появляется и что в процессе можно изменить.
         </Lead>
       </Reveal>
-      <div className="mt-10 grid max-w-xl gap-4">
+      <div className="mt-8 grid max-w-xl gap-4 sm:mt-10 lg:mt-12">
         {articleCards.map((a, i) => (
           <Reveal key={a.title} delay={i * 0.04}>
             <LinkableCard to={a.to} href={a.href} className="h-full transition-colors hover:border-[color:var(--lime)]/30">
@@ -497,10 +509,10 @@ function FounderSection() {
     <section
       id="founder"
       aria-labelledby="founder-heading"
-      className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8"
+      className="mx-auto max-w-7xl scroll-mt-24 px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20"
     >
       <Reveal>
-        <div className="glass overflow-hidden rounded-3xl p-8 sm:p-12">
+        <div className="glass overflow-hidden rounded-3xl p-6 sm:p-10 lg:p-12">
           <Eyebrow>О проекте</Eyebrow>
           <H2 id="founder-heading" className="mt-4 max-w-3xl">
             Бизнес-процессы — не только про технологии
@@ -541,10 +553,10 @@ function DiagnosticsSection() {
     <section
       id="diagnostics"
       aria-labelledby="diagnostics-heading"
-      className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8"
+      className="mx-auto max-w-7xl scroll-mt-24 px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20"
     >
       <Reveal>
-        <div className="glass overflow-hidden rounded-3xl p-8 sm:p-12">
+        <div className="glass overflow-hidden rounded-3xl p-6 sm:p-10 lg:p-12">
           <Eyebrow>Диагностика</Eyebrow>
           <H2 id="diagnostics-heading" className="mt-4 max-w-3xl">
             Найти участок, который действительно стоит менять
@@ -553,7 +565,7 @@ function DiagnosticsSection() {
             Диагностика AI My Time помогает разобраться, где в текущем процессе возникает разрыв и
             какую задачу имеет смысл решать в первую очередь.
           </Lead>
-          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          <div className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-3 sm:gap-5 lg:mt-12 lg:gap-6">
             {diagnosticSteps.map((s) => (
               <div key={s.n} className="rounded-2xl border border-border/50 bg-background/30 p-5">
                 <span className="font-mono text-sm text-[color:var(--lime)]">{s.n}</span>
@@ -580,8 +592,8 @@ function DiagnosticsSection() {
 
 function FinalCtaSection() {
   return (
-    <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
-      <div className="glass relative overflow-hidden rounded-3xl p-8 text-center sm:p-14">
+    <section className="mx-auto max-w-7xl px-4 py-14 pb-24 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+      <div className="glass relative overflow-hidden rounded-3xl p-6 text-center sm:p-12 lg:p-14">
         <div className="pointer-events-none absolute -top-32 left-1/2 size-80 -translate-x-1/2 rounded-full bg-[color:var(--lime)]/20 blur-3xl" />
         <Eyebrow>Следующий шаг</Eyebrow>
         <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -609,7 +621,7 @@ function FinalCtaSection() {
 function FaqSection() {
   const [open, setOpen] = useState<string | null>(null);
   return (
-    <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
+    <section className="mx-auto max-w-4xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
       <Reveal>
         <Eyebrow>FAQ</Eyebrow>
         <H2 className="mt-4">Частые вопросы</H2>

@@ -15,12 +15,12 @@ export function H2({ children, className }: { children: ReactNode; className?: s
 }
 
 export function Lead({ children, className }: { children: ReactNode; className?: string }) {
-  return <p className={cn("mt-4 max-w-2xl text-base text-muted-foreground sm:text-lg", className)}>{children}</p>;
+  return <p className={cn("mt-4 max-w-2xl text-base text-muted-foreground sm:mt-5 sm:text-lg", className)}>{children}</p>;
 }
 
 export function GlassCard({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("glass group rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[color:var(--lime)]/30 hover:shadow-[var(--shadow-glow)]", className)}>
+    <div className={cn("glass group rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[color:var(--lime)]/30 hover:shadow-[var(--shadow-glow)] sm:p-6 md:p-7", className)}>
       {children}
     </div>
   );

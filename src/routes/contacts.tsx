@@ -79,8 +79,8 @@ function ContactsPage() {
         </Lead>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-6 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:px-8">
-        <GlassCard className="flex h-full flex-col gap-5 sm:p-8">
+      <section className="mx-auto grid max-w-7xl gap-5 px-4 py-12 sm:gap-6 sm:px-6 sm:py-14 lg:grid-cols-2 lg:px-8 lg:py-16">
+        <GlassCard className="flex h-full flex-col gap-5 sm:p-8 md:p-9">
           <div className="flex items-start gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[image:var(--gradient-primary)] text-[color:var(--lime-foreground)] shadow-[var(--shadow-glow)]">
               <Sparkles className="size-5" />
@@ -105,7 +105,7 @@ function ContactsPage() {
           </CTAButton>
         </GlassCard>
 
-        <GlassCard className="flex h-full flex-col gap-5 sm:p-8">
+        <GlassCard className="flex h-full flex-col gap-5 sm:p-8 md:p-9">
           <div className="flex items-start gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-border/60 bg-white/5 text-[color:var(--lime)]">
               <Send className="size-5" />

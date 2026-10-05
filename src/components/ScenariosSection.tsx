@@ -9,7 +9,7 @@ export function ScenariosSection() {
     <section
       id="scenarios"
       aria-labelledby="scenarios-heading"
-      className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8"
+      className="mx-auto max-w-7xl scroll-mt-24 px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20"
     >
       <Reveal>
         <Eyebrow>Сценарии</Eyebrow>
@@ -22,7 +22,7 @@ export function ScenariosSection() {
           по шагам.
         </Lead>
       </Reveal>
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5 lg:mt-12 lg:grid-cols-3 lg:gap-6">
         {solutions.map((item, index) => (
           <Reveal key={item.slug} delay={index * 0.04} className="h-full">
             <Link

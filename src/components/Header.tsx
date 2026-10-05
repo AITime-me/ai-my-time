@@ -33,7 +33,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/40 bg-background/70 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 isolate border-b border-border/40 bg-background/95 supports-[backdrop-filter]:bg-background/88 supports-[backdrop-filter]:backdrop-blur-md">
       <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-2 px-4 py-2 md:px-3 md:gap-2 lg:gap-4 lg:px-8">
         <Link to="/" className="group flex items-center gap-2.5" onClick={closeAll}>
           <span className="grid size-9 place-items-center rounded-xl bg-[image:var(--gradient-primary)] text-[color:var(--lime-foreground)] shadow-[var(--shadow-glow)]">
@@ -59,7 +59,7 @@ export function Header() {
             {solutionsOpen && (
               <div
                 role="menu"
-                className="absolute left-0 top-full z-50 mt-2 min-w-[18rem] rounded-2xl border border-border/50 bg-background/95 p-2 shadow-[var(--shadow-glow)] backdrop-blur-xl"
+                className="absolute left-0 top-full z-50 mt-2 min-w-[18rem] rounded-2xl border border-border/50 bg-background/98 p-2 shadow-[var(--shadow-glow)] supports-[backdrop-filter]:bg-background/95 supports-[backdrop-filter]:backdrop-blur-md"
               >
                 {solutions.map((item) => (
                   <Link

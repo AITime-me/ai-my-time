@@ -8,11 +8,11 @@ import { Eyebrow, GlassCard, H2 } from "@/components/SectionHeading";
 export function DemandRadarSections({ content }: { content: DemandRadarContent }) {
   return (
     <>
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
         <Reveal>
           <Eyebrow>Процесс</Eyebrow>
           <H2 className="mt-4 max-w-3xl">{content.processTitle}</H2>
-          <ol className="mt-10 flex flex-col items-stretch gap-0 md:flex-row md:flex-wrap md:items-center md:gap-x-2 md:gap-y-3">
+          <ol className="mt-8 flex flex-col items-stretch gap-0 sm:mt-10 md:flex-row md:flex-wrap md:items-center md:gap-x-2 md:gap-y-3 lg:mt-12">
             {content.processSteps.map((step, index) => (
               <li key={step} className="flex flex-col items-center md:flex-row md:items-center">
                 <div className="w-full rounded-2xl border border-border/50 bg-background/30 px-4 py-4 text-center md:w-auto md:min-w-[10rem] md:max-w-[13rem]">
@@ -39,11 +39,11 @@ export function DemandRadarSections({ content }: { content: DemandRadarContent }
         </Reveal>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
         <Reveal>
           <Eyebrow>Три шага</Eyebrow>
           <H2 className="mt-4 max-w-3xl">{content.triadTitle}</H2>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <div className="mt-8 grid gap-4 sm:gap-5 md:grid-cols-3 lg:gap-6">
             {content.triadCards.map((card) => (
               <GlassCard key={card.title}>
                 <h3 className="text-lg font-semibold">{card.title}</h3>
@@ -54,9 +54,9 @@ export function DemandRadarSections({ content }: { content: DemandRadarContent }
         </Reveal>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
         <Reveal>
-          <div className="glass overflow-hidden rounded-3xl p-8 sm:p-12">
+          <div className="glass overflow-hidden rounded-3xl p-6 sm:p-10 lg:p-12">
             <Eyebrow>Возможности</Eyebrow>
             <H2 className="mt-4 max-w-3xl">{content.searchTitle}</H2>
             <p className="mt-4 max-w-3xl text-base text-muted-foreground sm:text-lg">
@@ -77,9 +77,9 @@ export function DemandRadarSections({ content }: { content: DemandRadarContent }
         </Reveal>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
         <Reveal>
-          <div className="glass overflow-hidden rounded-3xl border border-[color:var(--lime)]/25 p-8 sm:p-12">
+          <div className="glass overflow-hidden rounded-3xl border border-[color:var(--lime)]/25 p-6 sm:p-10 lg:p-12">
             <Eyebrow>Связка продуктов</Eyebrow>
             <H2 className="mt-4 max-w-3xl">{content.pairingTitle}</H2>
             <div className="mt-4 max-w-3xl space-y-3 text-base text-muted-foreground sm:text-lg">
@@ -109,7 +109,7 @@ export function DemandRadarSections({ content }: { content: DemandRadarContent }
         </Reveal>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
         <Reveal>
           <Eyebrow>Диалог</Eyebrow>
           <H2 className="mt-4 max-w-3xl">{content.dialogueTitle}</H2>
@@ -140,9 +140,9 @@ export function DemandRadarSections({ content }: { content: DemandRadarContent }
         </Reveal>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
         <Reveal>
-          <div className="rounded-3xl border border-border/50 bg-background/25 p-8 sm:p-10">
+          <div className="rounded-3xl border border-border/50 bg-background/25 p-6 sm:p-8 lg:p-10">
             <Eyebrow>{content.boundaryTitle}</Eyebrow>
             <p className="mt-4 max-w-3xl text-base text-muted-foreground sm:text-lg">
               {content.boundaryText}
@@ -151,9 +151,9 @@ export function DemandRadarSections({ content }: { content: DemandRadarContent }
         </Reveal>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
         <Reveal>
-          <div className="glass relative overflow-hidden rounded-3xl p-8 text-center sm:p-12">
+          <div className="glass relative overflow-hidden rounded-3xl p-6 text-center sm:p-10 lg:p-12">
             <div className="pointer-events-none absolute -top-24 left-1/2 size-64 -translate-x-1/2 rounded-full bg-[color:var(--lime)]/15 blur-3xl" />
             <Eyebrow>{content.formulaEyebrow}</Eyebrow>
             <H2 className="mt-4">{content.formulaTitle}</H2>

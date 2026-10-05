@@ -116,7 +116,7 @@ export function SolutionDetailPage({ solution }: { solution: SolutionScenario })
           {isProduct && solution.capabilities && solution.capabilities.length > 0 ? (
             <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
               <Reveal>
-                <div className="glass overflow-hidden rounded-3xl p-8 sm:p-12">
+                <div className="glass overflow-hidden rounded-3xl p-6 sm:p-10 lg:p-12">
                   <Eyebrow>Возможности</Eyebrow>
                   <H2 className="mt-4 max-w-3xl">
                     {solution.capabilitiesTitle ?? "Что может AI-агент для бизнеса"}
@@ -126,11 +126,11 @@ export function SolutionDetailPage({ solution }: { solution: SolutionScenario })
                       {solution.capabilitiesIntro}
                     </p>
                   )}
-                  <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <ul className="mt-8 grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
                     {solution.capabilities.map((item) => (
                       <li
                         key={item.title}
-                        className="rounded-2xl border border-border/50 bg-background/30 p-5"
+                        className="rounded-2xl border border-border/50 bg-background/30 p-5 sm:p-6"
                       >
                         <h3 className="text-base font-semibold">{item.title}</h3>
                         <p className="mt-2 text-sm text-muted-foreground">{item.text}</p>
@@ -153,14 +153,14 @@ export function SolutionDetailPage({ solution }: { solution: SolutionScenario })
             solution.outcomes.length > 0 && (
               <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
                 <Reveal>
-                  <div className="glass overflow-hidden rounded-3xl p-8 sm:p-12">
+                  <div className="glass overflow-hidden rounded-3xl p-6 sm:p-10 lg:p-12">
                     <Eyebrow>Результат</Eyebrow>
                     <H2 className="mt-4 max-w-3xl">Что меняется для бизнеса</H2>
-                    <ul className="mt-8 grid gap-4 sm:grid-cols-2">
+                    <ul className="mt-8 grid gap-4 sm:grid-cols-2 sm:gap-5 lg:gap-6">
                       {solution.outcomes.map((item) => (
                         <li
                           key={item}
-                          className="rounded-2xl border border-border/50 bg-background/30 p-5 text-base text-foreground/90"
+                          className="rounded-2xl border border-border/50 bg-background/30 p-5 text-base text-foreground/90 sm:p-6"
                         >
                           {item}
                         </li>
@@ -183,7 +183,7 @@ export function SolutionDetailPage({ solution }: { solution: SolutionScenario })
           <H2 id="other-solutions-heading" className="mt-4 max-w-3xl">
             Другие решения
           </H2>
-          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-5">
             {otherSolutions.map((item) => (
               <Link
                 key={item.slug}

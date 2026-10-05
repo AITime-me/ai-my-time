@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   Globe,
   Bot,
@@ -48,9 +48,15 @@ function MobileArrow({ index }: { index: number }) {
   );
 }
 
+/**
+ * Hero visual without backdrop-filter: continuous DigitalRain transforms
+ * inside a blurred glass layer cause Chrome sticky/header flicker on scroll.
+ */
 export function HeroSchema() {
+  const reduceMotion = useReducedMotion();
+
   return (
-    <div className="glass relative overflow-hidden rounded-3xl p-6 sm:p-8">
+    <div className="relative overflow-hidden rounded-3xl border border-[color:oklch(0.4_0.04_155_/_0.3)] bg-[image:var(--gradient-card)] p-6 shadow-[var(--shadow-soft)] sm:p-8">
       <DigitalRain />
       <div className="absolute inset-0 z-[1] bg-grid opacity-30" />
       <div className="absolute -top-20 right-0 z-[1] size-64 rounded-full bg-[color:var(--lime)]/20 blur-3xl" />
@@ -61,9 +67,13 @@ export function HeroSchema() {
           {nodes.map((n, i) => (
             <motion.div
               key={n.label}
-              initial={{ opacity: 0, y: 12 }}
+              initial={reduceMotion ? false : { opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 * i, duration: 0.5 }}
+              transition={
+                reduceMotion
+                  ? { duration: 0 }
+                  : { delay: 0.1 * i, duration: 0.5, ease: [0.22, 1, 0.36, 1] }
+              }
               className="group relative flex h-full min-h-[140px] min-w-0 flex-col items-start justify-start gap-3 rounded-xl border border-[color:var(--lime)]/25 bg-background/40 px-4 py-5 shadow-[inset_0_0_0_1px_rgba(163,230,53,0.04)]"
             >
               <span className="grid size-9 place-items-center rounded-lg bg-[image:var(--gradient-primary)] text-[color:var(--lime-foreground)]">
