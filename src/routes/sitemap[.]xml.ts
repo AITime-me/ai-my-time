@@ -26,6 +26,7 @@ export const Route = createFileRoute("/sitemap.xml")({
           "/contacts",
           "/privacy",
           "/offer",
+          "/articles/parser-nedvizhimosti-amocrm",
         ];
         const xml = [
           `<?xml version="1.0" encoding="UTF-8"?>`,

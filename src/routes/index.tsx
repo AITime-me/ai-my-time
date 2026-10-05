@@ -136,21 +136,16 @@ const solutions: Array<{
 const articleCards: Array<{
   title: string;
   text: string;
+  label?: string;
   /** Published article URL/route — card is clickable only when set. */
   to?: string;
   href?: string;
 }> = [
   {
-    title: "CRM есть, а легче не стало",
-    text: "Почему наличие CRM не гарантирует порядок в работе с клиентами и где обычно остаются разрывы.",
-  },
-  {
-    title: "Заявка пришла. А что произошло с ней дальше?",
-    text: "Разбор того, как теряется следующий шаг после первого обращения и что делает процесс управляемее.",
-  },
-  {
-    title: "Что стоит автоматизировать, а что лучше оставить человеку",
-    text: "Как отделить повторяемые действия от переговоров, решений и ситуаций, где нужен человек.",
+    title: "Риелтор больше не ищет объекты",
+    text: "Как мы связали парсер недвижимости с amoCRM и сделали так, чтобы подходящие объекты сами попадали в работу агента.",
+    label: "Недвижимость · amoCRM",
+    href: "/articles/parser-nedvizhimosti-amocrm",
   },
 ];
 
@@ -480,24 +475,18 @@ function ArticlesSection() {
           появляется и что в процессе можно изменить.
         </Lead>
       </Reveal>
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-10 grid max-w-xl gap-4">
         {articleCards.map((a, i) => (
           <Reveal key={a.title} delay={i * 0.04}>
-            <LinkableCard to={a.to} href={a.href} className="h-full">
-              <h3 className="text-lg font-semibold">{a.title}</h3>
+            <LinkableCard to={a.to} href={a.href} className="h-full transition-colors hover:border-[color:var(--lime)]/30">
+              {a.label ? (
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">{a.label}</p>
+              ) : null}
+              <h3 className={a.label ? "mt-3 text-lg font-semibold" : "text-lg font-semibold"}>{a.title}</h3>
               <p className="mt-3 text-sm text-muted-foreground">{a.text}</p>
             </LinkableCard>
           </Reveal>
         ))}
-      </div>
-      <div className="mt-8">
-        {/* Route for articles hub is not ready yet — avoid broken links */}
-        <span
-          className="inline-flex cursor-default items-center gap-2 text-sm text-muted-foreground/70"
-          title="Раздел статей появится позже"
-        >
-          Все статьи →
-        </span>
       </div>
     </section>
   );

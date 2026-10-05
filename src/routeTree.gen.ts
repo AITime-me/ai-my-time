@@ -21,6 +21,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ServicesIndexRouteImport } from './routes/services.index'
 import { Route as SolutionsSlugRouteImport } from './routes/solutions.$slug'
 import { Route as ServicesSlugRouteImport } from './routes/services.$slug'
+import { Route as ArticlesSlugRouteImport } from './routes/articles.$slug'
 import { Route as ApiConsultantRouteImport } from './routes/api.consultant'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -83,6 +84,11 @@ const ServicesSlugRoute = ServicesSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => ServicesRoute,
 } as any)
+const ArticlesSlugRoute = ArticlesSlugRouteImport.update({
+  id: '/articles/$slug',
+  path: '/articles/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiConsultantRoute = ApiConsultantRouteImport.update({
   id: '/api/consultant',
   path: '/api/consultant',
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/services': typeof ServicesRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/consultant': typeof ApiConsultantRoute
+  '/articles/$slug': typeof ArticlesSlugRoute
   '/services/$slug': typeof ServicesSlugRoute
   '/solutions/$slug': typeof SolutionsSlugRoute
   '/services/': typeof ServicesIndexRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/consultant': typeof ApiConsultantRoute
+  '/articles/$slug': typeof ArticlesSlugRoute
   '/services/$slug': typeof ServicesSlugRoute
   '/solutions/$slug': typeof SolutionsSlugRoute
   '/services': typeof ServicesIndexRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/services': typeof ServicesRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/consultant': typeof ApiConsultantRoute
+  '/articles/$slug': typeof ArticlesSlugRoute
   '/services/$slug': typeof ServicesSlugRoute
   '/solutions/$slug': typeof SolutionsSlugRoute
   '/services/': typeof ServicesIndexRoute
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/services'
     | '/sitemap.xml'
     | '/api/consultant'
+    | '/articles/$slug'
     | '/services/$slug'
     | '/solutions/$slug'
     | '/services/'
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/sitemap.xml'
     | '/api/consultant'
+    | '/articles/$slug'
     | '/services/$slug'
     | '/solutions/$slug'
     | '/services'
@@ -176,6 +187,7 @@ export interface FileRouteTypes {
     | '/services'
     | '/sitemap.xml'
     | '/api/consultant'
+    | '/articles/$slug'
     | '/services/$slug'
     | '/solutions/$slug'
     | '/services/'
@@ -192,6 +204,7 @@ export interface RootRouteChildren {
   ServicesRoute: typeof ServicesRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiConsultantRoute: typeof ApiConsultantRoute
+  ArticlesSlugRoute: typeof ArticlesSlugRoute
   SolutionsSlugRoute: typeof SolutionsSlugRoute
 }
 
@@ -281,6 +294,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicesSlugRouteImport
       parentRoute: typeof ServicesRoute
     }
+    '/articles/$slug': {
+      id: '/articles/$slug'
+      path: '/articles/$slug'
+      fullPath: '/articles/$slug'
+      preLoaderRoute: typeof ArticlesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/consultant': {
       id: '/api/consultant'
       path: '/api/consultant'
@@ -316,6 +336,7 @@ const rootRouteChildren: RootRouteChildren = {
   ServicesRoute: ServicesRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiConsultantRoute: ApiConsultantRoute,
+  ArticlesSlugRoute: ArticlesSlugRoute,
   SolutionsSlugRoute: SolutionsSlugRoute,
 }
 export const routeTree = rootRouteImport
