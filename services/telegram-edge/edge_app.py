@@ -32,7 +32,16 @@ ALLOWED_OPERATIONS = frozenset({
     # accepts a caller-supplied URL or secret: both remain Edge-local.
     "configureWebhook",
     "getWebhookInfo",
+    # Q1.1: a single fixed native commands-menu entrypoint and its narrow
+    # read-back verification.  The payload is pinned below, so Core cannot
+    # register arbitrary commands or menu buttons through this relay.
+    "setMyCommands",
+    "setChatMenuButton",
+    "getMyCommands",
+    "getChatMenuButton",
 })
+_MENU_COMMANDS = [{"command": "menu", "description": "Открыть доступные действия"}]
+_MENU_BUTTON = {"type": "commands"}
 
 
 class EdgeConfigurationError(RuntimeError):
@@ -129,6 +138,8 @@ class EdgeService:
             return HTTPStatus.NOT_FOUND, {"ok": False, "error": "operation_not_allowed"}
         if not _json_object(body):
             return HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_request"}
+        if not _valid_menu_request(operation, body):
+            return HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_menu_request"}
         # The configuration endpoints intentionally ignore their JSON object.
         # The URL and Telegram secret are fixed by this local Edge service,
         # not supplied by Core or an Internet client.
@@ -164,6 +175,12 @@ class EdgeService:
             return HTTPStatus.BAD_GATEWAY, {"ok": False, "error": "telegram_invalid_response"}
         if not isinstance(decoded, dict) or decoded.get("ok") is not True:
             return HTTPStatus.BAD_GATEWAY, {"ok": False, "error": "telegram_rejected"}
+        if operation == "getMyCommands" and decoded.get("result") != _MENU_COMMANDS:
+            return HTTPStatus.BAD_GATEWAY, {"ok": False, "error": "menu_verification_failed"}
+        if operation == "getChatMenuButton":
+            menu_button = decoded.get("result")
+            if not isinstance(menu_button, dict) or menu_button.get("type") != "commands":
+                return HTTPStatus.BAD_GATEWAY, {"ok": False, "error": "menu_verification_failed"}
         # Do not relay Telegram response content: it can contain operational
         # data and is unnecessary to Core.  A boolean success is enough.
         return HTTPStatus.OK, {"ok": True}
@@ -176,6 +193,20 @@ def _json_object(body: bytes) -> bool:
         return isinstance(json.loads(body.decode("utf-8")), dict)
     except (UnicodeDecodeError, json.JSONDecodeError):
         return False
+
+
+def _valid_menu_request(operation: str, body: bytes) -> bool:
+    """Keep the Q1.1 menu control plane immutable at the Edge boundary."""
+    if operation not in {"setMyCommands", "setChatMenuButton", "getMyCommands", "getChatMenuButton"}:
+        return True
+    payload = json.loads(body.decode("utf-8"))
+    expected = {
+        "setMyCommands": {"commands": _MENU_COMMANDS},
+        "setChatMenuButton": {"menu_button": _MENU_BUTTON},
+        "getMyCommands": {},
+        "getChatMenuButton": {},
+    }[operation]
+    return payload == expected
 
 
 def make_handler(service: EdgeService) -> type[BaseHTTPRequestHandler]:

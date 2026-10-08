@@ -67,6 +67,37 @@ class EdgeServiceTests(unittest.TestCase):
         service = EdgeService(config(), requester=lambda *_: self.fail("must not call provider"))
         self.assertEqual(service.invoke_telegram("getMe", b"{}", "wrong")[0], 401)
 
+    def test_menu_operations_are_fixed_to_one_command_and_commands_button(self) -> None:
+        calls = []
+
+        def requester(url, body, headers):
+            calls.append((url, json.loads(body)))
+            if url.endswith("/getMyCommands"):
+                result = [{"command": "menu", "description": "Открыть доступные действия"}]
+            elif url.endswith("/getChatMenuButton"):
+                result = {"type": "commands"}
+            else:
+                result = True
+            return 200, json.dumps({"ok": True, "result": result}).encode()
+
+        service = EdgeService(config(), requester=requester)
+        fixed = [
+            ("setMyCommands", {"commands": [{"command": "menu", "description": "Открыть доступные действия"}]}),
+            ("setChatMenuButton", {"menu_button": {"type": "commands"}}),
+            ("getMyCommands", {}),
+            ("getChatMenuButton", {}),
+        ]
+        for operation, payload in fixed:
+            self.assertEqual(service.invoke_telegram(operation, json.dumps(payload).encode(), "core-secret")[0], 200)
+        self.assertEqual([call[0].rsplit("/", 1)[1] for call in calls], [row[0] for row in fixed])
+
+    def test_menu_operations_reject_any_other_payload_without_provider_call(self) -> None:
+        service = EdgeService(config(), requester=lambda *_: self.fail("must not call provider"))
+        status, result = service.invoke_telegram(
+            "setMyCommands", b'{"commands":[{"command":"other","description":"other"}]}', "core-secret"
+        )
+        self.assertEqual((status, result), (400, {"ok": False, "error": "invalid_menu_request"}))
+
 
 if __name__ == "__main__":
     unittest.main()
