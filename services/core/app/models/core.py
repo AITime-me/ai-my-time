@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -34,6 +34,12 @@ class User(Timestamped, Base):
     __table_args__ = (
         Index("ix_users_last_activity", "last_activity_at"),
         Index("ix_users_communication_reachability", "communication_status", "telegram_reachability"),
+        Index(
+            "ix_users_broadcast_eligibility",
+            "marketing_consent_status",
+            "telegram_reachability",
+            "communication_status",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -328,7 +334,7 @@ class DiagnosticReport(Timestamped, Base):
         JSONB, nullable=False, server_default="{}"
     )
     result_version: Mapped[str] = mapped_column(String(20), nullable=False, server_default="v1")
-    result_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    result_json: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, server_default="{}")
 
 
 class DiagnosticTurn(Base):
