@@ -10,13 +10,16 @@ the log stream.
 from __future__ import annotations
 
 import hmac
+import http.client
 import json
 import os
 import secrets
+import socket
 import sys
 import time
 import urllib.error
 import urllib.request
+import urllib.parse
 from dataclasses import dataclass
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -95,10 +98,64 @@ class EdgeConfig:
 HttpRequest = Callable[[str, bytes, Mapping[str, str]], tuple[int, bytes]]
 
 
+def _create_ipv6_connection(
+    address: tuple[str, int],
+    timeout: object = socket._GLOBAL_DEFAULT_TIMEOUT,
+    source_address: tuple[str, int] | None = None,
+) -> socket.socket:
+    host, port = address
+    last_error: OSError | None = None
+    for family, socktype, proto, _, sockaddr in socket.getaddrinfo(
+        host,
+        port,
+        socket.AF_INET6,
+        socket.SOCK_STREAM,
+    ):
+        sock = None
+        try:
+            sock = socket.socket(family, socktype, proto)
+            if timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+                sock.settimeout(timeout)
+            if source_address:
+                sock.bind(source_address)
+            sock.connect(sockaddr)
+            return sock
+        except OSError as error:
+            last_error = error
+            if sock is not None:
+                sock.close()
+    if last_error is not None:
+        raise last_error
+    raise OSError("no IPv6 address available")
+
+
+class _IPv6HTTPSConnection(http.client.HTTPSConnection):
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)
+        self._create_connection = _create_ipv6_connection
+
+
+class _IPv6HTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, request: urllib.request.Request):
+        return self.do_open(
+            _IPv6HTTPSConnection,
+            request,
+            context=self._context,
+        )
+
+
+_TELEGRAM_IPV6_OPENER = urllib.request.build_opener(_IPv6HTTPSHandler())
+
+
 def _request(url: str, body: bytes, headers: Mapping[str, str]) -> tuple[int, bytes]:
     request = urllib.request.Request(url, data=body, method="POST", headers=dict(headers))
+    telegram_api = urllib.parse.urlsplit(url).hostname == "api.telegram.org"
     try:
-        with urllib.request.urlopen(request, timeout=15) as response:
+        if telegram_api:
+            response_context = _TELEGRAM_IPV6_OPENER.open(request, timeout=15)
+        else:
+            response_context = urllib.request.urlopen(request, timeout=15)
+        with response_context as response:
             return response.status, response.read(MAX_BODY_BYTES + 1)
     except urllib.error.HTTPError as error:
         return error.code, error.read(MAX_BODY_BYTES + 1)

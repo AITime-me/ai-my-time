@@ -1,6 +1,9 @@
 import json
+import socket
 import unittest
+from unittest import mock
 
+import edge_app
 from edge_app import EdgeConfig, EdgeService
 
 
@@ -13,6 +16,63 @@ def config() -> EdgeConfig:
         "https://core.example/webhooks/telegram/lead",
         "https://edge.example/webhooks/telegram/lead",
     )
+
+
+class _FakeResponse:
+    status = 200
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def read(self, _limit):
+        return b'{"ok":true}'
+
+
+class EdgeTransportTests(unittest.TestCase):
+    def test_telegram_api_uses_ipv6_opener_but_core_keeps_default_transport(self) -> None:
+        with (
+            mock.patch.object(edge_app._TELEGRAM_IPV6_OPENER, "open", return_value=_FakeResponse()) as ipv6_open,
+            mock.patch("edge_app.urllib.request.urlopen", return_value=_FakeResponse()) as default_open,
+        ):
+            self.assertEqual(
+                edge_app._request("https://api.telegram.org/bottoken/getMe", b"{}", {}),
+                (200, b'{"ok":true}'),
+            )
+            ipv6_open.assert_called_once()
+            default_open.assert_not_called()
+
+            ipv6_open.reset_mock()
+            self.assertEqual(
+                edge_app._request("https://core.example/webhooks/telegram/lead", b"{}", {}),
+                (200, b'{"ok":true}'),
+            )
+            default_open.assert_called_once()
+            ipv6_open.assert_not_called()
+
+    def test_ipv6_connection_resolves_only_ipv6_addresses(self) -> None:
+        fake_socket = mock.Mock()
+        address = ("2001:db8::1", 443, 0, 0)
+        with (
+            mock.patch(
+                "edge_app.socket.getaddrinfo",
+                return_value=[(socket.AF_INET6, socket.SOCK_STREAM, 6, "", address)],
+            ) as getaddrinfo,
+            mock.patch("edge_app.socket.socket", return_value=fake_socket),
+        ):
+            result = edge_app._create_ipv6_connection(("api.telegram.org", 443), timeout=5)
+
+        self.assertIs(result, fake_socket)
+        getaddrinfo.assert_called_once_with(
+            "api.telegram.org",
+            443,
+            socket.AF_INET6,
+            socket.SOCK_STREAM,
+        )
+        fake_socket.settimeout.assert_called_once_with(5)
+        fake_socket.connect.assert_called_once_with(address)
 
 
 class EdgeServiceTests(unittest.TestCase):
