@@ -27,6 +27,7 @@ from app.models.core import (
     ScheduledEvent,
 )
 from app.models.radar import (
+    RadarAlertOutbox,
     RadarDestination,
     RadarObservationReceipt,
     RadarProfileDestination,
@@ -69,6 +70,7 @@ __all__ = [
     "OperationalLogEvent",
     "ScheduledEvent",
     "RadarTenant",
+    "RadarAlertOutbox",
     "RadarTenantAdmin",
     "RadarReader",
     "RadarSource",

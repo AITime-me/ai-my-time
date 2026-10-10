@@ -13,6 +13,9 @@ from sqlalchemy import select, text
 from app.db.session import create_session_factory, session_scope
 from app.models import (
     RadarObservationReceipt,
+    RadarAlertOutbox,
+    RadarDestination,
+    RadarProfileDestination,
     RadarProfileSource,
     RadarProfileVersion,
     RadarSearchProfile,
@@ -22,6 +25,7 @@ from app.models import (
     RadarTenant,
 )
 from app.services.radar_matching import RadarMatchingService
+from app.services.radar_alert_projection import RadarAlertProjectionService
 
 
 def _test_database_url() -> str:
@@ -43,7 +47,7 @@ async def _run_match_materialization(database_url: str) -> None:
         async with session_scope(factory) as session:
             await session.execute(
                 text(
-                    "TRUNCATE TABLE radar_signal, radar_observation_receipt, radar_profile_source, "
+                    "TRUNCATE TABLE radar_alert_outbox, radar_signal, radar_observation_receipt, radar_profile_source, "
                     "radar_search_rule, radar_profile_version, radar_search_profile, radar_source, "
                     "radar_reader, radar_tenant RESTART IDENTITY CASCADE"
                 )
@@ -78,6 +82,14 @@ async def _run_match_materialization(database_url: str) -> None:
             session.add(version)
             await session.flush()
             profile.active_version_id = version.id
+            destination = RadarDestination(
+                tenant_id=tenant.id,
+                bot_binding_key="radar-test-bot",
+                chat_id=123456,
+                verification_state="verified",
+            )
+            session.add(destination)
+            await session.flush()
             session.add_all(
                 [
                     RadarProfileSource(
@@ -89,6 +101,11 @@ async def _run_match_materialization(database_url: str) -> None:
                         rule_key="include-crm",
                         kind="include",
                         expression={"terms": ["crm"]},
+                    ),
+                    RadarProfileDestination(
+                        tenant_id=tenant.id,
+                        profile_version_id=version.id,
+                        destination_id=destination.id,
                     ),
                     RadarSearchRule(
                         tenant_id=tenant.id,
@@ -121,6 +138,41 @@ async def _run_match_materialization(database_url: str) -> None:
             assert signal.profile_version_id == version.id
             assert signal.matched_rule_keys == ["include-crm"]
             assert signal.excluded_rule_keys == ["exclude-gambling"]
+
+            # Excluded signals never enter the Radar Bot outbox.
+            assert await RadarAlertProjectionService(session).project(signal=signal, receipt=receipt) == 0
+
+            matched_receipt = RadarObservationReceipt(
+                tenant_id=tenant.id,
+                reader_id=reader_id,
+                source_id=source.id,
+                observation_id=uuid.uuid4(),
+                manifest_version="test",
+                message_id="2",
+                revision_fingerprint="c" * 64,
+                payload_sha256="d" * 64,
+                event_kind="message_upsert",
+                origin="live",
+                published_at=datetime(2026, 10, 10, tzinfo=timezone.utc),
+                detected_at=datetime(2026, 10, 10, tzinfo=timezone.utc),
+                payload={"content": {"kind": "text", "text": "Need CRM implementation"}},
+            )
+            session.add(matched_receipt)
+            await session.flush()
+            matched_signal = await RadarMatchingService(session).materialize(receipt=matched_receipt)
+            assert matched_signal.status == "matched"
+            projector = RadarAlertProjectionService(session)
+            assert await projector.project(signal=matched_signal, receipt=matched_receipt) == 1
+            assert await projector.project(signal=matched_signal, receipt=matched_receipt) == 0
+            alerts = list(
+                await session.scalars(
+                    select(RadarAlertOutbox).where(RadarAlertOutbox.signal_id == matched_signal.id)
+                )
+            )
+            assert len(alerts) == 1
+            assert alerts[0].destination_id == destination.id
+            assert alerts[0].status == "pending"
+            assert alerts[0].payload["text"] == "Need CRM implementation"
 
             stored = (
                 await session.scalars(

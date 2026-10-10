@@ -285,6 +285,7 @@ class RadarSignal(Timestamped, Base):
 
     __tablename__ = "radar_signal"
     __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_radar_signal_tenant_id"),
         UniqueConstraint(
             "tenant_id", "observation_receipt_id", name="uq_radar_signal_tenant_receipt"
         ),
@@ -321,6 +322,46 @@ class RadarSignal(Timestamped, Base):
     excluded_rule_keys: Mapped[list[str]] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     freshness_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     matched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class RadarAlertOutbox(Timestamped, Base):
+    """Tenant-local Radar Bot delivery intent, separate from Lead Bot outbox."""
+
+    __tablename__ = "radar_alert_outbox"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "signal_id", "destination_id", name="uq_radar_alert_outbox_signal_destination"
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id"], ["radar_tenant.id"], name="fk_radar_alert_outbox_tenant", ondelete="RESTRICT"
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "signal_id"], ["radar_signal.tenant_id", "radar_signal.id"],
+            name="fk_radar_alert_outbox_signal", ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "destination_id"], ["radar_destination.tenant_id", "radar_destination.id"],
+            name="fk_radar_alert_outbox_destination", ondelete="RESTRICT",
+        ),
+        Index("ix_radar_alert_outbox_status_created", "status", "created_at"),
+        CheckConstraint(
+            "status IN ('pending', 'processing', 'sent', 'failed', 'skipped')",
+            name="ck_radar_alert_outbox_status",
+        ),
+        CheckConstraint("attempt_count >= 0", name="ck_radar_alert_outbox_attempt_count"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    signal_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    destination_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="pending")
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    lease_token: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class RadarSearchProfile(Timestamped, Base):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.db.base import Base
 from app.models import (
+    RadarAlertOutbox,
     RadarDestination,
     RadarProfileDestination,
     RadarProfileSource,
@@ -36,6 +37,7 @@ def test_radar_config_tables_registered_in_metadata() -> None:
         "radar_source",
         "radar_observation_receipt",
         "radar_signal",
+        "radar_alert_outbox",
         "radar_destination",
         "radar_search_profile",
         "radar_profile_version",
@@ -78,6 +80,7 @@ def test_radar_destination_unique_constraint() -> None:
 def test_radar_signal_is_one_outcome_per_tenant_receipt() -> None:
     names = _constraint_names("radar_signal")
     assert "uq_radar_signal_tenant_receipt" in names
+    assert "uq_radar_signal_tenant_id" in names
     assert "ck_radar_signal_status" in names
     assert "ix_radar_signal_tenant_status_created" in _index_names("radar_signal")
     table = Base.metadata.tables["radar_signal"]
@@ -85,6 +88,14 @@ def test_radar_signal_is_one_outcome_per_tenant_receipt() -> None:
     assert "uq_radar_observation_receipt_tenant_id" in _constraint_names(
         "radar_observation_receipt"
     )
+
+
+def test_radar_alert_outbox_dedupes_per_signal_destination() -> None:
+    names = _constraint_names("radar_alert_outbox")
+    assert "uq_radar_alert_outbox_signal_destination" in names
+    assert "ck_radar_alert_outbox_status" in names
+    assert "ck_radar_alert_outbox_attempt_count" in names
+    assert "ix_radar_alert_outbox_status_created" in _index_names("radar_alert_outbox")
 
 
 def test_radar_profile_version_and_rule_uniques() -> None:
@@ -136,6 +147,7 @@ def test_radar_model_exports_exist() -> None:
     assert RadarSearchProfile.__tablename__ == "radar_search_profile"
     assert RadarProfileVersion.__tablename__ == "radar_profile_version"
     assert RadarSignal.__tablename__ == "radar_signal"
+    assert RadarAlertOutbox.__tablename__ == "radar_alert_outbox"
     assert RadarSearchRule.__tablename__ == "radar_search_rule"
     assert RadarProfileSource.__tablename__ == "radar_profile_source"
     assert RadarProfileDestination.__tablename__ == "radar_profile_destination"

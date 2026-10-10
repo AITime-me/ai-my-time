@@ -13,6 +13,7 @@ from app.models import RadarObservationReceipt, RadarSource
 from app.schemas.radar_v1 import RadarAckStatus, RadarObservationAckV1, RadarObservationV1
 from app.services.radar_config import RadarConfigService
 from app.services.radar_matching import RadarMatchingService
+from app.services.radar_alert_projection import RadarAlertProjectionService
 from app.services.radar_reader_auth import RadarReaderPrincipal
 
 
@@ -97,7 +98,8 @@ class RadarIngressService:
         )
         self._session.add(receipt)
         await self._session.flush()
-        await RadarMatchingService(self._session).materialize(receipt=receipt)
+        signal = await RadarMatchingService(self._session).materialize(receipt=receipt)
+        await RadarAlertProjectionService(self._session).project(signal=signal, receipt=receipt)
         return RadarObservationAckV1(
             observation_id=observation.observation_id,
             receipt_id=receipt.id,
