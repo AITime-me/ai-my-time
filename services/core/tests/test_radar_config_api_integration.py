@@ -17,6 +17,8 @@ from app.db.session import create_session_factory, session_scope
 from app.main import create_app
 from app.models import RadarReader, RadarTenant, RadarTenantAdmin
 from app.radar_assets import load_fixture
+from app.schemas.radar_fingerprint import compute_revision_fingerprint
+from app.schemas.radar_v1 import RadarObservationV1
 from app.services.admin_auth import AdminAuthService
 from app.services.radar_reader_credentials import get_radar_reader_credential_store
 
@@ -401,6 +403,8 @@ def test_radar_headless_config_api_and_manifest(monkeypatch: pytest.MonkeyPatch,
             observation = load_fixture("observation.live_upsert.json")
             observation["source_id"] = source_id
             observation["manifest_version"] = version_one
+            parsed_observation = RadarObservationV1.model_validate(observation)
+            observation["revision_fingerprint"] = compute_revision_fingerprint(parsed_observation)
             accepted = client.post(
                 "/internal/radar/v1/observations", headers=bearer, json=observation
             )
