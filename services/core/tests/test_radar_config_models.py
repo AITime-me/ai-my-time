@@ -11,6 +11,7 @@ from app.models import (
     RadarReader,
     RadarSearchProfile,
     RadarSearchRule,
+    RadarSignal,
     RadarSource,
     RadarTenant,
     RadarTenantAdmin,
@@ -34,6 +35,7 @@ def test_radar_config_tables_registered_in_metadata() -> None:
         "radar_reader",
         "radar_source",
         "radar_observation_receipt",
+        "radar_signal",
         "radar_destination",
         "radar_search_profile",
         "radar_profile_version",
@@ -71,6 +73,18 @@ def test_radar_destination_unique_constraint() -> None:
     assert "uq_radar_destination_tenant_id" in names
     table = Base.metadata.tables["radar_destination"]
     assert "BIGINT" in str(table.c.chat_id.type).upper()
+
+
+def test_radar_signal_is_one_outcome_per_tenant_receipt() -> None:
+    names = _constraint_names("radar_signal")
+    assert "uq_radar_signal_tenant_receipt" in names
+    assert "ck_radar_signal_status" in names
+    assert "ix_radar_signal_tenant_status_created" in _index_names("radar_signal")
+    table = Base.metadata.tables["radar_signal"]
+    assert "JSONB" in str(table.c.matched_rule_keys.type).upper()
+    assert "uq_radar_observation_receipt_tenant_id" in _constraint_names(
+        "radar_observation_receipt"
+    )
 
 
 def test_radar_profile_version_and_rule_uniques() -> None:
@@ -121,6 +135,7 @@ def test_radar_model_exports_exist() -> None:
     assert RadarDestination.__tablename__ == "radar_destination"
     assert RadarSearchProfile.__tablename__ == "radar_search_profile"
     assert RadarProfileVersion.__tablename__ == "radar_profile_version"
+    assert RadarSignal.__tablename__ == "radar_signal"
     assert RadarSearchRule.__tablename__ == "radar_search_rule"
     assert RadarProfileSource.__tablename__ == "radar_profile_source"
     assert RadarProfileDestination.__tablename__ == "radar_profile_destination"

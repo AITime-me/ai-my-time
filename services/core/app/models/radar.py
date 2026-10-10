@@ -229,6 +229,9 @@ class RadarObservationReceipt(Timestamped, Base):
     __tablename__ = "radar_observation_receipt"
     __table_args__ = (
         UniqueConstraint(
+            "tenant_id", "id", name="uq_radar_observation_receipt_tenant_id"
+        ),
+        UniqueConstraint(
             "tenant_id", "observation_id", name="uq_radar_observation_receipt_tenant_observation"
         ),
         ForeignKeyConstraint(
@@ -271,6 +274,53 @@ class RadarObservationReceipt(Timestamped, Base):
     detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class RadarSignal(Timestamped, Base):
+    """One durable matching outcome for a tenant and accepted observation.
+
+    A signal is deliberately distinct from a delivery attempt: matching can be
+    retried or reprojected without creating a second tenant-visible signal.
+    """
+
+    __tablename__ = "radar_signal"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "observation_receipt_id", name="uq_radar_signal_tenant_receipt"
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id"], ["radar_tenant.id"], name="fk_radar_signal_tenant", ondelete="RESTRICT"
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "observation_receipt_id"],
+            ["radar_observation_receipt.tenant_id", "radar_observation_receipt.id"],
+            name="fk_radar_signal_receipt",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "profile_version_id"],
+            ["radar_profile_version.tenant_id", "radar_profile_version.id"],
+            name="fk_radar_signal_profile_version",
+            ondelete="RESTRICT",
+        ),
+        Index("ix_radar_signal_tenant_status_created", "tenant_id", "status", "created_at"),
+        CheckConstraint(
+            "status IN ('pending', 'matched', 'excluded', 'no_match', 'stale', 'deleted')",
+            name="ck_radar_signal_status",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    observation_receipt_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    profile_version_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="pending")
+    matched_rule_keys: Mapped[list[str]] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    excluded_rule_keys: Mapped[list[str]] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    freshness_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    matched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class RadarSearchProfile(Timestamped, Base):
