@@ -339,6 +339,8 @@ class RadarConfigService:
 
     @staticmethod
     def _profile_view(row: RadarSearchProfile) -> RadarProfileView:
+        """Project already-loaded scalar columns only (no lazy/async IO)."""
+
         return RadarProfileView(
             id=row.id,
             tenant_id=row.tenant_id,
@@ -349,6 +351,12 @@ class RadarConfigService:
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
+
+    async def _refreshed_profile_view(self, row: RadarSearchProfile) -> RadarProfileView:
+        # After INSERT/UPDATE, server defaults / onupdate may expire columns;
+        # refresh explicitly so _profile_view never triggers async lazy IO.
+        await self._session.refresh(row)
+        return self._profile_view(row)
 
     async def create_profile(
         self, *, actor_id: uuid.UUID, tenant_id: uuid.UUID, payload: RadarProfileCreate
@@ -369,7 +377,7 @@ class RadarConfigService:
             tenant_id=tenant_id,
             delta={"name": row.name},
         )
-        return self._profile_view(row)
+        return await self._refreshed_profile_view(row)
 
     async def create_profile_version(
         self,
@@ -560,7 +568,7 @@ class RadarConfigService:
             raise RadarConfigError("version_not_found", "profile version not found")
 
         if profile.active_version_id == version.id:
-            return self._profile_view(profile)
+            return await self._refreshed_profile_view(profile)
 
         now = datetime.now(timezone.utc)
         profile.active_version_id = version.id
@@ -574,7 +582,7 @@ class RadarConfigService:
             tenant_id=tenant_id,
             delta={"active_version_id": str(version.id), "version": version.version},
         )
-        return self._profile_view(profile)
+        return await self._refreshed_profile_view(profile)
 
     @staticmethod
     def compute_manifest_version(

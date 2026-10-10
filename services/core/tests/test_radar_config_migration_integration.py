@@ -1,4 +1,4 @@
-"""Alembic upgrade/downgrade/re-upgrade for Radar configuration revisions."""
+"""Alembic upgrade/downgrade proofs for Radar Slice 2 and Slice 3 revisions."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from app.core.settings import get_settings
 
 BASELINE = "20260906_21"
 SLICE2_HEAD = "20261010_22"
-RADAR_HEAD = "20261010_23"
+SLICE3_HEAD = "20261010_23"
 RADAR_TABLES = {
     "radar_tenant",
     "radar_tenant_admin",
@@ -118,13 +118,13 @@ async def _assert_slice2_schema(engine: AsyncEngine) -> None:
 async def _assert_slice3_schema(engine: AsyncEngine) -> None:
     present = await _public_tables(engine)
     assert RADAR_TABLES.issubset(present)
-    assert await _alembic_version(engine) == RADAR_HEAD
+    assert await _alembic_version(engine) == SLICE3_HEAD
     async with engine.connect() as conn:
         col = (
             await conn.execute(
                 text(
                     """
-                    SELECT is_nullable, column_default
+                    SELECT is_nullable, column_default, data_type
                     FROM information_schema.columns
                     WHERE table_name = 'radar_source' AND column_name = 'config_version'
                     """
@@ -132,6 +132,7 @@ async def _assert_slice3_schema(engine: AsyncEngine) -> None:
             )
         ).one()
         assert col.is_nullable == "NO"
+        assert col.data_type == "integer"
         assert "1" in (col.column_default or "")
         check = (
             await conn.execute(
@@ -146,14 +147,24 @@ async def _assert_slice3_schema(engine: AsyncEngine) -> None:
         assert check == 1
 
 
-def test_radar_configuration_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:
+def _restore_head(config: Config) -> None:
+    """Always leave the shared CI database on the current repository head."""
+
+    command.upgrade(config, "head")
+
+
+def test_radar_slice2_configuration_migration_round_trip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prove historical Slice 2 revision without requiring it to be repo head."""
+
     async_url = _async_url()
     monkeypatch.setenv("DATABASE_URL", async_url)
     get_settings.cache_clear()
 
     config = _alembic_config()
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_current_head() == RADAR_HEAD
+    assert scripts.get_current_head() == SLICE3_HEAD
 
     try:
         _run(async_url, _reset_schema)
@@ -163,25 +174,52 @@ def test_radar_configuration_migration_round_trip(monkeypatch: pytest.MonkeyPatc
 
         command.upgrade(config, SLICE2_HEAD)
         _run(async_url, _assert_slice2_schema)
-        command.check(config)
+        # Do NOT alembic check here: repository head is ahead of Slice 2.
 
         command.downgrade(config, BASELINE)
         _run(async_url, _assert_baseline_without_radar)
 
         command.upgrade(config, SLICE2_HEAD)
         _run(async_url, _assert_slice2_schema)
+    finally:
+        try:
+            _restore_head(config)
+        finally:
+            get_settings.cache_clear()
 
-        command.upgrade(config, RADAR_HEAD)
+
+def test_radar_slice3_config_version_migration_round_trip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prove Slice 3 config_version additive migration and check only at head."""
+
+    async_url = _async_url()
+    monkeypatch.setenv("DATABASE_URL", async_url)
+    get_settings.cache_clear()
+
+    config = _alembic_config()
+    scripts = ScriptDirectory.from_config(config)
+    assert scripts.get_current_head() == SLICE3_HEAD
+
+    try:
+        _run(async_url, _reset_schema)
+
+        command.upgrade(config, SLICE2_HEAD)
+        _run(async_url, _assert_slice2_schema)
+
+        command.upgrade(config, SLICE3_HEAD)
         _run(async_url, _assert_slice3_schema)
-        command.check(config)
 
         command.downgrade(config, SLICE2_HEAD)
         _run(async_url, _assert_slice2_schema)
 
-        command.upgrade(config, RADAR_HEAD)
+        command.upgrade(config, SLICE3_HEAD)
         _run(async_url, _assert_slice3_schema)
 
         command.upgrade(config, "head")
         command.check(config)
     finally:
-        get_settings.cache_clear()
+        try:
+            _restore_head(config)
+        finally:
+            get_settings.cache_clear()
