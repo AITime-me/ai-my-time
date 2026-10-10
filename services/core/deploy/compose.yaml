@@ -44,6 +44,10 @@ services:
       # 127.0.0.1:18181; requests carrying nginx forwarding headers get 404.
       WEBSITE_CONSULTANT_ENABLED: "true"
       WEBSITE_CONSULTANT_SECRET_PATH: /run/secrets/website_consultant_secret
+      # Exact Admin browser Origin for mutation CSRF guard (Radar Admin included).
+      ADMIN_TRUSTED_ORIGIN: https://admin.aimytimebot.ru
+      # File-backed Reader bearer secrets for /internal/radar/v1/...
+      RADAR_READER_CREDENTIALS_PATH: /run/secrets/radar_reader_credentials
     volumes:
       - /srv/ai-my-time/secrets/database_url:/run/secrets/database_url:ro
       - /srv/ai-my-time/secrets/telegram_edge_core_secret:/run/secrets/telegram_edge_core_secret:ro
@@ -52,6 +56,7 @@ services:
       # Create this file (mode 0400) before deploying; otherwise Docker creates
       # a directory here and the consultant endpoint stays at 503.
       - /srv/ai-my-time/secrets/website_consultant_secret:/run/secrets/website_consultant_secret:ro
+      - /srv/ai-my-time/secrets/radar_reader_credentials:/run/secrets/radar_reader_credentials:ro
     ports:
       - "127.0.0.1:18181:8000"
     healthcheck:
