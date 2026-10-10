@@ -158,6 +158,7 @@ class RadarSource(Timestamped, Base):
             "monitoring_capability IN ('realtime', 'history_only', 'unverified')",
             name="ck_radar_source_monitoring_capability",
         ),
+        CheckConstraint("config_version >= 1", name="ck_radar_source_config_version"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -178,6 +179,9 @@ class RadarSource(Timestamped, Base):
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     monitoring_capability: Mapped[str] = mapped_column(
         String(32), nullable=False, server_default="unverified"
+    )
+    config_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("1")
     )
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -1,4 +1,4 @@
-"""Alembic upgrade/downgrade/re-upgrade for Radar configuration revision."""
+"""Alembic upgrade/downgrade/re-upgrade for Radar configuration revisions."""
 
 from __future__ import annotations
 
@@ -18,7 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from app.core.settings import get_settings
 
 BASELINE = "20260906_21"
-RADAR_HEAD = "20261010_22"
+SLICE2_HEAD = "20261010_22"
+RADAR_HEAD = "20261010_23"
 RADAR_TABLES = {
     "radar_tenant",
     "radar_tenant_admin",
@@ -54,8 +55,6 @@ def _alembic_config() -> Config:
 async def _with_engine(
     database_url: str, operation: Callable[[AsyncEngine], Awaitable[T]]
 ) -> T:
-    """One AsyncEngine per asyncio.run — matches Core asyncpg usage."""
-
     engine = create_async_engine(database_url, pool_pre_ping=True)
     try:
         return await operation(engine)
@@ -98,42 +97,57 @@ async def _assert_baseline_without_radar(engine: AsyncEngine) -> None:
     assert await _alembic_version(engine) == BASELINE
 
 
-async def _assert_radar_schema_present(engine: AsyncEngine) -> None:
+async def _assert_slice2_schema(engine: AsyncEngine) -> None:
     present = await _public_tables(engine)
     assert RADAR_TABLES.issubset(present)
-    assert await _alembic_version(engine) == RADAR_HEAD
-
+    assert await _alembic_version(engine) == SLICE2_HEAD
     async with engine.connect() as conn:
-        peer_check = (
+        has_col = (
             await conn.execute(
                 text(
                     """
-                    SELECT 1
-                    FROM pg_constraint
-                    WHERE conname = 'ck_radar_source_peer_id_positive'
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'radar_source' AND column_name = 'config_version'
                     """
                 )
             )
-        ).scalar_one()
-        assert peer_check == 1
-        deferred = (
+        ).scalar_one_or_none()
+        assert has_col is None
+
+
+async def _assert_slice3_schema(engine: AsyncEngine) -> None:
+    present = await _public_tables(engine)
+    assert RADAR_TABLES.issubset(present)
+    assert await _alembic_version(engine) == RADAR_HEAD
+    async with engine.connect() as conn:
+        col = (
             await conn.execute(
                 text(
                     """
-                    SELECT condeferrable, condeferred
-                    FROM pg_constraint
-                    WHERE conname = 'fk_radar_search_profile_active_version'
+                    SELECT is_nullable, column_default
+                    FROM information_schema.columns
+                    WHERE table_name = 'radar_source' AND column_name = 'config_version'
                     """
                 )
             )
         ).one()
-        assert deferred.condeferrable is True
-        assert deferred.condeferred is True
+        assert col.is_nullable == "NO"
+        assert "1" in (col.column_default or "")
+        check = (
+            await conn.execute(
+                text(
+                    """
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'ck_radar_source_config_version'
+                    """
+                )
+            )
+        ).scalar_one()
+        assert check == 1
 
 
 def test_radar_configuration_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:
     async_url = _async_url()
-    # env.py / CI use DATABASE_URL with postgresql+asyncpg:// (no sync psycopg).
     monkeypatch.setenv("DATABASE_URL", async_url)
     get_settings.cache_clear()
 
@@ -147,15 +161,25 @@ def test_radar_configuration_migration_round_trip(monkeypatch: pytest.MonkeyPatc
         command.upgrade(config, BASELINE)
         _run(async_url, _assert_baseline_without_radar)
 
-        command.upgrade(config, RADAR_HEAD)
-        _run(async_url, _assert_radar_schema_present)
+        command.upgrade(config, SLICE2_HEAD)
+        _run(async_url, _assert_slice2_schema)
         command.check(config)
 
         command.downgrade(config, BASELINE)
         _run(async_url, _assert_baseline_without_radar)
 
+        command.upgrade(config, SLICE2_HEAD)
+        _run(async_url, _assert_slice2_schema)
+
         command.upgrade(config, RADAR_HEAD)
-        _run(async_url, _assert_radar_schema_present)
+        _run(async_url, _assert_slice3_schema)
+        command.check(config)
+
+        command.downgrade(config, SLICE2_HEAD)
+        _run(async_url, _assert_slice2_schema)
+
+        command.upgrade(config, RADAR_HEAD)
+        _run(async_url, _assert_slice3_schema)
 
         command.upgrade(config, "head")
         command.check(config)

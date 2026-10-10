@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
+from app.api.admin_origin import require_trusted_admin_origin
 from app.db.dependencies import get_session_factory
 from app.db.session import session_scope
 from app.schemas.admin_auth import AdminActor, AdminEmailUpdate
@@ -70,10 +71,7 @@ async def update_email(payload: AdminEmailUpdate, request: Request) -> AdminActo
 
 @router.post("/logout", status_code=204)
 async def logout(request: Request, response: Response) -> Response:
-    origin = request.headers.get("origin")
-    expected_origin = str(request.base_url).rstrip("/")
-    if origin != expected_origin:
-        raise HTTPException(status_code=403, detail="origin check failed")
+    require_trusted_admin_origin(request, require_json=False)
     token = request.cookies.get(_COOKIE_NAME)
     if token:
         factory = get_session_factory(request)

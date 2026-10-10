@@ -49,6 +49,8 @@ def test_radar_source_peer_id_is_bigint_positive_check() -> None:
     names = _constraint_names("radar_source")
     assert "ck_radar_source_peer_id_positive" in names
     assert "ck_radar_source_connector" in names
+    assert "ck_radar_source_config_version" in names
+    assert "config_version" in table.c
     assert "uq_radar_source_tenant_connector_peer" in names
     assert "uq_radar_source_tenant_id" in names
     assert "ix_radar_source_tenant_reader_enabled" in _index_names("radar_source")

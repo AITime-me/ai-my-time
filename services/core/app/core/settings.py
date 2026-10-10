@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     # missing secret disables the endpoint instead of blocking API startup.
     website_consultant_enabled: bool = False
     website_consultant_secret_path: str | None = None
+    # Exact Admin browser Origin (scheme://host[:port]) for mutation CSRF guard.
+    # Fail closed when unset: Admin mutations that require Origin reject.
+    admin_trusted_origin: str | None = None
+    # JSON object mapping credential_key_id -> secret (file-backed; never in DB).
+    radar_reader_credentials_path: str | None = None
 
 
 @lru_cache

@@ -7,9 +7,11 @@ from app.api.routes.admin_broadcasts import router as admin_broadcasts_router
 from app.api.routes.admin_leads import router as admin_leads_router
 from app.api.routes.admin_knowledge import router as admin_knowledge_router
 from app.api.routes.admin_logs import router as admin_logs_router
+from app.api.routes.admin_radar import router as admin_radar_router
 from app.api.routes.admin_ui import router as admin_ui_router
 from app.api.routes.health import router as health_router
 from app.api.routes.internal_consultant import router as internal_consultant_router
+from app.api.routes.internal_radar import router as internal_radar_router
 from app.api.routes.telegram_lead import router as telegram_lead_router
 from app.core.settings import get_settings
 from app.db.session import create_session_factory
@@ -43,9 +45,11 @@ def create_app() -> FastAPI:
     app.include_router(admin_leads_router)
     app.include_router(admin_knowledge_router)
     app.include_router(admin_logs_router)
+    app.include_router(admin_radar_router)
     app.include_router(admin_ui_router)
     app.include_router(telegram_lead_router)
     app.include_router(internal_consultant_router)
+    app.include_router(internal_radar_router)
     return app
 
 

@@ -37,6 +37,7 @@ def test_admin_login_is_cookie_only_and_logout_revokes_session(monkeypatch: pyte
     asyncio.run(_enable_audience_member(database_url))
     asyncio.run(_create_audience_facts(database_url))
     monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("ADMIN_TRUSTED_ORIGIN", "http://testserver")
     get_settings.cache_clear()
     try:
         with TestClient(create_app()) as client:
