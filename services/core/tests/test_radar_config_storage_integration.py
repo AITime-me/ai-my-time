@@ -27,6 +27,7 @@ from app.models import (
 from app.services.admin_auth import AdminAuthService
 
 RADAR_TABLES = (
+    "radar_signal",
     "radar_observation_receipt",
     "radar_profile_destination",
     "radar_profile_source",

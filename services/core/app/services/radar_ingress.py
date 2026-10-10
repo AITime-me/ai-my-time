@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import RadarObservationReceipt, RadarSource
 from app.schemas.radar_v1 import RadarAckStatus, RadarObservationAckV1, RadarObservationV1
 from app.services.radar_config import RadarConfigService
+from app.services.radar_matching import RadarMatchingService
 from app.services.radar_reader_auth import RadarReaderPrincipal
 
 
@@ -96,6 +97,7 @@ class RadarIngressService:
         )
         self._session.add(receipt)
         await self._session.flush()
+        await RadarMatchingService(self._session).materialize(receipt=receipt)
         return RadarObservationAckV1(
             observation_id=observation.observation_id,
             receipt_id=receipt.id,

@@ -23,6 +23,7 @@ from app.services.admin_auth import AdminAuthService
 from app.services.radar_reader_credentials import get_radar_reader_credential_store
 
 RADAR_TABLES = (
+    "radar_signal",
     "radar_observation_receipt",
     "radar_profile_destination",
     "radar_profile_source",
