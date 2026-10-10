@@ -9,7 +9,7 @@
       "source_id": "src_radar_demo_channel",
       "connector": "telegram",
       "peer_type": "channel",
-      "peer_id": "1001234567890",
+      "peer_id": "1234567890",
       "source_type": "channel",
       "activated_at": "2026-10-01T00:00:00Z",
       "enabled": true,

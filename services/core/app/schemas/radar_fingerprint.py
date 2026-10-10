@@ -20,6 +20,9 @@ Included for ``message_deleted``:
 - published_at (null if absent), edited_at
 - content is always null in the fingerprint object
 
+``peer_id`` in the fingerprint is the canonical unsigned raw entity id
+(never a Telethon ``-100…`` marked form).
+
 Excluded (transport / display / attempt metadata):
 - observation_id, origin, detected_at
 - author.*, links.*

@@ -5,14 +5,14 @@
   "manifest_version": "mv-2026-10-10.1",
   "connector": "telegram",
   "peer_type": "channel",
-  "peer_id": "1001234567890",
+  "peer_id": "1234567890",
   "message_id": "42",
   "event_kind": "message_upsert",
   "published_at": "2026-10-10T08:00:00Z",
   "detected_at": "2026-10-10T08:01:10Z",
   "edited_at": null,
   "origin": "catch_up",
-  "revision_fingerprint": "c84b930d0f5b28dbfb798fae05c1cf8d6c09f5f3cb79fb98ea844bd5e6dd244d",
+  "revision_fingerprint": "dcd666499cc5dde78ddafc63b2eda85c7e88454f56ae3d44b76ad5011f0d28ea",
   "content": {
     "kind": "text",
     "text": "Need CRM automation for leads"

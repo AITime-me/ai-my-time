@@ -16,6 +16,18 @@ Source/message identity:
 - `peer_id`
 - `message_id`
 
+### Canonical `peer_id`
+
+- `peer_type` and `peer_id` are separate fields.
+- Wire `peer_id` is an **unsigned positive decimal string** (raw Telegram
+  channel/chat/user/entity numeric id).
+- Telethon/Bot **marked** ids such as `-100…` are **forbidden**.
+- Entity class is carried only by `peer_type`; the `-100` transport prefix is
+  not used for disambiguation and must not appear on the wire.
+- Reader normalization (future) must strip Telethon marking before building an
+  Observation. Core fails closed on signed/negative/`-100…` forms.
+- Dual representations are not supported.
+
 Future Core semantic Signal identity:
 
 - `tenant + source + message_id`

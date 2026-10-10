@@ -31,6 +31,7 @@ from app.schemas.radar_v1 import (
     RadarOrigin,
     RadarPeerType,
     RadarReaderManifestV1,
+    telegram_peer_id,
 )
 from app.schemas.radar_validation import (
     RadarPayloadTooLargeError,
@@ -85,10 +86,61 @@ def test_schema_version_mismatch_and_unsupported() -> None:
 
 def test_decimal_string_telegram_ids_accepted() -> None:
     observation = _live()
-    assert observation.peer_id == "1001234567890"
+    assert observation.peer_id == "1234567890"
     assert observation.message_id == "42"
     assert observation.author is not None
     assert observation.author.id == "8266714957"
+
+
+def test_valid_positive_raw_peer_id() -> None:
+    observation = _live()
+    assert observation.peer_id == "1234567890"
+    assert telegram_peer_id(observation.peer_id) == "1234567890"
+    assert observation.peer_id.isdecimal()
+    assert not observation.peer_id.startswith("-")
+    # fixture uses raw entity id, not Telethon marked digits without '-'
+    assert observation.peer_id != "1001234567890"
+
+
+def test_negative_marked_peer_id_rejected() -> None:
+    payload = load_fixture("observation.live_upsert.json")
+    payload["peer_id"] = "-1001234567890"
+    with pytest.raises(ValidationError):
+        RadarObservationV1.model_validate(payload)
+    payload = load_fixture("manifest.valid.json")
+    payload["sources"][0]["peer_id"] = "-1001234567890"
+    with pytest.raises(ValidationError):
+        RadarReaderManifestV1.model_validate(payload)
+
+
+def test_signed_decimal_peer_id_rejected() -> None:
+    payload = load_fixture("observation.live_upsert.json")
+    for bad in ("+1234567890", "-1234567890", "-1"):
+        payload["peer_id"] = bad
+        with pytest.raises(ValidationError):
+            RadarObservationV1.model_validate(payload)
+
+
+def test_peer_type_plus_raw_peer_id_is_canonical_identity() -> None:
+    live = _live()
+    assert live.peer_type is RadarPeerType.CHANNEL
+    assert live.peer_id == "1234567890"
+    # same raw id with different peer_type is a different identity surface
+    other = live.model_copy(update={"peer_type": RadarPeerType.SUPERGROUP})
+    assert (live.peer_type, live.peer_id) != (other.peer_type, other.peer_id)
+    assert compute_revision_fingerprint(live) != compute_revision_fingerprint(other)
+
+
+def test_fingerprint_uses_canonical_raw_peer_id() -> None:
+    live = _live()
+    expected = compute_revision_fingerprint(live)
+    assert live.revision_fingerprint == expected
+    payload = load_fixture("observation.live_upsert.json")
+    assert payload["peer_id"] == "1234567890"
+    # marked form never validates, so fingerprint path cannot accept it
+    payload["peer_id"] = "-1001234567890"
+    with pytest.raises(ValidationError):
+        RadarObservationV1.model_validate(payload)
 
 
 def test_invalid_numeric_ids_rejected() -> None:

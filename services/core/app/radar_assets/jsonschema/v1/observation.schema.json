@@ -183,7 +183,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Wire observation. Tenant is NOT accepted from Reader.",
+  "description": "Wire observation. Workspace binding is resolved by Core credentials, not this payload.",
   "properties": {
     "author": {
       "anyOf": [
@@ -266,8 +266,10 @@
       "$ref": "#/$defs/RadarOrigin"
     },
     "peer_id": {
+      "description": "Unsigned positive raw Telegram entity id; never -100... marked form",
       "maxLength": 32,
       "minLength": 1,
+      "pattern": "^[1-9][0-9]*$",
       "title": "Peer Id",
       "type": "string"
     },

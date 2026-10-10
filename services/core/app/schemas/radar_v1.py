@@ -104,6 +104,24 @@ def telegram_decimal_id(value: str, *, field_name: str) -> str:
     return value
 
 
+def telegram_peer_id(value: str) -> str:
+    """Canonical Radar peer_id: unsigned positive decimal raw entity id.
+
+    ``peer_type`` carries entity class. Telethon/Bot marked ids such as
+    ``-100…`` (or any signed form) are rejected fail-closed.
+    """
+    if value.startswith("-") or value.startswith("+"):
+        raise ValueError(
+            "peer_id must be an unsigned positive decimal raw Telegram entity id; "
+            "Telethon marked forms like -100... are forbidden"
+        )
+    if not value.isdecimal():
+        raise ValueError("peer_id must be an unsigned positive decimal string")
+    if value == "0" or value.startswith("0"):
+        raise ValueError("peer_id must be a positive decimal string without leading zeros")
+    return value
+
+
 class _RadarModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -162,7 +180,12 @@ class RadarSourceManifestItemV1(_RadarModel):
     source_id: str = Field(min_length=1, max_length=128)
     connector: Literal["telegram"] = CONNECTOR_TELEGRAM
     peer_type: RadarPeerType
-    peer_id: str = Field(min_length=1, max_length=32)
+    peer_id: str = Field(
+        min_length=1,
+        max_length=32,
+        pattern=r"^[1-9][0-9]*$",
+        description="Unsigned positive raw Telegram entity id; never -100... marked form",
+    )
     source_type: RadarSourceType
     activated_at: datetime
     enabled: bool
@@ -172,7 +195,7 @@ class RadarSourceManifestItemV1(_RadarModel):
     @field_validator("peer_id")
     @classmethod
     def _peer_id(cls, value: str) -> str:
-        return telegram_decimal_id(value, field_name="peer_id")
+        return telegram_peer_id(value)
 
     @field_validator("activated_at")
     @classmethod
@@ -210,7 +233,12 @@ class RadarObservationV1(_RadarModel):
     manifest_version: str = Field(min_length=1, max_length=64)
     connector: Literal["telegram"] = CONNECTOR_TELEGRAM
     peer_type: RadarPeerType
-    peer_id: str = Field(min_length=1, max_length=32)
+    peer_id: str = Field(
+        min_length=1,
+        max_length=32,
+        pattern=r"^[1-9][0-9]*$",
+        description="Unsigned positive raw Telegram entity id; never -100... marked form",
+    )
     message_id: str = Field(min_length=1, max_length=32)
     event_kind: RadarEventKind
     published_at: datetime | None = None
@@ -225,7 +253,7 @@ class RadarObservationV1(_RadarModel):
     @field_validator("peer_id")
     @classmethod
     def _peer_id(cls, value: str) -> str:
-        return telegram_decimal_id(value, field_name="peer_id")
+        return telegram_peer_id(value)
 
     @field_validator("message_id")
     @classmethod
