@@ -301,6 +301,18 @@ def test_radar_headless_config_api_and_manifest(monkeypatch: pytest.MonkeyPatch,
             ).status_code == 422
             dest_id = dest.json()["id"]
 
+            verified = client.post(
+                f"/admin/radar/destinations/{dest_id}/verify",
+                headers=headers,
+            )
+            assert verified.status_code == 200, verified.text
+            assert verified.json()["verification_state"] == "verified"
+            assert verified.json()["verified_at"] is not None
+            assert client.post(
+                f"/admin/radar/destinations/{dest_id}/verify",
+                headers=headers,
+            ).status_code == 200
+
             # profile + version
             profile = client.post(
                 "/admin/radar/profiles",

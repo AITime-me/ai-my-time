@@ -348,6 +348,9 @@ class RadarConfigService:
                 tenant_id=tenant_id,
                 delta={"verification_state": "verified"},
             )
+        # After UPDATE, server onupdate may expire updated_at; refresh so the
+        # sync view builder never triggers async lazy IO (MissingGreenlet).
+        await self._session.refresh(row)
         return self._destination_view(row)
 
     async def list_profiles(
