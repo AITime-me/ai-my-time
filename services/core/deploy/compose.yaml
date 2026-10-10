@@ -84,6 +84,23 @@ services:
     command: ["python", "-m", "scripts.run_outbound_worker"]
     networks: [private, egress]
 
+  # Isolated Demand Radar Bot outbox. Never shares Lead Bot token or process.
+  radar_alert_worker:
+    image: ai-my-time-core:${AI_MY_TIME_RELEASE_SHA:?AI_MY_TIME_RELEASE_SHA is required}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      DATABASE_URL_FILE: /run/secrets/database_url
+      RADAR_ALERT_BOT_TOKENS_PATH: /run/secrets/radar_alert_bot_tokens
+    volumes:
+      - /srv/ai-my-time/secrets/database_url:/run/secrets/database_url:ro
+      - /srv/ai-my-time/secrets/radar_alert_bot_tokens:/run/secrets/radar_alert_bot_tokens:ro
+    command: ["python", "-m", "scripts.run_radar_alert_worker"]
+    networks: [private, egress]
+
 volumes:
   postgres_data:
 
