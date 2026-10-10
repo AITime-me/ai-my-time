@@ -26,6 +26,16 @@ from app.models import (  # noqa: F401
     Touchpoint,
     User,
     UserIdentity,
+    RadarDestination,
+    RadarProfileDestination,
+    RadarProfileSource,
+    RadarProfileVersion,
+    RadarReader,
+    RadarSearchProfile,
+    RadarSearchRule,
+    RadarSource,
+    RadarTenant,
+    RadarTenantAdmin,
 )
 
 config = context.config

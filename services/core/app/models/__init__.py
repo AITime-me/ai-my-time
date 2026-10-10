@@ -26,6 +26,18 @@ from app.models.core import (
     OperationalLogEvent,
     ScheduledEvent,
 )
+from app.models.radar import (
+    RadarDestination,
+    RadarProfileDestination,
+    RadarProfileSource,
+    RadarProfileVersion,
+    RadarReader,
+    RadarSearchProfile,
+    RadarSearchRule,
+    RadarSource,
+    RadarTenant,
+    RadarTenantAdmin,
+)
 
 __all__ = [
     "AdminAuditEvent",
@@ -54,4 +66,14 @@ __all__ = [
     "OutboundMessage",
     "OperationalLogEvent",
     "ScheduledEvent",
+    "RadarTenant",
+    "RadarTenantAdmin",
+    "RadarReader",
+    "RadarSource",
+    "RadarDestination",
+    "RadarSearchProfile",
+    "RadarProfileVersion",
+    "RadarSearchRule",
+    "RadarProfileSource",
+    "RadarProfileDestination",
 ]
