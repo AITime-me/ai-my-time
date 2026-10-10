@@ -364,12 +364,22 @@ def test_radar_headless_config_api_and_manifest(monkeypatch: pytest.MonkeyPatch,
             # Reader cannot use Admin session for manifest
             assert client.get("/internal/radar/v1/reader-manifest").status_code == 401
 
-            # Reader bearer cannot call Admin
+            # Reader bearer alone cannot call Admin.  This needs a fresh client:
+            # the owner session above remains valid and is the only credential
+            # accepted by the Admin route.
             bearer = {"Authorization": f"Bearer {key_a}.{secret_a}"}
+            with TestClient(create_app()) as reader_client:
+                assert reader_client.get(
+                    "/admin/radar/sources",
+                    headers={**bearer, "X-Radar-Tenant-Id": ids["tenant_a"]},
+                ).status_code == 401
+
+            # An unrelated Reader Authorization header must not replace an
+            # otherwise valid Admin browser session on an Admin endpoint.
             assert client.get(
                 "/admin/radar/sources",
                 headers={**bearer, "X-Radar-Tenant-Id": ids["tenant_a"]},
-            ).status_code == 401
+            ).status_code == 200
 
             # Manifest
             manifest = client.get("/internal/radar/v1/reader-manifest", headers=bearer)
@@ -435,4 +445,3 @@ def test_radar_headless_config_api_and_manifest(monkeypatch: pytest.MonkeyPatch,
         get_settings.cache_clear()
         get_radar_reader_credential_store().clear()
         asyncio.run(_truncate(database_url))
-

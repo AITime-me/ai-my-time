@@ -69,6 +69,12 @@ or lead qualified.
 
 ## Security exclusions
 
+Reader bearer authentication and Admin browser-session authentication are
+separate boundaries. A Reader bearer alone never authorizes an Admin endpoint,
+and an Admin session alone never authorizes a Reader internal endpoint. If a
+valid Admin session is present on an Admin request, an unrelated Reader
+`Authorization: Bearer ...` header does not replace that Admin principal.
+
 Payloads must not contain session data, bot/user tokens, `api_id`/`api_hash`,
 `access_hash`, phone numbers, credentials, tenant overrides, or raw Telegram
 objects. DTOs use `extra="forbid"`.
