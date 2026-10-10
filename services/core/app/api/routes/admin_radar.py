@@ -163,6 +163,26 @@ async def create_destination(
             raise _map_error(error) from None
 
 
+@router.post(
+    "/destinations/{destination_id}/verify",
+    response_model=RadarDestinationView,
+)
+async def verify_destination(
+    destination_id: uuid.UUID,
+    request: Request,
+    x_radar_tenant_id: str | None = Header(default=None, alias=_TENANT_HEADER),
+) -> RadarDestinationView:
+    require_trusted_admin_origin(request, require_json=False)
+    actor_id, tenant_id = await _radar_context(request, x_radar_tenant_id)
+    async with session_scope(get_session_factory(request)) as session:
+        try:
+            return await RadarConfigService(session).verify_destination(
+                actor_id=actor_id, tenant_id=tenant_id, destination_id=destination_id
+            )
+        except RadarConfigError as error:
+            raise _map_error(error) from None
+
+
 @router.get("/profiles", response_model=RadarProfileList)
 async def list_profiles(
     request: Request,

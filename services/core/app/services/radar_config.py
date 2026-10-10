@@ -323,6 +323,33 @@ class RadarConfigService:
         )
         return self._destination_view(row)
 
+    async def verify_destination(
+        self, *, actor_id: uuid.UUID, tenant_id: uuid.UUID, destination_id: uuid.UUID
+    ) -> RadarDestinationView:
+        """Owner-approved mark that the Radar Bot can message this chat_id."""
+
+        row = await self._session.scalar(
+            select(RadarDestination).where(
+                RadarDestination.tenant_id == tenant_id,
+                RadarDestination.id == destination_id,
+            )
+        )
+        if row is None:
+            raise RadarConfigError("destination_not_found", "destination not found")
+        if row.verification_state != "verified":
+            row.verification_state = "verified"
+            row.verified_at = datetime.now(timezone.utc)
+            await self._session.flush()
+            self._audit(
+                actor_id=actor_id,
+                action="radar.destination.verified",
+                object_type="radar_destination",
+                object_id=row.id,
+                tenant_id=tenant_id,
+                delta={"verification_state": "verified"},
+            )
+        return self._destination_view(row)
+
     async def list_profiles(
         self, *, tenant_id: uuid.UUID, limit: int, offset: int
     ) -> list[RadarProfileView]:
