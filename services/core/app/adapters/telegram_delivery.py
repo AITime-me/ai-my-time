@@ -81,11 +81,36 @@ def telegram_radar_alert_payload(message: RadarAlertDelivery) -> dict[str, objec
     if message.payload.get("kind") != "radar_signal" or message.chat_id == 0:
         raise TelegramDeliveryError("invalid Radar alert")
     text = message.payload.get("text")
-    source_id = message.payload.get("source_id")
+    source_label = message.payload.get("source_label") or message.payload.get("source_id")
     detected_at = message.payload.get("detected_at")
-    if not isinstance(text, str) or not text.strip() or not isinstance(source_id, str) or not isinstance(detected_at, str):
+    published_at = message.payload.get("published_at")
+    message_url = message.payload.get("message_url")
+    profile_name = message.payload.get("profile_name")
+    reason = message.payload.get("reason")
+    if (
+        not isinstance(text, str)
+        or not text.strip()
+        or not isinstance(source_label, str)
+        or not source_label.strip()
+        or not isinstance(detected_at, str)
+    ):
         raise TelegramDeliveryError("invalid Radar alert payload")
-    rendered = f"Радар спроса\n\n{text}\n\nИсточник: {source_id}\nОбнаружено: {detected_at}"
+    when = published_at if isinstance(published_at, str) and published_at else detected_at
+    lines = [
+        "Радар спроса",
+        "",
+        text.strip(),
+        "",
+        f"Источник: {source_label}",
+        f"Время: {when}",
+    ]
+    if isinstance(message_url, str) and message_url.startswith("https://"):
+        lines.append(f"Сообщение: {message_url}")
+    if isinstance(profile_name, str) and profile_name.strip():
+        lines.append(f"Профиль: {profile_name.strip()}")
+    if isinstance(reason, str) and reason.strip():
+        lines.append(f"Причина: {reason.strip()}")
+    rendered = "\n".join(lines)
     if len(rendered) > 4096:
         raise TelegramDeliveryError("Radar alert text too long")
     return {"chat_id": str(message.chat_id), "text": rendered}

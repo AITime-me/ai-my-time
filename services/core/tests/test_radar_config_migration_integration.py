@@ -21,6 +21,7 @@ BASELINE = "20260906_21"
 SLICE2_HEAD = "20261010_22"
 SLICE3_HEAD = "20261010_23"
 SLICE4_HEAD = "20261010_24"
+REPO_HEAD = "20261010_26"
 RADAR_TABLES = {
     "radar_tenant",
     "radar_tenant_admin",
@@ -173,6 +174,15 @@ async def _assert_slice4_schema(engine: AsyncEngine) -> None:
         assert constraint == 1
 
 
+async def _assert_repo_head_schema(engine: AsyncEngine) -> None:
+    present = await _public_tables(engine)
+    assert RADAR_TABLES.issubset(present)
+    assert "radar_observation_receipt" in present
+    assert "radar_signal" in present
+    assert "radar_alert_outbox" in present
+    assert await _alembic_version(engine) == REPO_HEAD
+
+
 def _restore_head(config: Config) -> None:
     """Always leave the shared CI database on the current repository head."""
 
@@ -190,7 +200,7 @@ def test_radar_slice2_configuration_migration_round_trip(
 
     config = _alembic_config()
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_current_head() == SLICE4_HEAD
+    assert scripts.get_current_head() == REPO_HEAD
 
     try:
         _run(async_url, _reset_schema)
@@ -217,7 +227,7 @@ def test_radar_slice2_configuration_migration_round_trip(
 def test_radar_slice3_config_version_migration_round_trip(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Prove Slice 3 config_version additive migration and check only at head."""
+    """Prove Slice 3/4 historical migrations; alembic check only at repo head."""
 
     async_url = _async_url()
     monkeypatch.setenv("DATABASE_URL", async_url)
@@ -225,7 +235,7 @@ def test_radar_slice3_config_version_migration_round_trip(
 
     config = _alembic_config()
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_current_head() == SLICE4_HEAD
+    assert scripts.get_current_head() == REPO_HEAD
 
     try:
         _run(async_url, _reset_schema)
@@ -252,6 +262,7 @@ def test_radar_slice3_config_version_migration_round_trip(
         _run(async_url, _assert_slice3_schema)
 
         command.upgrade(config, "head")
+        _run(async_url, _assert_repo_head_schema)
         command.check(config)
     finally:
         try:

@@ -11,7 +11,10 @@ from app.models import (
     RadarDestination,
     RadarObservationReceipt,
     RadarProfileDestination,
+    RadarProfileVersion,
+    RadarSearchProfile,
     RadarSignal,
+    RadarSource,
 )
 
 
@@ -45,7 +48,7 @@ class RadarAlertProjectionService:
                 .order_by(RadarDestination.id)
             )
         ).all()
-        payload = _alert_payload(signal=signal, receipt=receipt)
+        payload = await self._alert_payload(signal=signal, receipt=receipt)
         created = 0
         for destination in destinations:
             statement = (
@@ -66,23 +69,80 @@ class RadarAlertProjectionService:
                 created += 1
         return created
 
+    async def _alert_payload(
+        self, *, signal: RadarSignal, receipt: RadarObservationReceipt
+    ) -> dict[str, object]:
+        content = receipt.payload.get("content") if isinstance(receipt.payload, dict) else None
+        text = content.get("text") if isinstance(content, dict) else None
+        links = receipt.payload.get("links") if isinstance(receipt.payload, dict) else None
+        message_url = links.get("message_url") if isinstance(links, dict) else None
+        source = await self._session.get(RadarSource, receipt.source_id)
+        profile_name = None
+        if signal.profile_version_id is not None:
+            profile_name = await self._session.scalar(
+                select(RadarSearchProfile.name)
+                .join(
+                    RadarProfileVersion,
+                    (RadarProfileVersion.tenant_id == RadarSearchProfile.tenant_id)
+                    & (RadarProfileVersion.profile_id == RadarSearchProfile.id),
+                )
+                .where(
+                    RadarProfileVersion.tenant_id == signal.tenant_id,
+                    RadarProfileVersion.id == signal.profile_version_id,
+                )
+            )
+        source_label = None
+        if source is not None:
+            source_label = source.title or source.username or str(source.peer_id)
+        return {
+            "kind": "radar_signal",
+            "signal_id": str(signal.id),
+            "observation_id": str(receipt.observation_id),
+            "source_id": str(receipt.source_id),
+            "source_label": source_label or str(receipt.source_id),
+            "message_id": receipt.message_id,
+            "message_url": message_url if isinstance(message_url, str) else None,
+            "text": text if isinstance(text, str) else "",
+            "published_at": receipt.published_at.isoformat() if receipt.published_at else None,
+            "detected_at": receipt.detected_at.isoformat(),
+            "freshness_expires_at": (
+                signal.freshness_expires_at.isoformat() if signal.freshness_expires_at else None
+            ),
+            "profile_name": profile_name,
+            "matched_rule_keys": signal.matched_rule_keys,
+            "reason": (
+                f"совпали правила: {', '.join(signal.matched_rule_keys)}"
+                if signal.matched_rule_keys
+                else "совпадение профиля"
+            ),
+        }
 
+
+# Kept for unit tests that project without a live DB session.
 def _alert_payload(*, signal: RadarSignal, receipt: RadarObservationReceipt) -> dict[str, object]:
-    """Keep projection deterministic and provider-neutral; rendering comes later."""
-
     content = receipt.payload.get("content") if isinstance(receipt.payload, dict) else None
     text = content.get("text") if isinstance(content, dict) else None
+    links = receipt.payload.get("links") if isinstance(receipt.payload, dict) else None
+    message_url = links.get("message_url") if isinstance(links, dict) else None
     return {
         "kind": "radar_signal",
         "signal_id": str(signal.id),
         "observation_id": str(receipt.observation_id),
         "source_id": str(receipt.source_id),
+        "source_label": str(receipt.source_id),
         "message_id": receipt.message_id,
+        "message_url": message_url if isinstance(message_url, str) else None,
         "text": text if isinstance(text, str) else "",
         "published_at": receipt.published_at.isoformat() if receipt.published_at else None,
         "detected_at": receipt.detected_at.isoformat(),
         "freshness_expires_at": (
             signal.freshness_expires_at.isoformat() if signal.freshness_expires_at else None
         ),
+        "profile_name": None,
         "matched_rule_keys": signal.matched_rule_keys,
+        "reason": (
+            f"совпали правила: {', '.join(signal.matched_rule_keys)}"
+            if signal.matched_rule_keys
+            else "совпадение профиля"
+        ),
     }

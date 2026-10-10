@@ -47,7 +47,17 @@ def _ops_delivery() -> OutboundDelivery:
 def _radar_delivery() -> RadarAlertDelivery:
     return RadarAlertDelivery(
         alert_id=uuid.uuid4(), bot_binding_key="radar-owner", chat_id=900001,
-        payload={"kind": "radar_signal", "text": "Need CRM", "source_id": "source-1", "detected_at": "2026-10-10T13:00:00+00:00"},
+        payload={
+            "kind": "radar_signal",
+            "text": "Need CRM",
+            "source_id": "source-1",
+            "source_label": "Demo Channel",
+            "detected_at": "2026-10-10T13:00:00+00:00",
+            "published_at": "2026-10-10T12:59:50+00:00",
+            "message_url": "https://t.me/c/1234567890/42",
+            "profile_name": "CRM",
+            "reason": "совпали правила: include-crm",
+        },
         lease_token=uuid.uuid4(),
     )
 
@@ -100,7 +110,19 @@ def test_radar_alert_transport_uses_only_the_destination_binding() -> None:
         calls.append((url, json.loads(body)))
         return {"ok": True}
     asyncio.run(TelegramRadarAlertTransport(tokens={"radar-owner": "radar-token"}, sender=sender).deliver(_radar_delivery()))
-    assert calls == [("https://api.telegram.org/botradar-token/sendMessage", {"chat_id": "900001", "text": "Радар спроса\n\nNeed CRM\n\nИсточник: source-1\nОбнаружено: 2026-10-10T13:00:00+00:00"})]
+    assert calls == [(
+        "https://api.telegram.org/botradar-token/sendMessage",
+        {
+            "chat_id": "900001",
+            "text": (
+                "Радар спроса\n\nNeed CRM\n\nИсточник: Demo Channel\n"
+                "Время: 2026-10-10T12:59:50+00:00\n"
+                "Сообщение: https://t.me/c/1234567890/42\n"
+                "Профиль: CRM\n"
+                "Причина: совпали правила: include-crm"
+            ),
+        },
+    )]
 
 
 def test_transport_sends_only_serialized_message_payload() -> None:

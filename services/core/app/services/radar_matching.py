@@ -84,14 +84,24 @@ def evaluate_radar_rules(*, text: str, rules: list[RadarSearchRule]) -> RadarMat
 
 
 class RadarMatchingService:
-    """Materialize exactly one durable signal for every accepted receipt."""
+    """Materialize at most one durable Signal per tenant/source/message."""
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def materialize(self, *, receipt: RadarObservationReceipt) -> RadarSignal:
+        existing = await self._existing_signal_for_message(receipt)
+        if existing is not None:
+            prior = await self._session.get(RadarObservationReceipt, existing.observation_receipt_id)
+            if prior is not None and prior.revision_fingerprint == receipt.revision_fingerprint:
+                # Semantic replay: keep the first Signal; do not create another.
+                return existing
+
         if receipt.event_kind == "message_deleted":
-            return await self._add_signal(receipt=receipt, result=RadarMatchResult("deleted", [], []))
+            result = RadarMatchResult("deleted", [], [])
+            if existing is not None:
+                return await self._update_signal(existing, receipt=receipt, result=result)
+            return await self._add_signal(receipt=receipt, result=result)
 
         versions = (
             await self._session.scalars(
@@ -123,7 +133,10 @@ class RadarMatchingService:
         # receipt, rather than one per saved search.  An ambiguous configuration
         # therefore fails closed instead of choosing an arbitrary profile.
         if len(versions) != 1:
-            return await self._add_signal(receipt=receipt, result=RadarMatchResult("no_match", [], []))
+            result = RadarMatchResult("no_match", [], [])
+            if existing is not None:
+                return await self._update_signal(existing, receipt=receipt, result=result)
+            return await self._add_signal(receipt=receipt, result=result)
 
         version = versions[0]
         rules = (
@@ -139,7 +152,32 @@ class RadarMatchingService:
         content = receipt.payload.get("content") if isinstance(receipt.payload, dict) else None
         text = content.get("text") if isinstance(content, dict) else None
         result = evaluate_radar_rules(text=text if isinstance(text, str) else "", rules=rules)
+        if existing is not None:
+            return await self._update_signal(
+                existing, receipt=receipt, result=result, profile_version=version
+            )
         return await self._add_signal(receipt=receipt, result=result, profile_version=version)
+
+    async def _existing_signal_for_message(
+        self, receipt: RadarObservationReceipt
+    ) -> RadarSignal | None:
+        return await self._session.scalar(
+            select(RadarSignal)
+            .join(
+                RadarObservationReceipt,
+                and_(
+                    RadarObservationReceipt.tenant_id == RadarSignal.tenant_id,
+                    RadarObservationReceipt.id == RadarSignal.observation_receipt_id,
+                ),
+            )
+            .where(
+                RadarSignal.tenant_id == receipt.tenant_id,
+                RadarObservationReceipt.source_id == receipt.source_id,
+                RadarObservationReceipt.message_id == receipt.message_id,
+            )
+            .order_by(RadarSignal.created_at, RadarSignal.id)
+            .limit(1)
+        )
 
     async def _add_signal(
         self,
@@ -164,5 +202,36 @@ class RadarMatchingService:
             matched_at=matched_at,
         )
         self._session.add(signal)
+        await self._session.flush()
+        return signal
+
+    async def _update_signal(
+        self,
+        signal: RadarSignal,
+        *,
+        receipt: RadarObservationReceipt,
+        result: RadarMatchResult,
+        profile_version: RadarProfileVersion | None = None,
+    ) -> RadarSignal:
+        """Apply a meaningful revision onto the single Signal for this message."""
+
+        signal.observation_receipt_id = receipt.id
+        signal.profile_version_id = profile_version.id if profile_version is not None else None
+        signal.status = result.status
+        signal.matched_rule_keys = result.matched_rule_keys
+        signal.excluded_rule_keys = result.excluded_rule_keys
+        # First detected_at / freshness window must not be rejuvenated by retries.
+        if (
+            result.status == "matched"
+            and profile_version is not None
+            and signal.freshness_expires_at is None
+        ):
+            signal.freshness_expires_at = receipt.detected_at + timedelta(
+                seconds=profile_version.freshness_seconds
+            )
+            signal.matched_at = datetime.now(timezone.utc)
+        elif result.status != "matched":
+            # Keep historical matched_at/freshness for audit; status reflects latest.
+            pass
         await self._session.flush()
         return signal
