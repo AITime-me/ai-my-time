@@ -20,6 +20,7 @@ from app.core.settings import get_settings
 BASELINE = "20260906_21"
 SLICE2_HEAD = "20261010_22"
 SLICE3_HEAD = "20261010_23"
+SLICE4_HEAD = "20261010_24"
 RADAR_TABLES = {
     "radar_tenant",
     "radar_tenant_admin",
@@ -147,6 +148,31 @@ async def _assert_slice3_schema(engine: AsyncEngine) -> None:
         assert check == 1
 
 
+async def _assert_slice4_schema(engine: AsyncEngine) -> None:
+    present = await _public_tables(engine)
+    assert RADAR_TABLES.issubset(present)
+    assert await _alembic_version(engine) == SLICE4_HEAD
+    async with engine.connect() as conn:
+        table = (
+            await conn.execute(
+                text(
+                    "SELECT 1 FROM pg_tables WHERE schemaname = 'public' "
+                    "AND tablename = 'radar_observation_receipt'"
+                )
+            )
+        ).scalar_one()
+        constraint = (
+            await conn.execute(
+                text(
+                    "SELECT 1 FROM pg_constraint "
+                    "WHERE conname = 'uq_radar_observation_receipt_tenant_observation'"
+                )
+            )
+        ).scalar_one()
+        assert table == 1
+        assert constraint == 1
+
+
 def _restore_head(config: Config) -> None:
     """Always leave the shared CI database on the current repository head."""
 
@@ -164,7 +190,7 @@ def test_radar_slice2_configuration_migration_round_trip(
 
     config = _alembic_config()
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_current_head() == SLICE3_HEAD
+    assert scripts.get_current_head() == SLICE4_HEAD
 
     try:
         _run(async_url, _reset_schema)
@@ -199,7 +225,7 @@ def test_radar_slice3_config_version_migration_round_trip(
 
     config = _alembic_config()
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_current_head() == SLICE3_HEAD
+    assert scripts.get_current_head() == SLICE4_HEAD
 
     try:
         _run(async_url, _reset_schema)
@@ -209,6 +235,15 @@ def test_radar_slice3_config_version_migration_round_trip(
 
         command.upgrade(config, SLICE3_HEAD)
         _run(async_url, _assert_slice3_schema)
+
+        command.upgrade(config, SLICE4_HEAD)
+        _run(async_url, _assert_slice4_schema)
+
+        command.downgrade(config, SLICE3_HEAD)
+        _run(async_url, _assert_slice3_schema)
+
+        command.upgrade(config, SLICE4_HEAD)
+        _run(async_url, _assert_slice4_schema)
 
         command.downgrade(config, SLICE2_HEAD)
         _run(async_url, _assert_slice2_schema)

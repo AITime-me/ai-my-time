@@ -35,7 +35,7 @@ async def _setup(database_url: str, key: str) -> dict[str, str]:
         async with session_scope(factory) as session:
             await session.execute(
                 __import__("sqlalchemy").text(
-                    "TRUNCATE TABLE radar_source, radar_reader, radar_tenant_admin, "
+                    "TRUNCATE TABLE radar_observation_receipt, radar_source, radar_reader, radar_tenant_admin, "
                     "radar_tenant, admin_sessions, admin_users RESTART IDENTITY CASCADE"
                 )
             )

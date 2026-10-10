@@ -223,6 +223,56 @@ class RadarDestination(Timestamped, Base):
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class RadarObservationReceipt(Timestamped, Base):
+    """Durable Reader receipt; matching and delivery are deliberately separate."""
+
+    __tablename__ = "radar_observation_receipt"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "observation_id", name="uq_radar_observation_receipt_tenant_observation"
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id"], ["radar_tenant.id"], name="fk_radar_observation_receipt_tenant", ondelete="RESTRICT"
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "reader_id"],
+            ["radar_reader.tenant_id", "radar_reader.id"],
+            name="fk_radar_observation_receipt_reader",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "source_id"],
+            ["radar_source.tenant_id", "radar_source.id"],
+            name="fk_radar_observation_receipt_source",
+            ondelete="RESTRICT",
+        ),
+        Index(
+            "ix_radar_observation_receipt_tenant_source_message",
+            "tenant_id",
+            "source_id",
+            "message_id",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    reader_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    source_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    observation_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    manifest_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    message_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    revision_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    event_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    origin: Mapped[str] = mapped_column(String(32), nullable=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
 class RadarSearchProfile(Timestamped, Base):
     __tablename__ = "radar_search_profile"
     __table_args__ = (

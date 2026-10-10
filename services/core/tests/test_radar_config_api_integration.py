@@ -16,10 +16,12 @@ from app.core.settings import get_settings
 from app.db.session import create_session_factory, session_scope
 from app.main import create_app
 from app.models import RadarReader, RadarTenant, RadarTenantAdmin
+from app.radar_assets import load_fixture
 from app.services.admin_auth import AdminAuthService
 from app.services.radar_reader_credentials import get_radar_reader_credential_store
 
 RADAR_TABLES = (
+    "radar_observation_receipt",
     "radar_profile_destination",
     "radar_profile_source",
     "radar_search_rule",
@@ -395,6 +397,21 @@ def test_radar_headless_config_api_and_manifest(monkeypatch: pytest.MonkeyPatch,
             version_one = payload["manifest_version"]
             stable = client.get("/internal/radar/v1/reader-manifest", headers=bearer).json()
             assert stable["manifest_version"] == version_one
+
+            observation = load_fixture("observation.live_upsert.json")
+            observation["source_id"] = source_id
+            observation["manifest_version"] = version_one
+            accepted = client.post(
+                "/internal/radar/v1/observations", headers=bearer, json=observation
+            )
+            assert accepted.status_code == 201, accepted.text
+            assert accepted.json()["status"] == "accepted"
+            duplicate = client.post(
+                "/internal/radar/v1/observations", headers=bearer, json=observation
+            )
+            assert duplicate.status_code == 201, duplicate.text
+            assert duplicate.json()["status"] == "duplicate"
+            assert duplicate.json()["receipt_id"] == accepted.json()["receipt_id"]
 
             # wrong secret / unknown key / other reader
             assert client.get(

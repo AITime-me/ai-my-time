@@ -33,6 +33,7 @@ def test_radar_config_tables_registered_in_metadata() -> None:
         "radar_tenant_admin",
         "radar_reader",
         "radar_source",
+        "radar_observation_receipt",
         "radar_destination",
         "radar_search_profile",
         "radar_profile_version",

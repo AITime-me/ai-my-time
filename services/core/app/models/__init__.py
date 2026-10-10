@@ -28,6 +28,7 @@ from app.models.core import (
 )
 from app.models.radar import (
     RadarDestination,
+    RadarObservationReceipt,
     RadarProfileDestination,
     RadarProfileSource,
     RadarProfileVersion,
@@ -71,6 +72,7 @@ __all__ = [
     "RadarReader",
     "RadarSource",
     "RadarDestination",
+    "RadarObservationReceipt",
     "RadarSearchProfile",
     "RadarProfileVersion",
     "RadarSearchRule",
