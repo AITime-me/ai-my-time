@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "observation_id": "11111111-1111-4111-8111-111111111111",
+  "source_id": "src_radar_demo_channel",
+  "manifest_version": "mv-2026-10-10.1",
+  "connector": "telegram",
+  "peer_type": "channel",
+  "peer_id": "1001234567890",
+  "message_id": "42",
+  "event_kind": "message_upsert",
+  "published_at": "2026-10-10T08:00:00Z",
+  "detected_at": "2026-10-10T08:00:00.500000Z",
+  "edited_at": null,
+  "origin": "live",
+  "revision_fingerprint": "c84b930d0f5b28dbfb798fae05c1cf8d6c09f5f3cb79fb98ea844bd5e6dd244d",
+  "content": {
+    "kind": "text",
+    "text": "Need CRM automation for leads"
+  },
+  "author": {
+    "id": "8266714957",
+    "username": "radar_bot_tech",
+    "display_name": "Radar Tech",
+    "author_type": "user"
+  },
+  "links": {
+    "message_url": "https://t.me/c/1234567890/42",
+    "author_url": null,
+    "message_url_status": "available",
+    "author_url_status": "unavailable"
+  }
+}

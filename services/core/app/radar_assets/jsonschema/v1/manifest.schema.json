@@ -1,0 +1,139 @@
+{
+  "$defs": {
+    "RadarMonitoringCapability": {
+      "enum": [
+        "realtime",
+        "history_only",
+        "unverified"
+      ],
+      "title": "RadarMonitoringCapability",
+      "type": "string"
+    },
+    "RadarPeerType": {
+      "enum": [
+        "channel",
+        "supergroup",
+        "group",
+        "user"
+      ],
+      "title": "RadarPeerType",
+      "type": "string"
+    },
+    "RadarSourceManifestItemV1": {
+      "additionalProperties": false,
+      "properties": {
+        "activated_at": {
+          "format": "date-time",
+          "title": "Activated At",
+          "type": "string"
+        },
+        "approved": {
+          "title": "Approved",
+          "type": "boolean"
+        },
+        "connector": {
+          "const": "telegram",
+          "default": "telegram",
+          "title": "Connector",
+          "type": "string"
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "monitoring_capability": {
+          "$ref": "#/$defs/RadarMonitoringCapability"
+        },
+        "peer_id": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Peer Id",
+          "type": "string"
+        },
+        "peer_type": {
+          "$ref": "#/$defs/RadarPeerType"
+        },
+        "source_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "$ref": "#/$defs/RadarSourceType"
+        }
+      },
+      "required": [
+        "source_id",
+        "peer_type",
+        "peer_id",
+        "source_type",
+        "activated_at",
+        "enabled",
+        "approved",
+        "monitoring_capability"
+      ],
+      "title": "RadarSourceManifestItemV1",
+      "type": "object"
+    },
+    "RadarSourceType": {
+      "enum": [
+        "channel",
+        "supergroup",
+        "group",
+        "user"
+      ],
+      "title": "RadarSourceType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "title": "Issued At",
+      "type": "string"
+    },
+    "manifest_version": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Manifest Version",
+      "type": "string"
+    },
+    "reader_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Reader Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/RadarSourceManifestItemV1"
+      },
+      "maxItems": 500,
+      "minItems": 1,
+      "title": "Sources",
+      "type": "array"
+    }
+  },
+  "required": [
+    "reader_id",
+    "manifest_version",
+    "issued_at",
+    "expires_at",
+    "sources"
+  ],
+  "title": "RadarReaderManifestV1",
+  "type": "object"
+}

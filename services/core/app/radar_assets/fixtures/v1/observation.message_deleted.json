@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "observation_id": "44444444-4444-4444-8444-444444444444",
+  "source_id": "src_radar_demo_channel",
+  "manifest_version": "mv-2026-10-10.1",
+  "connector": "telegram",
+  "peer_type": "channel",
+  "peer_id": "1001234567890",
+  "message_id": "42",
+  "event_kind": "message_deleted",
+  "published_at": null,
+  "detected_at": "2026-10-10T09:00:00Z",
+  "edited_at": null,
+  "origin": "live",
+  "revision_fingerprint": "f279df6eea16a206703b922944df429005b0d78eed8a55ade5cf62516430bf8e",
+  "content": null,
+  "author": null,
+  "links": null
+}

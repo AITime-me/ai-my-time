@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "reader_id": "reader-neo-1",
+  "manifest_version": "mv-2026-10-10.1",
+  "issued_at": "2026-10-10T07:00:00Z",
+  "expires_at": "2026-10-11T07:00:00Z",
+  "sources": [
+    {
+      "source_id": "src_radar_demo_channel",
+      "connector": "telegram",
+      "peer_type": "channel",
+      "peer_id": "1001234567890",
+      "source_type": "channel",
+      "activated_at": "2026-10-01T00:00:00Z",
+      "enabled": true,
+      "approved": true,
+      "monitoring_capability": "realtime"
+    }
+  ]
+}

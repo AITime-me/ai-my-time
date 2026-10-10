@@ -1,0 +1,324 @@
+{
+  "$defs": {
+    "RadarAuthorType": {
+      "enum": [
+        "user",
+        "bot",
+        "channel",
+        "anonymous"
+      ],
+      "title": "RadarAuthorType",
+      "type": "string"
+    },
+    "RadarAuthorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "author_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RadarAuthorType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Display Name"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "maxLength": 32,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "username": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Username"
+        }
+      },
+      "title": "RadarAuthorV1",
+      "type": "object"
+    },
+    "RadarContentKind": {
+      "enum": [
+        "text",
+        "caption",
+        "empty"
+      ],
+      "title": "RadarContentKind",
+      "type": "string"
+    },
+    "RadarContentV1": {
+      "additionalProperties": false,
+      "description": "Bounded original text/caption; never a raw Telegram object dump.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/RadarContentKind"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "maxLength": 16000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "RadarContentV1",
+      "type": "object"
+    },
+    "RadarEventKind": {
+      "enum": [
+        "message_upsert",
+        "message_deleted"
+      ],
+      "title": "RadarEventKind",
+      "type": "string"
+    },
+    "RadarLinkAvailability": {
+      "enum": [
+        "available",
+        "unavailable",
+        "not_applicable"
+      ],
+      "title": "RadarLinkAvailability",
+      "type": "string"
+    },
+    "RadarLinksV1": {
+      "additionalProperties": false,
+      "properties": {
+        "author_url": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author Url"
+        },
+        "author_url_status": {
+          "$ref": "#/$defs/RadarLinkAvailability",
+          "default": "not_applicable"
+        },
+        "message_url": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message Url"
+        },
+        "message_url_status": {
+          "$ref": "#/$defs/RadarLinkAvailability",
+          "default": "not_applicable"
+        }
+      },
+      "title": "RadarLinksV1",
+      "type": "object"
+    },
+    "RadarOrigin": {
+      "enum": [
+        "live",
+        "catch_up",
+        "reconciliation"
+      ],
+      "title": "RadarOrigin",
+      "type": "string"
+    },
+    "RadarPeerType": {
+      "enum": [
+        "channel",
+        "supergroup",
+        "group",
+        "user"
+      ],
+      "title": "RadarPeerType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Wire observation. Tenant is NOT accepted from Reader.",
+  "properties": {
+    "author": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RadarAuthorV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "connector": {
+      "const": "telegram",
+      "default": "telegram",
+      "title": "Connector",
+      "type": "string"
+    },
+    "content": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RadarContentV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "detected_at": {
+      "format": "date-time",
+      "title": "Detected At",
+      "type": "string"
+    },
+    "edited_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Edited At"
+    },
+    "event_kind": {
+      "$ref": "#/$defs/RadarEventKind"
+    },
+    "links": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RadarLinksV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "manifest_version": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Manifest Version",
+      "type": "string"
+    },
+    "message_id": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Message Id",
+      "type": "string"
+    },
+    "observation_id": {
+      "format": "uuid",
+      "title": "Observation Id",
+      "type": "string"
+    },
+    "origin": {
+      "$ref": "#/$defs/RadarOrigin"
+    },
+    "peer_id": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Peer Id",
+      "type": "string"
+    },
+    "peer_type": {
+      "$ref": "#/$defs/RadarPeerType"
+    },
+    "published_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Published At"
+    },
+    "revision_fingerprint": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Revision Fingerprint",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Source Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "observation_id",
+    "source_id",
+    "manifest_version",
+    "peer_type",
+    "peer_id",
+    "message_id",
+    "event_kind",
+    "detected_at",
+    "origin",
+    "revision_fingerprint"
+  ],
+  "title": "RadarObservationV1",
+  "type": "object"
+}

@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "code": "idempotency_conflict",
+  "message": "observation_id was reused with a different immutable payload",
+  "retry_after_seconds": null,
+  "http_status": 409
+}

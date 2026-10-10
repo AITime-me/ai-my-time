@@ -1,0 +1,71 @@
+{
+  "$defs": {
+    "RadarErrorCode": {
+      "enum": [
+        "credential_invalid",
+        "source_forbidden",
+        "idempotency_conflict",
+        "payload_too_large",
+        "invalid_contract",
+        "backpressure",
+        "temporary_failure"
+      ],
+      "title": "RadarErrorCode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "code": {
+      "$ref": "#/$defs/RadarErrorCode"
+    },
+    "http_status": {
+      "enum": [
+        401,
+        403,
+        409,
+        413,
+        422,
+        429,
+        500,
+        502,
+        503
+      ],
+      "title": "Http Status",
+      "type": "integer"
+    },
+    "message": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Message",
+      "type": "string"
+    },
+    "retry_after_seconds": {
+      "anyOf": [
+        {
+          "maximum": 86400,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Retry After Seconds"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "code",
+    "message",
+    "http_status"
+  ],
+  "title": "RadarErrorV1",
+  "type": "object"
+}
