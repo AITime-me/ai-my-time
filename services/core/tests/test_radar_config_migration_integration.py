@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
+from collections.abc import Awaitable, Callable
 from pathlib import Path
+from typing import TypeVar
 
 import pytest
 from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from app.core.settings import get_settings
 
@@ -28,6 +32,8 @@ RADAR_TABLES = {
     "radar_profile_destination",
 }
 
+T = TypeVar("T")
+
 
 def _async_url() -> str:
     url = os.getenv("AI_MY_TIME_TEST_DATABASE_URL")
@@ -38,10 +44,6 @@ def _async_url() -> str:
     return url
 
 
-def _sync_url(async_url: str) -> str:
-    return async_url.replace("postgresql+asyncpg://", "postgresql://", 1)
-
-
 def _alembic_config() -> Config:
     root = Path(__file__).resolve().parents[1]
     config = Config(str(root / "alembic.ini"))
@@ -49,49 +51,61 @@ def _alembic_config() -> Config:
     return config
 
 
-def test_radar_configuration_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:
-    async_url = _async_url()
-    sync_url = _sync_url(async_url)
-    # env.py reads DATABASE_URL via settings, not alembic.ini sqlalchemy.url.
-    monkeypatch.setenv("DATABASE_URL", async_url)
-    get_settings.cache_clear()
+async def _with_engine(
+    database_url: str, operation: Callable[[AsyncEngine], Awaitable[T]]
+) -> T:
+    """One AsyncEngine per asyncio.run — matches Core asyncpg usage."""
 
-    config = _alembic_config()
-    scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_current_head() == RADAR_HEAD
-
-    engine = create_engine(sync_url)
+    engine = create_async_engine(database_url, pool_pre_ping=True)
     try:
-        with engine.begin() as conn:
-            conn.execute(text("DROP SCHEMA public CASCADE"))
-            conn.execute(text("CREATE SCHEMA public"))
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS pgcrypto"))
+        return await operation(engine)
+    finally:
+        await engine.dispose()
 
-        command.upgrade(config, BASELINE)
-        with engine.connect() as conn:
-            present = {
-                row[0]
-                for row in conn.execute(
-                    text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
-                )
-            }
-            assert "users" in present
-            assert RADAR_TABLES.isdisjoint(present)
-            version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            assert version == BASELINE
 
-        command.upgrade(config, RADAR_HEAD)
-        with engine.connect() as conn:
-            present = {
-                row[0]
-                for row in conn.execute(
-                    text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
-                )
-            }
-            assert RADAR_TABLES.issubset(present)
-            version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            assert version == RADAR_HEAD
-            peer_check = conn.execute(
+def _run(database_url: str, operation: Callable[[AsyncEngine], Awaitable[T]]) -> T:
+    return asyncio.run(_with_engine(database_url, operation))
+
+
+async def _reset_schema(engine: AsyncEngine) -> None:
+    async with engine.begin() as conn:
+        await conn.execute(text("DROP SCHEMA public CASCADE"))
+        await conn.execute(text("CREATE SCHEMA public"))
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pgcrypto"))
+
+
+async def _public_tables(engine: AsyncEngine) -> set[str]:
+    async with engine.connect() as conn:
+        rows = (
+            await conn.execute(
+                text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+            )
+        ).all()
+    return {row[0] for row in rows}
+
+
+async def _alembic_version(engine: AsyncEngine) -> str:
+    async with engine.connect() as conn:
+        return (
+            await conn.execute(text("SELECT version_num FROM alembic_version"))
+        ).scalar_one()
+
+
+async def _assert_baseline_without_radar(engine: AsyncEngine) -> None:
+    present = await _public_tables(engine)
+    assert "users" in present
+    assert RADAR_TABLES.isdisjoint(present)
+    assert await _alembic_version(engine) == BASELINE
+
+
+async def _assert_radar_schema_present(engine: AsyncEngine) -> None:
+    present = await _public_tables(engine)
+    assert RADAR_TABLES.issubset(present)
+    assert await _alembic_version(engine) == RADAR_HEAD
+
+    async with engine.connect() as conn:
+        peer_check = (
+            await conn.execute(
                 text(
                     """
                     SELECT 1
@@ -99,48 +113,51 @@ def test_radar_configuration_migration_round_trip(monkeypatch: pytest.MonkeyPatc
                     WHERE conname = 'ck_radar_source_peer_id_positive'
                     """
                 )
-            ).scalar_one()
-            assert peer_check == 1
-            deferred = conn.execute(
+            )
+        ).scalar_one()
+        assert peer_check == 1
+        deferred = (
+            await conn.execute(
                 text(
                     """
-                    SELECT confdeltype, condeferrable, condeferred
+                    SELECT condeferrable, condeferred
                     FROM pg_constraint
                     WHERE conname = 'fk_radar_search_profile_active_version'
                     """
                 )
-            ).one()
-            assert deferred.condeferrable is True
-            assert deferred.condeferred is True
+            )
+        ).one()
+        assert deferred.condeferrable is True
+        assert deferred.condeferred is True
 
+
+def test_radar_configuration_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:
+    async_url = _async_url()
+    # env.py / CI use DATABASE_URL with postgresql+asyncpg:// (no sync psycopg).
+    monkeypatch.setenv("DATABASE_URL", async_url)
+    get_settings.cache_clear()
+
+    config = _alembic_config()
+    scripts = ScriptDirectory.from_config(config)
+    assert scripts.get_current_head() == RADAR_HEAD
+
+    try:
+        _run(async_url, _reset_schema)
+
+        command.upgrade(config, BASELINE)
+        _run(async_url, _assert_baseline_without_radar)
+
+        command.upgrade(config, RADAR_HEAD)
+        _run(async_url, _assert_radar_schema_present)
         command.check(config)
 
         command.downgrade(config, BASELINE)
-        with engine.connect() as conn:
-            present = {
-                row[0]
-                for row in conn.execute(
-                    text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
-                )
-            }
-            assert RADAR_TABLES.isdisjoint(present)
-            version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            assert version == BASELINE
+        _run(async_url, _assert_baseline_without_radar)
 
         command.upgrade(config, RADAR_HEAD)
-        with engine.connect() as conn:
-            present = {
-                row[0]
-                for row in conn.execute(
-                    text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
-                )
-            }
-            assert RADAR_TABLES.issubset(present)
-            version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            assert version == RADAR_HEAD
+        _run(async_url, _assert_radar_schema_present)
 
         command.upgrade(config, "head")
         command.check(config)
     finally:
-        engine.dispose()
         get_settings.cache_clear()
