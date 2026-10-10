@@ -12,6 +12,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from app.services.outbox_delivery import OutboundDelivery
+from app.services.radar_alert_delivery import RadarAlertDelivery
 
 _MAX_CALLBACK_BYTES = 64
 _MENU_COMMANDS = [{"command": "menu", "description": "Открыть доступные действия"}]
@@ -73,6 +74,21 @@ def telegram_ops_send_payload(message: OutboundDelivery, *, chat_id: str) -> dic
     if not isinstance(text, str) or not text.strip() or len(text) > 4096:
         raise TelegramDeliveryError("invalid Telegram message text")
     return {"chat_id": chat_id, "text": text}
+
+
+def telegram_radar_alert_payload(message: RadarAlertDelivery) -> dict[str, object]:
+    """Render an isolated Radar alert without Lead Bot semantics."""
+    if message.payload.get("kind") != "radar_signal" or message.chat_id == 0:
+        raise TelegramDeliveryError("invalid Radar alert")
+    text = message.payload.get("text")
+    source_id = message.payload.get("source_id")
+    detected_at = message.payload.get("detected_at")
+    if not isinstance(text, str) or not text.strip() or not isinstance(source_id, str) or not isinstance(detected_at, str):
+        raise TelegramDeliveryError("invalid Radar alert payload")
+    rendered = f"Радар спроса\n\n{text}\n\nИсточник: {source_id}\nОбнаружено: {detected_at}"
+    if len(rendered) > 4096:
+        raise TelegramDeliveryError("Radar alert text too long")
+    return {"chat_id": str(message.chat_id), "text": rendered}
 
 
 HttpSender = Callable[[str, bytes], Mapping[str, Any]]
@@ -178,6 +194,29 @@ class TelegramOpsTransport:
         response = await asyncio.to_thread(self._sender, self._url, body)
         if response.get("ok") is not True:
             raise TelegramDeliveryError("Telegram API rejected operations notification")
+
+
+class TelegramRadarAlertTransport:
+    """One configured Radar Bot per binding key; never falls back to Lead Bot."""
+
+    def __init__(self, *, tokens: Mapping[str, str], sender: HttpSender = _send_json) -> None:
+        self._urls = {
+            key: f"https://api.telegram.org/bot{token}/sendMessage"
+            for key, token in tokens.items()
+            if isinstance(key, str) and isinstance(token, str) and key.strip() and token.strip()
+        }
+        if not self._urls:
+            raise ValueError("at least one Radar Bot token is required")
+        self._sender = sender
+
+    async def deliver(self, message: RadarAlertDelivery) -> None:
+        url = self._urls.get(message.bot_binding_key)
+        if url is None:
+            raise TelegramDeliveryError("Radar Bot binding is not configured")
+        body = json.dumps(telegram_radar_alert_payload(message), ensure_ascii=False).encode("utf-8")
+        response = await asyncio.to_thread(self._sender, url, body)
+        if response.get("ok") is not True:
+            raise TelegramDeliveryError("Telegram API rejected Radar alert")
 
 
 class TelegramCallbackAcknowledger:

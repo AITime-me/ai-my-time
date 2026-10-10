@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     admin_trusted_origin: str | None = None
     # JSON object mapping credential_key_id -> secret (file-backed; never in DB).
     radar_reader_credentials_path: str | None = None
+    # JSON object mapping a verified Radar destination bot_binding_key to its
+    # Radar Bot token. This is deliberately independent from the Lead Bot.
+    radar_alert_bot_tokens_path: str | None = None
 
 
 @lru_cache

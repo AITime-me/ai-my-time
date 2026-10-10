@@ -8,6 +8,7 @@ from app.adapters import telegram_delivery
 from app.adapters.telegram_delivery import (
     TelegramBotTransport,
     TelegramOpsTransport,
+    TelegramRadarAlertTransport,
     TelegramCallbackAcknowledger,
     TelegramEdgeCallbackAcknowledger,
     TelegramEdgeMenuConfigurer,
@@ -17,6 +18,7 @@ from app.adapters.telegram_delivery import (
     telegram_ops_send_payload,
 )
 from app.services.outbox_delivery import OutboundDelivery
+from app.services.radar_alert_delivery import RadarAlertDelivery
 
 
 def _delivery(*, recipient_id: str | None = "900001") -> OutboundDelivery:
@@ -38,6 +40,14 @@ def _ops_delivery() -> OutboundDelivery:
     return OutboundDelivery(
         message_id=uuid.uuid4(), user_id=uuid.uuid4(), channel="telegram_ops",
         recipient_id=None, payload={"kind": "message", "text": "Новая консультация"},
+        lease_token=uuid.uuid4(),
+    )
+
+
+def _radar_delivery() -> RadarAlertDelivery:
+    return RadarAlertDelivery(
+        alert_id=uuid.uuid4(), bot_binding_key="radar-owner", chat_id=900001,
+        payload={"kind": "radar_signal", "text": "Need CRM", "source_id": "source-1", "detected_at": "2026-10-10T13:00:00+00:00"},
         lease_token=uuid.uuid4(),
     )
 
@@ -82,6 +92,15 @@ def test_ops_transport_never_uses_the_client_recipient() -> None:
 
     asyncio.run(TelegramOpsTransport(token="test-token", chat_id="-1004328477143", sender=sender).deliver(_ops_delivery()))
     assert calls == [{"chat_id": "-1004328477143", "text": "Новая консультация"}]
+
+
+def test_radar_alert_transport_uses_only_the_destination_binding() -> None:
+    calls: list[tuple[str, dict[str, object]]] = []
+    def sender(url: str, body: bytes) -> dict[str, object]:
+        calls.append((url, json.loads(body)))
+        return {"ok": True}
+    asyncio.run(TelegramRadarAlertTransport(tokens={"radar-owner": "radar-token"}, sender=sender).deliver(_radar_delivery()))
+    assert calls == [("https://api.telegram.org/botradar-token/sendMessage", {"chat_id": "900001", "text": "Радар спроса\n\nNeed CRM\n\nИсточник: source-1\nОбнаружено: 2026-10-10T13:00:00+00:00"})]
 
 
 def test_transport_sends_only_serialized_message_payload() -> None:
