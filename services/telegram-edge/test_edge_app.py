@@ -1,6 +1,7 @@
 import json
 import socket
 import unittest
+from dataclasses import replace
 from unittest import mock
 
 import edge_app
@@ -100,6 +101,12 @@ class EdgeServiceTests(unittest.TestCase):
         status, result = service.invoke_telegram("sendChatAction", b'{"chat_id":"1","action":"typing"}', "core-secret")
         self.assertEqual(status, 200)
         self.assertEqual(result, {"ok": True})
+
+    def test_polling_does_not_expose_update_read_or_webhook_mutation(self):
+        service = EdgeService(replace(config(), update_mode="polling"), requester=lambda *_: self.fail("must not call"))
+        for method in ("getUpdates", "deleteWebhook"):
+            self.assertEqual(service.invoke_telegram(method, b"{}", "core-secret")[0], 404)
+        self.assertEqual(service.invoke_telegram("configureWebhook", b"{}", "core-secret")[0], 409)
 
     def test_configure_webhook_keeps_url_and_secret_edge_local(self) -> None:
         calls = []
