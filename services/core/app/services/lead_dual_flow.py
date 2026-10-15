@@ -259,10 +259,10 @@ class LeadDualFlow:
             text, options = result_text(a), {}
             if self.certificate_text and run.source_json.get("source_code") == "conference_2026":
                 text += "\n\n" + self.certificate_text
-            buttons = [self.button(run, "Обсудить со Светланой", "consult"), self.button(run, "Пока не готов(а)", "pause")]
+            buttons = [self.button(run, "Обсудить с нашим экспертом", "consult"), self.button(run, "Пока не готов(а)", "pause")]
         elif state == "business_complete":
-            text, options = "Ответы сохранены. Вы можете обратиться к Светлане, даже если первичный разбор временно недоступен.", {}
-            buttons = [self.button(run, "Обсудить со Светланой", "consult")]
+            text, options = "Ответы сохранены. Вы можете обратиться к нашему эксперту, даже если первичный разбор временно недоступен.", {}
+            buttons = [self.button(run, "Обсудить с нашим экспертом", "consult")]
         else:
             step = next((item for item in BUSINESS if item[0] == state), None)
             if not step:
@@ -318,4 +318,4 @@ class LeadDualFlow:
         self.s.add(Event(user_id=run.user_id, kind="dual_consultation_requested", payload_json={"run_id": str(run.id), "consultation_request_id": str(request.id), "kind": run.kind}))
         from app.services.ops_notifications import OpsNotificationService
         await OpsNotificationService(self.s).enqueue_created_consultation(request)
-        await self.send(run, "Готово, ваше обращение получено!\n\nСветлана увидит, чем вы занимаетесь и с чего хотите начать. Она свяжется с вами здесь, в Telegram, чтобы договориться о разговоре.", [], "consultation-confirmed")
+        await self.send(run, "Готово, ваше обращение получено!\n\nНаш эксперт увидит, чем вы занимаетесь и с чего хотите начать, и свяжется с вами здесь, в Telegram, чтобы договориться о разговоре.", [], "consultation-confirmed")

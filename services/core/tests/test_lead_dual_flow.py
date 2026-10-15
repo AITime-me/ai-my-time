@@ -106,7 +106,7 @@ def test_ai_webhook_end_to_end_without_any_provider(monkeypatch, task, setup):
             assert source["source_code"] == "telegram_direct"
             assert "Это может быть один AI-агент" in payload["text"]
             assert calls == []
-            press("Обсудить со Светланой")
+            press("Обсудить с нашим экспертом")
             post(message="ещё вопрос")
             assert calls == []
             metrics = client.get("/admin/intake-analytics?days=30")
