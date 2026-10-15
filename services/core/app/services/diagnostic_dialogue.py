@@ -148,11 +148,25 @@ class DiagnosticDialogueService:
                 ConsultationRequest.diagnostic_session_id == diagnostic.id
             )
         )
+        run = None
+        run_id = diagnostic.input_snapshot_json.get("flow_run_id")
+        if run_id:
+            from app.models import LeadFlowRun
+            try:
+                run = await self._session.scalar(select(LeadFlowRun).where(
+                    LeadFlowRun.id == uuid.UUID(str(run_id)), LeadFlowRun.user_id == user_id))
+            except ValueError:
+                run = None
+            if run is not None and existing is None:
+                existing = await self._session.scalar(select(ConsultationRequest).where(ConsultationRequest.flow_run_id == run.id))
         if existing is None:
+            from app.services.lead_dual_flow import context
             request = ConsultationRequest(
                 user_id=user_id,
                 diagnostic_session_id=diagnostic.id,
                 status="new",
+                flow_run_id=run.id if run else None,
+                intake_snapshot_json=context(run) if run else None,
             )
             self._session.add(request)
             await self._session.flush()

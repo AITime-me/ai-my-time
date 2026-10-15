@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text, UniqueConstraint, CheckConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -382,11 +382,37 @@ class Event(Base):
     )
 
 
+class LeadFlowRun(Timestamped, Base):
+    """Versioned intake; answers belong to a run, never a mutable user profile."""
+
+    __tablename__ = "lead_flow_runs"
+    __table_args__ = (Index("ix_lead_flow_runs_user_created", "user_id", "created_at"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    copy_version: Mapped[str] = mapped_column(String(24), nullable=False, server_default="dual_v1")
+    state: Mapped[str] = mapped_column(String(40), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="open")
+    revision: Mapped[int] = mapped_column(nullable=False, server_default="1")
+    source_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, default=dict)
+    answers_json: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, default=dict)
+
+
+class LeadFlowAction(Base):
+    __tablename__ = "lead_flow_actions"
+    __table_args__ = (UniqueConstraint("user_id", "interaction_id", name="uq_lead_flow_action_interaction"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    interaction_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class ConsultationRequest(Timestamped, Base):
     """Human follow-up request, idempotent for one completed diagnostic result."""
 
     __tablename__ = "consultation_requests"
     __table_args__ = (
+        CheckConstraint("diagnostic_session_id IS NOT NULL OR (flow_run_id IS NOT NULL AND origin_type IN ('ai_assistant_intro', 'business_intake'))", name="ck_consultation_context"),
         Index("ix_consultation_requests_status_created", "status", "created_at"),
         Index("ix_consultation_requests_user_created", "user_id", "created_at"),
     )
@@ -395,9 +421,11 @@ class ConsultationRequest(Timestamped, Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
-    diagnostic_session_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("diagnostic_sessions.id", ondelete="RESTRICT"), nullable=False
+    diagnostic_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("diagnostic_sessions.id", ondelete="RESTRICT"), nullable=True
     )
+    flow_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("lead_flow_runs.id", ondelete="RESTRICT"), nullable=True, unique=True)
+    intake_snapshot_json: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
     status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="new")
     appointment_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     confirmation_state: Mapped[str] = mapped_column(String(24), nullable=False, server_default="pending")

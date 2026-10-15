@@ -84,6 +84,8 @@ class AdminLeadReadService:
         return AdminLeadList(items=items, limit=limit, offset=requested_offset)
 
     async def person(self, user_id: uuid.UUID) -> AdminPersonDetail | None:
+        from app.models import LeadFlowRun
+        from app.services.lead_dual_flow import context
         user = await self._session.get(User, user_id)
         if user is None:
             return None
@@ -103,6 +105,11 @@ class AdminLeadReadService:
             select(AttentionItem).where(AttentionItem.user_id == user_id).order_by(desc(AttentionItem.created_at))
         )).all()
         return AdminPersonDetail(
+            telegram_user_id=(await self._person_contact(user_id)).telegram_user_id,
+            flow_runs=[dict(context(run), state=run.state, status=run.status,
+                created_at=run.created_at.isoformat()) for run in (await self._session.scalars(
+                select(LeadFlowRun).where(LeadFlowRun.user_id == user_id, LeadFlowRun.kind != "choice")
+                .order_by(desc(LeadFlowRun.created_at)).limit(50))).all()],
             person=await self._lead_view(user),
             profile_answers=answers,
             diagnostics=[await self._diagnostic_view(row) for row in diagnostics],
@@ -211,6 +218,11 @@ class AdminLeadReadService:
         return AdminAttentionList(items=[await self._attention_view(row) for row in rows], limit=limit, offset=offset)
 
     async def _lead_view(self, user: User) -> AdminLeadView:
+        from app.models import LeadFlowRun
+        from app.services.lead_dual_flow import context
+        run = await self._session.scalar(select(LeadFlowRun).where(LeadFlowRun.user_id == user.id,
+            LeadFlowRun.kind != "choice").order_by(desc(LeadFlowRun.created_at)).limit(1))
+        intake = context(run) if run else {}
         touchpoint = await self._session.scalar(
             select(Touchpoint).where(Touchpoint.user_id == user.id).order_by(desc(Touchpoint.observed_at)).limit(1)
         )
@@ -239,6 +251,8 @@ class AdminLeadReadService:
             AttentionItem.status.in_(("new", "in_progress")),
         )
         return AdminLeadView(
+            flow_direction=intake.get("direction"),
+            priority_task=intake.get("priority_task") or intake.get("business_goal"),
             user_id=user.id,
             display_name=user.display_name,
             telegram_username=user.telegram_username,
@@ -274,12 +288,14 @@ class AdminLeadReadService:
         )
 
     async def _consultation_view(self, request: ConsultationRequest) -> AdminConsultationView:
-        diagnostic = await self._session.get(DiagnosticSession, request.diagnostic_session_id)
+        diagnostic = await self._session.get(DiagnosticSession, request.diagnostic_session_id) if request.diagnostic_session_id else None
         report = await self._session.scalar(select(DiagnosticReport).where(DiagnosticReport.diagnostic_session_id == request.diagnostic_session_id))
         touchpoint = await self._session.scalar(
             select(Touchpoint).where(Touchpoint.user_id == request.user_id).order_by(desc(Touchpoint.observed_at)).limit(1)
         )
         return AdminConsultationView(
+            flow_run_id=request.flow_run_id,
+            intake_context=request.intake_snapshot_json,
             consultation_request_id=request.id,
             diagnostic_session_id=request.diagnostic_session_id,
             status=request.status,

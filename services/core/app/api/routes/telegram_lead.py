@@ -18,11 +18,12 @@ from app.adapters.telegram_lead import (
     MenuCommand,
     ProfileAnswer,
     StartProfile,
+    DualFlowCallback,
     adapt_telegram_lead_payload,
 )
 from app.db.dependencies import get_session_factory
 from app.db.session import session_scope
-from app.models import ConsultationRequest as ConsultationRequestModel, DiagnosticSession, Event, User, UserIdentity
+from app.models import ConsultationRequest as ConsultationRequestModel, DiagnosticSession, Event, User, UserIdentity, LeadFlowRun, Touchpoint
 from app.schemas.conference import ConferenceStartCommand
 from app.services.conference_intake import ConferenceIntakeService
 from app.services.lead_profile_flow import LeadProfileFlow
@@ -58,7 +59,7 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
     if update is None:
         return Response(status_code=204)
 
-    if isinstance(update, (ProfileAnswer, ConsultationRequest, LifecycleCallback)):
+    if isinstance(update, (ProfileAnswer, ConsultationRequest, LifecycleCallback, DualFlowCallback)):
         # Acknowledge the button before any database/provider work so Telegram
         # closes its spinner immediately.  This is UX-only: a transient Bot API
         # failure must never discard a durable profile answer or CTA request.
@@ -66,6 +67,13 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
 
     factory = get_session_factory(request)
     async with session_scope(factory) as session:
+        # Serialize identity creation and all updates of one Telegram person,
+        # including simultaneous callbacks delivered by separate workers.
+        from sqlalchemy import text
+        await session.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+                              {"key": "lead:" + update.telegram_user_id})
+        dual_enabled = request.app.state.settings.lead_dual_flow_enabled or update.telegram_user_id in {
+            item.strip() for item in request.app.state.settings.lead_dual_flow_test_ids.split(",") if item.strip()}
         if isinstance(update, StartProfile):
             # An acceptance link is a closed internal path. Validate it against
             # an existing identity before normal /start handling, so a leaked,
@@ -84,6 +92,10 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                         entry_code=update.entry_code,
                     )
                 return Response(status_code=204)
+            if dual_enabled:
+                handled = await _dual_start(session, update, request)
+                if handled:
+                    return Response(status_code=204)
             if website_start_attribution(update.entry_code) is not None:
                 website_start = await WebsiteIntakeService(session).start(
                     WebsiteStartCommand(
@@ -146,7 +158,21 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
         if user is None:
             return Response(status_code=204)
         _apply_telegram_profile(user, update)
+        if isinstance(update, DualFlowCallback):
+            if dual_enabled:
+                from app.services.lead_dual_flow import LeadDualFlow
+                await _dual_service(session, request).handle(user_id=user_id, run_id=uuid.UUID(update.run_id),
+                    revision=update.revision, action=update.action, interaction_id=update.interaction_id,
+                    provider_factory=lambda: _diagnostic_provider(request))
+            return Response(status_code=204)
         if isinstance(update, MenuCommand):
+            if dual_enabled:
+                active = await ConsultationLifecycleService(session).active(user_id)
+                if active:
+                    await _show_active_consultation(session, active_consultation=active, interaction_id=update.interaction_id, include_subscription=False)
+                from app.services.lead_dual_flow import LeadDualFlow
+                await _dual_service(session, request).menu(user_id=user_id, interaction_id=update.interaction_id)
+                return Response(status_code=204)
             await _show_available_actions(
                 session,
                 user_id=user_id,
@@ -159,9 +185,13 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
             except ValueError: return Response(status_code=204)
             lifecycle = ConsultationLifecycleService(session)
             if update.action == "menu:show":
-                await _show_available_actions(
-                    session, user_id=user_id, lifecycle=lifecycle, interaction_id=update.interaction_id
-                )
+                if dual_enabled:
+                    from app.services.lead_dual_flow import LeadDualFlow
+                    await _dual_service(session, request).menu(user_id=user_id, interaction_id=update.interaction_id)
+                else:
+                    await _show_available_actions(
+                        session, user_id=user_id, lifecycle=lifecycle, interaction_id=update.interaction_id
+                    )
             elif update.action in {"content:subscribe", "content:unsubscribe"}:
                 if entity_id == user_id:
                     await ContentSubscriptionService(session).set_status(
@@ -170,9 +200,12 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                         interaction_id=update.interaction_id,
                     )
             elif update.action == "diagnostic:resume":
-                await DiagnosticDialogueService(session, _diagnostic_provider(request)).open(
-                    diagnostic_session_id=entity_id, interaction_id=update.interaction_id
-                )
+                owned = await session.scalar(select(DiagnosticSession.id).where(
+                    DiagnosticSession.id == entity_id, DiagnosticSession.user_id == user_id))
+                if owned:
+                    await DiagnosticDialogueService(session, _diagnostic_provider(request)).open(
+                        diagnostic_session_id=entity_id, interaction_id=update.interaction_id
+                    )
             elif update.action == "diagnostic:result":
                 await lifecycle.replay_result(
                     user_id=user_id, diagnostic_id=entity_id, interaction_id=update.interaction_id
@@ -212,6 +245,10 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
                     elif update.action == "consult:cancel_yes": await lifecycle.cancel(request_row)
             return Response(status_code=204)
         if isinstance(update, DiagnosticText):
+            if dual_enabled:
+                from app.services.lead_dual_flow import LeadDualFlow
+                if await _dual_service(session, request).text(user_id=user_id, text=update.text, interaction_id=update.interaction_id):
+                    return Response(status_code=204)
             lifecycle = ConsultationLifecycleService(session)
             if user.lifecycle_stage.startswith("repeat_task_input:"):
                 try:
@@ -270,17 +307,84 @@ async def receive_lead_update(payload: dict[str, object], request: Request) -> R
             )
             return Response(status_code=204)
         assert isinstance(update, ProfileAnswer)
+        if dual_enabled:
+            selected = await session.scalar(select(LeadFlowRun).where(LeadFlowRun.user_id == user_id,
+                LeadFlowRun.kind != "choice", LeadFlowRun.status != "superseded")
+                .order_by(LeadFlowRun.created_at.desc()).limit(1))
+            if selected and selected.kind != "legacy_business":
+                return Response(status_code=204)
         try:
-            await LeadProfileFlow(session, diagnostic_provider_factory=lambda: _diagnostic_provider(request)).answer(
+            answered = await LeadProfileFlow(session, diagnostic_provider_factory=lambda: _diagnostic_provider(request)).answer(
                 user_id=user_id,
                 question_code=update.question_code,
                 value=update.value,
                 flow_version=update.flow_version,
                 option_index=update.option_index,
             )
+            if dual_enabled and selected and selected.kind == "legacy_business" and answered.status == "completed":
+                diagnostic = await session.scalar(select(DiagnosticSession).where(DiagnosticSession.user_id == user_id)
+                    .order_by(DiagnosticSession.created_at.desc()).limit(1))
+                if diagnostic:
+                    snapshot = dict(diagnostic.input_snapshot_json)
+                    snapshot["flow_run_id"] = str(selected.id)
+                    diagnostic.input_snapshot_json = snapshot
+                    selected.answers_json = {k: v.get("value") if isinstance(v, dict) else v
+                        for k, v in snapshot.get("profile_answers", {}).items()}
+                    selected.status, selected.state = "completed", "business_complete"
         except ValueError:
             return Response(status_code=204)
     return Response(status_code=204)
+
+
+def _dual_service(session, request):
+    from app.services.lead_dual_flow import LeadDualFlow
+    settings = request.app.state.settings
+    certificate = settings.lead_conference_certificate_text if settings.lead_conference_certificate_enabled else None
+    return LeadDualFlow(session, certificate_text=certificate)
+
+
+async def _dual_start(session, update, request):
+    """Validated source attribution; direct/unknown is not a conference entry."""
+    from app.services.lead_dual_flow import LeadDualFlow
+    source = {"source_code": "telegram_direct", "entry_code": "telegram_direct"}
+    if website_start_attribution(update.entry_code) is not None:
+        result = await WebsiteIntakeService(session).start(WebsiteStartCommand(
+            telegram_user_id=update.telegram_user_id, entry_code=update.entry_code,
+            interaction_id=update.interaction_id, telegram_first_name=update.telegram_first_name,
+            telegram_last_name=update.telegram_last_name, telegram_username=update.telegram_username))
+        user_id = result.user_id
+        touch = await session.scalar(select(Touchpoint).where(Touchpoint.user_id == user_id).order_by(Touchpoint.observed_at.desc()).limit(1))
+        source = {"source_code": touch.source_code, "entry_code": touch.entry_code, "metadata": touch.metadata_json}
+    elif update.entry_code in {"conference_2026", "conference-main", "qr_conf_main"}:
+        result = await ConferenceIntakeService(session).start(ConferenceStartCommand(
+            telegram_user_id=update.telegram_user_id, qr_code=update.entry_code, entry_code=update.entry_code,
+            telegram_first_name=update.telegram_first_name, telegram_last_name=update.telegram_last_name,
+            telegram_username=update.telegram_username))
+        user_id = result.user_id
+        source = {"source_code": "conference_2026", "entry_code": update.entry_code}
+    else:
+        identity = await session.scalar(select(UserIdentity).where(UserIdentity.provider == "telegram",
+            UserIdentity.connection_scope == "ai_my_time_lead_bot", UserIdentity.external_id == update.telegram_user_id))
+        if identity is None:
+            user = User(lifecycle_stage="profiling")
+            session.add(user)
+            await session.flush()
+            session.add(UserIdentity(user_id=user.id, provider="telegram", connection_scope="ai_my_time_lead_bot", external_id=update.telegram_user_id))
+            await session.flush()
+        else:
+            user = await session.get(User, identity.user_id)
+        _apply_telegram_profile(user, update)
+        user_id = user.id
+        # One direct touchpoint per explicit update, including retries.
+        marker = uuid.uuid5(uuid.NAMESPACE_URL, f"dual-direct:{update.telegram_user_id}:{update.interaction_id}")
+        if await session.get(Event, marker) is None:
+            session.add(Event(id=marker, user_id=user_id, kind="direct_entry_started", payload_json={}))
+            session.add(Touchpoint(user_id=user_id, source_code="telegram_direct", entry_code="telegram_direct", metadata_json={}))
+    active = await ConsultationLifecycleService(session).active(user_id)
+    if active:
+        await _show_active_consultation(session, active_consultation=active, interaction_id=update.interaction_id, include_subscription=False)
+    await _dual_service(session, request).menu(user_id=user_id, interaction_id=update.interaction_id, source=source)
+    return True
 
 
 async def _show_available_actions(
@@ -320,6 +424,7 @@ async def _show_active_consultation(
     active_consultation: ConsultationRequestModel,
     interaction_id: str,
     stable_already_accepted: bool = False,
+    include_subscription: bool = True,
 ) -> None:
     """Show the existing consultation state for an explicit user interaction."""
     if active_consultation.status == "scheduled" and active_consultation.appointment_at is not None:
@@ -340,7 +445,7 @@ async def _show_active_consultation(
         else:
             dedupe_key = f"consultation:{active_consultation.id}:already-accepted:{interaction_id}"
     user = await session.get(User, active_consultation.user_id)
-    if user is not None:
+    if user is not None and include_subscription:
         buttons.append(subscription_button(user))
     await OutboundQueue(session).enqueue(
         user_id=active_consultation.user_id,

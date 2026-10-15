@@ -1,4 +1,6 @@
 from app.models.core import (
+    LeadFlowRun,
+    LeadFlowAction,
     AdminAuditEvent,
     AdminSession,
     AdminUser,
@@ -43,6 +45,8 @@ from app.models.radar import (
 )
 
 __all__ = [
+    "LeadFlowRun",
+    "LeadFlowAction",
     "AdminAuditEvent",
     "AdminSession",
     "AdminUser",
