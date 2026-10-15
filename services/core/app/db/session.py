@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 def create_session_factory(database_url: str) -> async_sessionmaker[AsyncSession]:
     """Create the async PostgreSQL session factory without exposing the URL."""
 
-    engine = create_async_engine(database_url, pool_pre_ping=True)
+    engine = create_async_engine(database_url, pool_pre_ping=True, hide_parameters=True)
     return async_sessionmaker(engine, expire_on_commit=False)
 
 

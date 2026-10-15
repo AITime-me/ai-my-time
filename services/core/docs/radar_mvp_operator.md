@@ -47,5 +47,5 @@ python -m scripts.run_radar_alert_worker
 export RADAR_CORE_BASE_URL=https://core.example
 export RADAR_READER_CREDENTIAL_KEY_ID=...
 export RADAR_READER_CREDENTIAL_SECRET=...
-demand-radar-telegram run
+demand-radar-telegram-runner --core-url "$RADAR_CORE_BASE_URL"
 ```

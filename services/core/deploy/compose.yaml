@@ -28,6 +28,11 @@ services:
         condition: service_healthy
     environment:
       APP_ENV: production
+      # Compatible route rollback retains new intake data and consultation rows.
+      LEAD_DUAL_FLOW_ENABLED: ${LEAD_DUAL_FLOW_ENABLED:-false}
+      LEAD_DUAL_FLOW_TEST_IDS: ${LEAD_DUAL_FLOW_TEST_IDS:-}
+      LEAD_CONFERENCE_CERTIFICATE_ENABLED: ${LEAD_CONFERENCE_CERTIFICATE_ENABLED:-false}
+      LEAD_CONFERENCE_CERTIFICATE_TEXT: ${LEAD_CONFERENCE_CERTIFICATE_TEXT:-}
       DATABASE_URL_FILE: /run/secrets/database_url
       TELEGRAM_TRANSPORT_MODE: edge
       TELEGRAM_EDGE_URL: https://edge.aimytimebot.ru

@@ -111,6 +111,20 @@ class AdminAudienceService:
         return await self._matching_users(AudienceConditions.model_validate(audience.definition_json))
 
     async def _matches(self, user: User, c: AudienceConditions) -> bool:
+        if c.flow_kinds or c.work_setups or c.desired_tasks:
+            from app.models import LeadFlowRun
+            run = await self._session.scalar(select(LeadFlowRun).where(
+                LeadFlowRun.user_id == user.id, LeadFlowRun.kind != "choice")
+                .order_by(desc(LeadFlowRun.created_at)).limit(1))
+            if run is None:
+                return False
+            normalized_kind = "business_operations" if run.kind == "legacy_business" else run.kind
+            if c.flow_kinds and normalized_kind not in c.flow_kinds:
+                return False
+            if c.work_setups and run.answers_json.get("work_setup") not in c.work_setups:
+                return False
+            if c.desired_tasks and not set(c.desired_tasks).intersection(run.answers_json.get("desired_tasks", [])):
+                return False
         if c.content_subscription_status and user.content_subscription_status != c.content_subscription_status:
             return False
         if c.first_seen_from and user.created_at < c.first_seen_from:

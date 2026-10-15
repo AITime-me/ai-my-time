@@ -26,6 +26,32 @@ from app.services.admin_read import AdminLeadReadService
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
+@router.get("/intake-analytics")
+async def intake_analytics(request: Request, days: int = Query(default=30, ge=1, le=90)):
+    await current_actor(request)
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import select, func, text
+    from app.models import LeadFlowRun, ConsultationRequest
+    from app.services.lead_dual_copy import TASKS, WORK
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    async with session_scope(get_session_factory(request)) as session:
+        directions = []
+        for kind, label in (("business_operations", "Бизнес"), ("ai_assistant", "AI-помощник")):
+            filters = (LeadFlowRun.kind.in_(("business_operations", "legacy_business")) if kind == "business_operations" else LeadFlowRun.kind == kind, LeadFlowRun.created_at >= cutoff)
+            people, runs = (await session.execute(select(func.count(func.distinct(LeadFlowRun.user_id)), func.count()).where(*filters))).one()
+            completed = await session.scalar(select(func.count()).select_from(LeadFlowRun).where(*filters, LeadFlowRun.status.in_(("completed", "paused"))))
+            consultations = await session.scalar(select(func.count()).select_from(ConsultationRequest).join(LeadFlowRun, LeadFlowRun.id == ConsultationRequest.flow_run_id).where(*filters))
+            scheduled = await session.scalar(select(func.count()).select_from(ConsultationRequest).join(LeadFlowRun, LeadFlowRun.id == ConsultationRequest.flow_run_id).where(*filters, ConsultationRequest.appointment_at.is_not(None)))
+            directions.append(dict(direction=label, people=people, runs=runs, completed=completed, consultations=consultations, scheduled=scheduled))
+        tasks = (await session.execute(text("SELECT task, count(*) AS n FROM lead_flow_runs r CROSS JOIN LATERAL jsonb_array_elements_text(coalesce(r.answers_json->'desired_tasks','[]'::jsonb)) task WHERE r.kind='ai_assistant' AND r.created_at >= :cutoff GROUP BY task ORDER BY n DESC"), {"cutoff": cutoff})).all()
+        sources = (await session.execute(text("SELECT source_json->>'source_code', count(*) FROM lead_flow_runs WHERE kind != 'choice' AND created_at >= :cutoff GROUP BY 1"), {"cutoff": cutoff})).all()
+        setups = (await session.execute(text("SELECT answers_json->>'work_setup', count(*) FROM lead_flow_runs WHERE kind = 'ai_assistant' AND created_at >= :cutoff GROUP BY 1"), {"cutoff": cutoff})).all()
+        return dict(days=days, directions=directions,
+            tasks=[dict(task=TASKS.get(k, k), count=n) for k, n in tasks],
+            sources=[dict(source=k or "Не указан", count=n) for k, n in sources],
+            work_setup=[dict(label=WORK.get(k, "Не указан"), count=n) for k, n in setups])
+
+
 @router.get("/people", response_model=AdminLeadList)
 @router.get("/leads", response_model=AdminLeadList, include_in_schema=False)
 async def list_recent_leads(

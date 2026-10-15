@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 
 
 class AdminLeadView(BaseModel):
+    flow_direction: str | None = None
+    priority_task: str | None = None
     user_id: uuid.UUID
     display_name: str | None = None
     telegram_username: str | None = None
@@ -55,7 +57,9 @@ class AdminDiagnosticView(BaseModel):
 
 class AdminConsultationView(BaseModel):
     consultation_request_id: uuid.UUID
-    diagnostic_session_id: uuid.UUID
+    diagnostic_session_id: uuid.UUID | None
+    flow_run_id: uuid.UUID | None = None
+    intake_context: dict[str, object] | None = None
     status: str
     created_at: datetime
     diagnostic_summary: str | None = None
@@ -86,6 +90,8 @@ class AdminTelegramMessage(BaseModel):
 
 
 class AdminPersonDetail(BaseModel):
+    telegram_user_id: str | None = None
+    flow_runs: list[dict[str, object]] = Field(default_factory=list)
     person: AdminLeadView
     profile_answers: dict[str, object]
     diagnostics: list[AdminDiagnosticView]
@@ -181,6 +187,9 @@ class AdminOperationalTrace(BaseModel):
 class AudienceConditions(BaseModel):
     """Only these data-backed fields may shape a saved dynamic audience."""
     content_subscription_status: Literal["subscribed", "unsubscribed"] | None = None
+    flow_kinds: list[Literal["business_operations", "ai_assistant"]] | None = Field(default=None, max_length=2)
+    work_setups: list[Literal["solo", "helpers", "team"]] | None = Field(default=None, max_length=3)
+    desired_tasks: list[Literal["content", "client_messages", "booking", "materials", "research", "admin_tasks", "other"]] | None = Field(default=None, max_length=7)
     source_codes: list[str] | None = Field(default=None, max_length=30)
     campaign_codes: list[str] | None = Field(default=None, max_length=30)
     business_segments: list[str] | None = Field(default=None, max_length=30)

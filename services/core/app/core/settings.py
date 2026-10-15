@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     app_name: str = "A.I. My Time Core"
     app_env: str = "development"
     app_version: str = "0.1.0"
+    lead_dual_flow_enabled: bool = False
+    lead_dual_flow_test_ids: str = ""
+    # Enable only with owner-confirmed wording/terms, never inferred prices.
+    lead_conference_certificate_enabled: bool = False
+    lead_conference_certificate_text: str | None = None
     database_url: str | None = None
     telegram_bot_token: str | None = None
     telegram_lead_webhook_secret: str | None = None

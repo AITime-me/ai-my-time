@@ -111,6 +111,25 @@ class OpsNotificationService:
         user = await self._session.get(User, request.user_id)
         if user is None:
             return
+        if request.intake_snapshot_json:
+            from app.models import UserIdentity
+            telegram_id = await self._session.scalar(select(UserIdentity.external_id).where(
+                UserIdentity.user_id == user.id, UserIdentity.provider == "telegram",
+                UserIdentity.connection_scope == "ai_my_time_lead_bot"))
+            c = request.intake_snapshot_json
+            lines = ["Новая заявка на консультацию — " + str(c.get("direction", "")),
+                _person_line(user), f"Telegram ID: {telegram_id or 'не установлен'}",
+                "Источник: " + str(c.get("source", {}).get("source_code", "")),
+                "Занимается: " + str(c.get("activity") or "См. ответы бизнеса"),
+                "Работает: " + str(c.get("work_setup") or "См. ответы бизнеса"),
+                "Хочет поручить: " + ", ".join(c.get("desired_tasks", [])),
+                "Первая задача: " + str(c.get("priority_task") or c.get("business_goal") or "См. карточку"),
+                "Своими словами: " + str(c.get("task_other") or "—"),
+                "Статус: новая заявка", f"Карточка: https://admin.aimytimebot.ru/admin/#person={user.id}",
+                f"ID человека: {user.id}", f"Прохождение: {request.flow_run_id}"]
+            await self._outbox.enqueue(user_id=user.id, channel="telegram_ops",
+                payload={"kind": "message", "text": "\n".join(lines)}, dedupe_key=f"ops:consultation-created:{request.id}")
+            return
         touchpoint = await self._session.scalar(
             select(Touchpoint)
             .where(Touchpoint.user_id == user.id)

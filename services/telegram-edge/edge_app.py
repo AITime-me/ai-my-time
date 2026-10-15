@@ -2,7 +2,9 @@
 """Stateless, transport-only Telegram Edge for A.I. My Time TE-1.
 
 The process never persists updates, users, messages, or business state.  It
-accepts only the Telegram webhook and a small authenticated Core relay API.
+accepts a Telegram webhook or explicitly selected official long polling, plus
+a small authenticated Core relay API. Poll offsets advance only after durable
+Core acknowledgement; a crash can replay an update, never silently discard it.
 It deliberately logs metadata only; request and response bodies never enter
 the log stream.
 """
@@ -16,6 +18,7 @@ import os
 import secrets
 import socket
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -23,6 +26,7 @@ import urllib.parse
 from dataclasses import dataclass
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Callable, Mapping
 
 MAX_BODY_BYTES = 1_048_576
@@ -59,6 +63,7 @@ class EdgeConfig:
     edge_to_core_secret: str
     core_webhook_url: str
     public_webhook_url: str
+    update_mode: str = "webhook"
 
     @classmethod
     def from_environment(cls, environ: Mapping[str, str] | None = None) -> "EdgeConfig":
@@ -85,6 +90,19 @@ class EdgeConfig:
         ).strip()
         if not public_webhook_url.startswith("https://"):
             raise EdgeConfigurationError("public webhook URL must use HTTPS")
+        mode = values.get("EDGE_UPDATE_MODE", "")
+        runtime_file = Path(__file__).with_name("runtime.json")
+        if not mode and environ is None and runtime_file.exists():
+            try:
+                runtime = json.loads(runtime_file.read_text())
+                if set(runtime) != {"update_mode"}:
+                    raise ValueError("unexpected runtime settings")
+                mode = runtime["update_mode"]
+            except (ValueError, TypeError, OSError):
+                raise EdgeConfigurationError("invalid runtime settings") from None
+        mode = mode or "webhook"
+        if not isinstance(mode, str) or mode not in {"webhook", "polling"}:
+            raise EdgeConfigurationError("invalid update mode")
         return cls(
             bot_token=credential("telegram_bot_token"),
             telegram_webhook_secret=credential("telegram_webhook_secret"),
@@ -92,6 +110,7 @@ class EdgeConfig:
             edge_to_core_secret=credential("edge_to_core_secret"),
             core_webhook_url=core_webhook_url,
             public_webhook_url=public_webhook_url,
+            update_mode=mode,
         )
 
 
@@ -167,6 +186,7 @@ class EdgeService:
     def __init__(self, config: EdgeConfig, requester: HttpRequest = _request) -> None:
         self._config = config
         self._request = requester
+        self.ingress: PollingIngress | None = None
 
     def accept_webhook(self, body: bytes, telegram_secret: str) -> int:
         if not hmac.compare_digest(telegram_secret, self._config.telegram_webhook_secret):
@@ -193,6 +213,8 @@ class EdgeService:
             return HTTPStatus.UNAUTHORIZED, {"ok": False, "error": "unauthorized"}
         if operation not in ALLOWED_OPERATIONS:
             return HTTPStatus.NOT_FOUND, {"ok": False, "error": "operation_not_allowed"}
+        if operation == "configureWebhook" and self._config.update_mode == "polling":
+            return HTTPStatus.CONFLICT, {"ok": False, "error": "polling_mode_active"}
         if not _json_object(body):
             return HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_request"}
         if not _valid_menu_request(operation, body):
@@ -243,6 +265,88 @@ class EdgeService:
         return HTTPStatus.OK, {"ok": True}
 
 
+class PollingIngress:
+    """Official Telegram pull transport, with Core-before-Telegram ACK order."""
+
+    def __init__(self, service: EdgeService) -> None:
+        self.service = service
+        self.offset = 0
+        self.initialized = False
+        self.last_poll = 0.0
+        self.accepted = 0
+        self.blocked = False
+        self.stop = threading.Event()
+
+    def telegram(self, method: str, payload: dict) -> object:
+        config = self.service._config
+        status, raw = self.service._request(
+            f"https://api.telegram.org/bot{config.bot_token}/{method}",
+            json.dumps(payload, separators=(",", ":")).encode(),
+            {"Content-Type": "application/json"},
+        )
+        if status != 200 or len(raw) > MAX_BODY_BYTES:
+            raise ConnectionError("telegram polling unavailable")
+        try:
+            decoded = json.loads(raw)
+            if not isinstance(decoded, dict) or decoded.get("ok") is not True:
+                raise ValueError("invalid telegram result")
+            return decoded["result"]
+        except (ValueError, KeyError, TypeError):
+            raise ConnectionError("telegram polling response invalid") from None
+
+    def initialize(self) -> None:
+        info = self.telegram("getWebhookInfo", {})
+        if not isinstance(info, dict) or info.get("url") not in {"", self.service._config.public_webhook_url}:
+            raise ConnectionError("unexpected webhook owner")
+        if info["url"]:
+            # Never purge queued updates. Only the same Edge webhook may be
+            # replaced. No public relay operation can change these arguments.
+            if self.telegram("deleteWebhook", {"drop_pending_updates": False}) is not True:
+                raise ConnectionError("webhook switch unconfirmed")
+        self.initialized = True
+
+    def poll_once(self) -> None:
+        batch = self.telegram("getUpdates", {"offset": self.offset, "timeout": 8,
+            "limit": 10, "allowed_updates": ["message", "callback_query"]})
+        if not isinstance(batch, list):
+            raise ConnectionError("invalid update batch")
+        previous = self.offset - 1
+        for item in batch:
+            if not isinstance(item, dict) or type(item.get("update_id")) is not int or item["update_id"] <= previous:
+                raise ConnectionError("invalid update sequence")
+            previous = item["update_id"]
+        self.last_poll = time.monotonic()
+        for item in batch:
+            raw = json.dumps(item, separators=(",", ":")).encode()
+            status = self.service.accept_webhook(raw, self.service._config.telegram_webhook_secret)
+            if status != HTTPStatus.NO_CONTENT:
+                self.blocked = True
+                raise ConnectionError("core acknowledgement not confirmed")
+            # Only the NEXT getUpdates call acknowledges this prefix at Telegram.
+            # Offset is intentionally not persisted: restart replays only the
+            # unconfirmed tail, which Core must handle idempotently.
+            self.offset = item["update_id"] + 1
+            self.accepted += 1
+        self.blocked = False
+
+    def healthy(self) -> bool:
+        return self.initialized and self.last_poll > 0 and time.monotonic() - self.last_poll < 90 and not self.blocked
+
+    def run(self) -> None:
+        delay = 1
+        while not self.stop.is_set():
+            try:
+                if not self.initialized:
+                    self.initialize()
+                self.poll_once()
+                delay = 1
+            except Exception:
+                # Never log exception text: urllib errors may contain token URLs.
+                sys.stderr.write("edge ingress=polling status=retry\n")
+                self.stop.wait(delay)
+                delay = min(delay * 2, 15)
+
+
 def _json_object(body: bytes) -> bool:
     if not body or len(body) > MAX_BODY_BYTES:
         return False
@@ -277,7 +381,12 @@ def make_handler(service: EdgeService) -> type[BaseHTTPRequestHandler]:
         def do_GET(self) -> None:
             self._begin()
             if self.path == "/healthz":
-                self._respond(HTTPStatus.OK, {"status": "ok", "service": "aimytime-telegram-edge"})
+                ingress = service.ingress
+                healthy = ingress is None or ingress.healthy()
+                self._respond(HTTPStatus.OK if healthy else HTTPStatus.SERVICE_UNAVAILABLE,
+                    {"status": "ok" if healthy else "degraded", "service": "aimytime-telegram-edge",
+                     "update_mode": service._config.update_mode,
+                     "accepted_updates": ingress.accepted if ingress else None})
             else:
                 self._respond(HTTPStatus.NOT_FOUND, {"error": "not_found"})
 
@@ -336,7 +445,11 @@ def main() -> None:
     config = EdgeConfig.from_environment()
     host = os.environ.get("EDGE_BIND_HOST", "127.0.0.1")
     port = int(os.environ.get("EDGE_BIND_PORT", "19113"))
-    server = ThreadingHTTPServer((host, port), make_handler(EdgeService(config)))
+    service = EdgeService(config)
+    server = ThreadingHTTPServer((host, port), make_handler(service))
+    if config.update_mode == "polling":
+        service.ingress = PollingIngress(service)
+        threading.Thread(target=service.ingress.run, name="telegram-ingress", daemon=True).start()
     server.serve_forever()
 
 

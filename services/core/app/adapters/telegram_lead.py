@@ -65,6 +65,7 @@ class ProfileAnswer:
 class DiagnosticText:
     telegram_user_id: str
     text: str
+    interaction_id: str = ""
     telegram_first_name: str | None = None
     telegram_last_name: str | None = None
     telegram_username: str | None = None
@@ -111,7 +112,20 @@ class LifecycleCallback:
     telegram_last_name: str | None = None
     telegram_username: str | None = None
 
-TelegramLeadInput = StartProfile | ProfileAnswer | DiagnosticText | CommunicationCommand | MenuCommand | ConsultationRequest | LifecycleCallback
+
+@dataclass(frozen=True)
+class DualFlowCallback:
+    telegram_user_id: str
+    callback_query_id: str
+    run_id: str
+    revision: int
+    action: str
+    interaction_id: str
+    telegram_first_name: str | None = None
+    telegram_last_name: str | None = None
+    telegram_username: str | None = None
+
+TelegramLeadInput = StartProfile | ProfileAnswer | DiagnosticText | CommunicationCommand | MenuCommand | ConsultationRequest | LifecycleCallback | DualFlowCallback
 
 
 def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
@@ -149,7 +163,9 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
         if action is not None:
             return CommunicationCommand(telegram_user_id=str(message.from_.id), action=action, interaction_id=_message_interaction_id(update, message), **_profile(message.from_))
         if not message.text.strip().startswith("/"):
-            return DiagnosticText(telegram_user_id=str(message.from_.id), text=message.text, **_profile(message.from_))
+            return DiagnosticText(telegram_user_id=str(message.from_.id), text=message.text,
+                interaction_id=_message_interaction_id(update, message) if update.update_id is not None or message.message_id is not None else "",
+                **_profile(message.from_))
 
     callback = update.callback_query
     if (
@@ -159,6 +175,18 @@ def adapt_telegram_lead_payload(payload: object) -> TelegramLeadInput | None:
         or callback.data is None
     ):
         return None
+    if callback.data.startswith("df:"):
+        parts = callback.data.split(":")
+        if len(parts) != 4 or len(callback.data.encode()) > 64 or len(parts[1]) != 32 or not parts[2].isdecimal():
+            return None
+        try:
+            import uuid
+            run_id = str(uuid.UUID(hex=parts[1]))
+            revision = int(parts[2])
+        except ValueError:
+            return None
+        return DualFlowCallback(telegram_user_id=str(callback.from_.id), callback_query_id=callback.id,
+            run_id=run_id, revision=revision, action=parts[3], interaction_id=_callback_interaction_id(update, callback), **_profile(callback.from_))
     parsed = _profile_callback(callback.data)
     if parsed is not None:
         return ProfileAnswer(
